@@ -6,7 +6,7 @@
     <title>היטסטר אישי - Pure Web Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- הוספנו גרסה כדי למנוע קאש -->
+    <!-- Prevent Cache to ensure the new version loads -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -276,7 +276,8 @@
             window.localStorage.setItem('code_verifier', codeVerifier);
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
-            
+
+            // Added user-read-private and user-read-email scopes to prevent 403 Forbidden!
             const scopes = ['playlist-read-private', 'playlist-read-collaborative', 'user-read-private', 'user-read-email'];
             
             const authUrl = new URL("https://accounts.spotify.com/authorize");
@@ -287,6 +288,7 @@
                 code_challenge_method: 'S256',
                 code_challenge: codeChallenge,
                 redirect_uri: REDIRECT_URI,
+                show_dialog: 'true' // Force Spotify to ask for permissions again!
             }).toString();
             
             window.location.href = authUrl.toString();
@@ -398,12 +400,12 @@
 
         async function fetchPlaylistTracks(playlistId) {
             try {
-                const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
+                // Added &market=from_token to ensure Spotify knows we are authorized for this market
+                const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=from_token`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
                 if (!response.ok) {
-                    // כאן אנחנו תופסים את השגיאה האמיתית מספוטיפיי ומדפיסים אותה
                     const errData = await response.json().catch(() => ({}));
                     const exactError = errData.error ? errData.error.message : response.statusText;
                     throw new Error(`ספוטיפיי חסמה את הבקשה. קוד: ${response.status}. סיבה: ${exactError}`);
@@ -431,7 +433,6 @@
                 
                 return true;
             } catch (err) {
-                // מציג את השגיאה המפורטת על המסך!
                 showMessage(err.message, 'error', 7000);
                 return false;
             }
