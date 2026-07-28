@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v6.3.0</title>
+    <title>Hitster - QR Scanner v6.4.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -36,13 +37,13 @@
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none z-[500]"></div>
 
     <header id="main-header" class="p-3 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.3.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.4.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-4xl flex flex-col items-center justify-start h-full">
@@ -51,7 +52,6 @@
         <section id="role-screen" class="w-full max-w-md bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <h2 class="text-2xl font-bold">Choose Your Role</h2>
             <div class="space-y-4 pt-2">
-                <!-- FIXED BUG: changed onclick to setRole -->
                 <button onclick="setRole('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
                     <span class="text-xl"><i class="fa-solid fa-crown text-yellow-400"></i> I am the DJ (Host)</span>
                     <span class="text-xs text-indigo-200 font-normal">Connects to Spotify, plays music, shows QR codes.</span>
@@ -252,7 +252,6 @@
         let activeInsertIndex = null;
         let html5QrCode = null;
 
-        // FIXED: Unified entry function for routing
         function setRole(mode) {
             userMode = mode;
             localStorage.setItem('hitster_mode', mode);
@@ -283,12 +282,10 @@
                         accessToken = data.access_token;
                         localStorage.setItem('spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        // Send back to role screen so they can choose intentionally
                         switchScreen('role-screen');
                     } else switchScreen('role-screen');
                 } catch (e) { switchScreen('role-screen'); }
             } else {
-                // If they reload the page, let them pick their role again.
                 switchScreen('role-screen');
             }
         });
@@ -299,7 +296,6 @@
             localStorage.setItem('code_verifier', verifier);
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
-            // Permissions
             const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
             const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI });
             window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
@@ -316,7 +312,6 @@
             const dropdown = document.getElementById('playlist-dropdown');
             try {
                 const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                
                 if (userRes.status === 401) { logoutAndReset(); return; }
 
                 document.getElementById('host-email-display').textContent = (await userRes.json()).email;
@@ -335,7 +330,7 @@
             } catch (err) {}
         }
 
-        // Dedicated Random Button Flow
+        // Random Game Button
         document.getElementById('btn-start-random-game').addEventListener('click', async () => {
             switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
@@ -348,7 +343,7 @@
             startDeviceRadar();
         });
 
-        // Dropdown/Custom Flow
+        // Dropdown/Custom Game Button
         document.getElementById('btn-start-host-game').addEventListener('click', async () => {
             const presetVal = document.getElementById('preset-dropdown').value;
             const dropdownVal = document.getElementById('playlist-dropdown').value;
@@ -358,11 +353,8 @@
             if (customVal && customVal.trim() !== '') {
                 const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
                 finalId = m ? m[1] : customVal.trim();
-            } else if (presetVal) {
-                finalId = presetVal;
-            } else if (dropdownVal) { 
-                finalId = dropdownVal; 
-            }
+            } else if (presetVal) { finalId = presetVal; } 
+            else if (dropdownVal) { finalId = dropdownVal; }
 
             if (!finalId) { showMessage('Please select music to play.', 'error'); return; }
             
@@ -377,52 +369,50 @@
             startDeviceRadar();
         });
 
-        // Fixed & Robust Random Search
+        // 100% BULLETPROOF FETCH LOGIC
         async function fetchPlaylistTracks(playlistId) {
             try {
                 let rawItems = [];
                 
                 if (playlistId === 'liked') {
-                    // Liked Songs - specific endpoint
-                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    if(res.status === 401) { logoutAndReset(); return false; }
-                    if(!res.ok) throw new Error("Failed to fetch Liked Songs.");
+                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if (res.status === 401) { logoutAndReset(); return false; }
+                    if (!res.ok) throw new Error("Failed to fetch Liked Songs");
                     rawItems = (await res.json()).items || [];
-                } else if (playlistId === 'random') {
-                    // Pulling random mix from 1950-2024 using a random offset to prevent the same 50 songs
-                    const randomOffset = Math.floor(Math.random() * 950); 
-                    const res = await fetch(`https://api.spotify.com/v1/search?q=year:1950-2024&type=track&limit=50&offset=${randomOffset}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    if(res.status === 401) { logoutAndReset(); return false; }
-                    if(!res.ok) throw new Error("Failed to fetch Random Songs.");
+                } 
+                else if (playlistId === 'random') {
+                    // Search for a random year between 1960 and 2024
+                    const randomYear = Math.floor(Math.random() * (2024 - 1960 + 1)) + 1960;
+                    const res = await fetch(`https://api.spotify.com/v1/search?q=year:${randomYear}&type=track&limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if (res.status === 401) { logoutAndReset(); return false; }
+                    if (!res.ok) throw new Error("Failed to fetch Random Songs");
                     const data = await res.json();
                     rawItems = data.tracks?.items?.map(t => ({ track: t })) || [];
-                } else {
-                    // Normal Playlists: 3-Tier Fallback logic
-                    // 1. With market token
-                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                } 
+                else {
+                    // Try 1: Standard tracks endpoint
+                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    
                     if (res.status === 401) { logoutAndReset(); return false; }
-
-                    // 2. Without market token
-                    if (!res.ok) {
-                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    }
-
-                    // 3. Root playlist endpoint
-                    if (!res.ok) {
+                    
+                    if (res.ok) {
+                        rawItems = (await res.json()).items || [];
+                    } else {
+                        // Try 2: General playlist endpoint (fallback for some dev accounts)
                         res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                        if(!res.ok) {
-                            const errData = await res.json();
-                            showMessage(`Spotify Blocked this: ${errData.error?.message || res.status}`, 'error', 10000);
+                        if (!res.ok) {
+                            showMessage("Spotify blocked this playlist (Dev Restriction). Try Liked or Random!", "error", 8000);
                             return false;
                         }
                         const data = await res.json();
                         rawItems = data.tracks?.items || [];
-                    } else {
-                        rawItems = (await res.json()).items || [];
                     }
                 }
 
-                if (rawItems.length === 0) { showMessage('Playlist is empty or blocked.', 'error'); return false; }
+                if (rawItems.length === 0) { 
+                    showMessage('No songs found in this selection.', 'error'); 
+                    return false; 
+                }
 
                 tracks = rawItems
                     .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
@@ -434,9 +424,16 @@
                         c: i.track.album.images?.[0]?.url.split('/').pop() || '' 
                     })).sort(() => Math.random() - 0.5);
 
-                if (tracks.length === 0) { showMessage(`Found songs, but none had valid release years!`, 'error'); return false; }
+                if (tracks.length === 0) { 
+                    showMessage(`Songs found, but none had valid release years!`, 'error'); 
+                    return false; 
+                }
+                
                 return true;
-            } catch (err) { showMessage(`Error: ${err.message}`, 'error'); return false; }
+            } catch (err) { 
+                showMessage(`Error: ${err.message}`, 'error'); 
+                return false; 
+            }
         }
 
         async function startDeviceRadar() {
@@ -630,3 +627,6 @@
     </script>
 </body>
 </html>
+
+
+```
