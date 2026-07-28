@@ -6,6 +6,10 @@
     <title>היטסטר אישי - Pure Web Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- הוספנו גרסה כדי למנוע קאש -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
         body {
@@ -46,7 +50,7 @@
                     <i class="fa-brands fa-spotify"></i>
                 </div>
                 <h2 class="text-2xl font-bold">ברוכים הבאים!</h2>
-                <p class="text-sm text-slate-400">התחבר לחשבון הספוטיפיי שלך כדי להתחיל לשחק.</p>
+                <p class="text-sm text-slate-400">התחבר לחשבון הספוטיפיי שלך כדי להתחיל (לא חובה Premium).</p>
             </div>
             <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fa-solid fa-bolt"></i> התחבר ל-Spotify
@@ -80,7 +84,7 @@
             </button>
             
             <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300 underline mt-4">
-                <i class="fa-solid fa-right-from-bracket"></i> התנתק והתחל מחדש
+                <i class="fa-solid fa-right-from-bracket"></i> התנתק והתחל מחדש (מומלץ)
             </button>
         </section>
 
@@ -165,7 +169,7 @@
 
     <script>
         // --- UI Helper Functions ---
-        function showMessage(message, type = 'error') {
+        function showMessage(message, type = 'error', duration = 4500) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-500/90 border-red-600' : 'bg-green-500/90 border-green-600';
@@ -183,7 +187,7 @@
                 toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-[-20px]', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
-            }, 3500);
+            }, duration);
         }
 
         function switchScreen(screenId) {
@@ -256,11 +260,9 @@
                         loadSetupScreen();
                     } else {
                         switchScreen('login-screen');
-                        showMessage('שגיאה בקבלת ההרשאה', 'error');
                     }
                 } catch (error) {
                     switchScreen('login-screen');
-                    showMessage('שגיאת התחברות', 'error');
                 }
             } else if (accessToken) {
                 loadSetupScreen();
@@ -275,7 +277,6 @@
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
 
-            // We only need basic playlist read scopes now!
             const scopes = ['playlist-read-private', 'playlist-read-collaborative'];
             
             const authUrl = new URL("https://accounts.spotify.com/authorize");
@@ -292,6 +293,7 @@
         });
 
         document.getElementById('btn-logout').addEventListener('click', () => {
+            localStorage.removeItem('spotify_token');
             localStorage.clear();
             window.location.href = REDIRECT_URI;
         });
@@ -307,6 +309,7 @@
                 });
                 
                 if (response.status === 401) {
+                    // Token expired!
                     localStorage.removeItem('spotify_token');
                     window.location.reload();
                     return;
@@ -318,7 +321,6 @@
                 if (data.items && data.items.length > 0) {
                     data.items.forEach(playlist => {
                         if (!playlist) return;
-                        
                         const pid = playlist.id || (playlist.uri ? playlist.uri.split(':').pop() : null);
                         if (!pid) return;
 
@@ -336,7 +338,7 @@
                     dropdown.innerHTML = '<option value="">לא נמצאו פלייליסטים, הדבק קישור למטה</option>';
                 }
             } catch (err) {
-                dropdown.innerHTML = '<option value="">הדבק קישור לפלייליסט למטה</option>';
+                dropdown.innerHTML = '<option value="">שגיאה בטעינת רשימה. הדבק קישור למטה.</option>';
             }
         }
 
@@ -359,7 +361,7 @@
                     if (match) finalPlaylistId = match[1];
                 }
                 if (!finalPlaylistId) {
-                    showMessage('קישור מותאם אישית לא תקין', 'error');
+                    showMessage('שגיאה: הקישור לא תקין. ודא שזה קישור לפלייליסט בספוטיפיי.', 'error');
                     return;
                 }
             } else if (dropdownVal) {
@@ -372,16 +374,15 @@
             initGame(finalPlaylistId);
         });
 
-        // --- Game Logic (HTML5 Audio Version) ---
+        // --- Game Logic ---
         async function initGame(playlistId) {
             if (!playlistId || playlistId === 'undefined') {
-                showMessage('מזהה הפלייליסט שגוי. נסה לבחור פלייליסט אחר.', 'error');
+                showMessage('מזהה פלייליסט שגוי.', 'error');
                 return;
             }
 
             switchScreen('game-screen');
             const overlay = document.getElementById('loading-overlay');
-            
             overlay.classList.remove('hidden');
             
             const tracksLoaded = await fetchPlaylistTracks(playlistId);
@@ -402,13 +403,15 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('שגיאה בתקשורת מול ספוטיפיי.');
+                    // כאן אנחנו תופסים את השגיאה האמיתית מספוטיפיי ומדפיסים אותה
+                    const errData = await response.json().catch(() => ({}));
+                    const exactError = errData.error ? errData.error.message : response.statusText;
+                    throw new Error(`ספוטיפיי חסמה את הבקשה. קוד: ${response.status}. סיבה: ${exactError}`);
                 }
 
                 const data = await response.json();
                 const rawItems = data.items || [];
 
-                // WE ONLY KEEP TRACKS THAT HAVE A PREVIEW_URL
                 tracks = rawItems
                     .filter(item => item?.track?.album?.release_date && item.track.preview_url && !item.track.is_local)
                     .map(item => ({
@@ -422,13 +425,14 @@
                 tracks.sort(() => Math.random() - 0.5);
                 
                 if (tracks.length === 0) {
-                    showMessage('ספוטיפיי לא מאפשרת השמעה מוקדמת (Preview) לשירים בפלייליסט זה.', 'error');
+                    showMessage('שגיאה: לספוטיפיי אין קבצי שמע מקדימים (Preview) לפלייליסט הזה. נסה פלייליסט אחר.', 'error', 6000);
                     return false;
                 }
                 
                 return true;
             } catch (err) {
-                showMessage(err.message || 'שגיאה בטעינת השירים מהפלייליסט', 'error');
+                // מציג את השגיאה המפורטת על המסך!
+                showMessage(err.message, 'error', 7000);
                 return false;
             }
         }
@@ -460,7 +464,6 @@
 
             currentTrack = tracks.pop();
             
-            // Load audio instantly
             audioPlayer.src = currentTrack.preview_url;
             
             document.getElementById('track-year').textContent = currentTrack.year;
