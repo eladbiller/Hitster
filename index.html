@@ -2,63 +2,68 @@
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster - Local Party v5.2.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hitster - QR Scanner v6.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- QR Code Generator (For Host) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- QR Code Scanner (For Players) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
-        body { font-family: 'Rubik', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #f8fafc; min-height: 100vh; }
+        body { font-family: 'Rubik', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
         .spotify-green { background-color: #1DB954; }
         .spotify-green:hover { background-color: #1ed760; }
-        .card-flip { perspective: 1000px; }
-        .card-inner { transition: transform 0.6s; transform-style: preserve-3d; }
-        .card-flipped .card-inner { transform: rotateY(180deg); }
-        .card-front, .card-back { backface-visibility: hidden; }
-        .card-back { transform: rotateY(180deg); }
-        select option { background: #1e293b; color: white; }
         
-        /* Custom Scrollbar for Search Results & Timeline */
-        ::-webkit-scrollbar { height: 6px; width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        /* Custom Scrollbar for Timeline */
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
         
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Landscape Enforcer Overlay */
+        #portrait-blocker { display: none; }
+        @media screen and (orientation: portrait) {
+            .landscape-only-mode #portrait-blocker { display: flex !important; }
+            .landscape-only-mode #player-game-screen { display: none !important; }
+        }
+        
+        /* QR Code Styling */
+        #qrcode img { margin: 0 auto; border: 8px solid white; border-radius: 8px; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen pb-10">
+<body class="flex flex-col min-h-screen">
 
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
-    <!-- Header -->
-    <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
-        <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
-            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER PARTY
+    <!-- Header (Hidden in Player Mode for more space) -->
+    <header id="main-header" class="p-3 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
+        <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
+            <i class="fa-solid fa-qrcode text-green-400"></i> HITSTER SCAN
         </h1>
-        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v5.2.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.0.0</span>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-start">
+    <main class="flex-grow container mx-auto px-4 py-6 max-w-4xl flex flex-col items-center justify-start h-full">
 
         <!-- ROLE SELECTION SCREEN -->
-        <section id="role-screen" class="w-full bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
+        <section id="role-screen" class="w-full max-w-md bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <h2 class="text-2xl font-bold">Choose Your Role</h2>
-            <p class="text-sm text-slate-400">Are you controlling the music, or are you guessing the songs?</p>
             
-            <div class="space-y-4 pt-4">
-                <button onclick="startAuthFlow('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
+            <div class="space-y-4 pt-2">
+                <button onclick="startHostFlow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
                     <span class="text-xl"><i class="fa-solid fa-crown text-yellow-400"></i> I am the DJ (Host)</span>
-                    <span class="text-xs text-indigo-200 font-normal">Connects to speaker, plays music, reveals answers. (Requires Spotify Premium)</span>
+                    <span class="text-xs text-indigo-200 font-normal">Connects to Spotify, plays music, shows QR codes.</span>
                 </button>
                 
-                <button onclick="startAuthFlow('PLAYER')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
-                    <span class="text-xl"><i class="fa-solid fa-mobile-screen text-green-400"></i> I am a Player (Guesser)</span>
-                    <span class="text-xs text-slate-300 font-normal">Search for songs, build your timeline, track tokens! (Free Spotify works)</span>
+                <button onclick="startPlayerFlow()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
+                    <span class="text-xl"><i class="fa-solid fa-camera text-green-400"></i> I am a Player</span>
+                    <span class="text-xs text-slate-300 font-normal">Use your camera to scan QR codes and build your timeline!</span>
                 </button>
             </div>
         </section>
@@ -67,8 +72,20 @@
         <!--                HOST SCREENS                -->
         <!-- ========================================== -->
 
-        <!-- HOST: Choose Playlist -->
-        <section id="host-setup-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
+        <!-- HOST: Login -->
+        <section id="login-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
+            <div class="space-y-2">
+                <div class="w-20 h-20 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto text-4xl mb-4"><i class="fa-brands fa-spotify"></i></div>
+                <h2 class="text-2xl font-bold">Host Connect</h2>
+            </div>
+            <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
+                <i class="fa-solid fa-bolt"></i> Login with Spotify
+            </button>
+            <button onclick="switchScreen('role-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">Back</button>
+        </section>
+
+        <!-- HOST: Setup -->
+        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-crown text-yellow-400 mr-1"></i> Host DJ:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
@@ -76,15 +93,24 @@
 
             <h2 class="text-xl font-bold text-green-400">Choose Music to Play</h2>
 
-            <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 appearance-none text-white">
-                <option value="">Loading your playlists...</option>
+            <!-- New Preset Option -->
+            <select id="preset-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-white font-bold text-indigo-300">
+                <option value="">-- Easy Presets (Ready to Play) --</option>
+                <option value="37i9dQZF1DXcBWIGoYBM5M">🔥 Today's Top Hits</option>
+                <option value="37i9dQZF1DX4o1oenSJRJd">💿 All Out 2000s</option>
+                <option value="37i9dQZF1DXbTxeAdrVG2l">🎸 All Out 90s</option>
+                <option value="37i9dQZF1DX4UtSsGT1Sbe">🕺 All Out 80s</option>
             </select>
-            
+
             <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs">OR</span><div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <input type="text" id="custom-playlist-input" placeholder="Paste a Spotify Playlist Link..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-center font-mono text-white">
+            <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 appearance-none text-white">
+                <option value="">Your Personal Playlists...</option>
+            </select>
+
+            <input type="text" id="custom-playlist-input" placeholder="Paste a Spotify Link..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-center font-mono text-white mt-2">
 
             <button id="btn-start-host-game" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition mt-4 flex items-center justify-center gap-2">
                 <i class="fa-solid fa-play"></i> Start Playing Music!
@@ -93,7 +119,7 @@
         </section>
 
         <!-- HOST: Game Screen -->
-        <section id="host-game-screen" class="w-full hidden flex-col items-center space-y-6">
+        <section id="host-game-screen" class="w-full max-w-md hidden flex-col items-center space-y-6">
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
                 <span class="text-sm font-bold text-indigo-400"><i class="fa-solid fa-crown"></i> DJ Mode</span>
                 <div class="flex gap-2">
@@ -101,44 +127,36 @@
                         Next Song <i class="fa-solid fa-forward"></i>
                     </button>
                     <button onclick="switchScreen('host-setup-screen')" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2 px-3 rounded-lg transition shadow-lg">
-                        <i class="fa-solid fa-list"></i> Back
+                        <i class="fa-solid fa-list"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="host-music-card" class="card-flip w-full max-w-sm mx-auto relative h-[380px]">
-                <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
-                    <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
-                        <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
-                            <span><i class="fa-solid fa-music mr-1"></i> Mystery Card</span>
-                            <i class="fa-solid fa-question-circle text-indigo-400"></i>
-                        </div>
-                        <div class="w-full flex-grow flex flex-col items-center justify-center gap-4 relative">
-                            <button id="play-pause-btn" class="w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
-                                <i class="fa-solid fa-play ml-2" id="play-icon"></i>
-                            </button>
-                            <span class="text-sm text-slate-400 font-medium tracking-wide mt-2">Playing on your device...</span>
-                        </div>
-                        <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600 mt-4">
-                            <i class="fa-solid fa-eye"></i> Reveal Answer to Room
-                        </button>
-                    </div>
-
-                    <div class="card-back absolute inset-0 bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-green-500">
-                        <div id="host-album-cover" class="w-32 h-32 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-2 border border-slate-700"></div>
-                        <div class="text-center space-y-1 w-full">
-                            <div id="host-track-year" class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
-                            <div id="host-track-title" class="font-bold text-xl text-white truncate w-full px-2 mt-2">Song Title</div>
-                            <div id="host-track-artist" class="text-base text-slate-400 truncate w-full px-2">Artist Name</div>
-                        </div>
-                        <button id="hide-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-4">
-                            <i class="fa-solid fa-eye-slash"></i> Hide Card Again
-                        </button>
-                    </div>
+            <!-- Host QR Card -->
+            <div class="w-full bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500 shadow-2xl relative min-h-[400px]">
+                
+                <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
+                    <span><i class="fa-solid fa-qrcode mr-1"></i> Scan to Guess</span>
+                    <i class="fa-solid fa-music text-indigo-400" id="play-pause-btn" style="cursor:pointer; font-size:1.5rem;"></i>
                 </div>
+                
+                <!-- The QR Code -->
+                <div id="qrcode" class="bg-white p-2 rounded-xl shadow-inner mb-4 transition-transform hover:scale-105"></div>
+                
+                <p class="text-xs text-slate-400 text-center px-4 mb-4">Players: Click '+' on your timeline where you think this goes, then scan this code!</p>
+
+                <div id="reveal-area" class="w-full text-center hidden flex-col items-center border-t border-slate-700 pt-4">
+                    <img id="host-album-cover" src="" class="w-16 h-16 rounded object-cover mb-2 shadow">
+                    <div id="host-track-year" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
+                    <div id="host-track-title" class="font-bold text-base text-white truncate w-full">Title</div>
+                    <div id="host-track-artist" class="text-xs text-slate-400 truncate w-full">Artist</div>
+                </div>
+
+                <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2">
+                    <i class="fa-solid fa-eye"></i> DJ Reveal Info
+                </button>
             </div>
             
-            <!-- Radar Loading -->
             <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
                 <i class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
                 <h3 class="text-white font-bold text-xl">Preparing Spotify...</h3>
@@ -158,124 +176,80 @@
         <!--               PLAYER SCREENS               -->
         <!-- ========================================== -->
 
-        <section id="player-game-screen" class="w-full hidden flex-col items-center space-y-4">
+        <!-- Portrait Warning -->
+        <div id="portrait-blocker" class="fixed inset-0 bg-slate-900 z-[200] flex flex-col items-center justify-center p-8 text-center space-y-4">
+            <i class="fa-solid fa-mobile-screen text-6xl text-indigo-500 animate-pulse" style="transform: rotate(90deg);"></i>
+            <h2 class="text-3xl font-black text-white">Rotate Your Phone</h2>
+            <p class="text-slate-400">The timeline requires landscape mode to view all your cards!</p>
+        </div>
+
+        <section id="player-game-screen" class="w-full hidden flex-col items-center h-[90vh] pb-4">
             
-            <!-- Player Stats Bar (Tokens & Cards) -->
-            <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
-                
-                <!-- Tokens Counter -->
-                <div class="flex flex-col items-start gap-1">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Tokens</span>
-                    <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 shadow-inner">
-                        <button onclick="updateTokens(-1)" class="text-red-400 hover:text-red-300 w-6 h-6 flex items-center justify-center rounded-full bg-slate-800 active:bg-slate-700"><i class="fa-solid fa-minus text-xs"></i></button>
-                        <div class="text-xl font-black text-yellow-400 flex items-center gap-1.5 min-w-[32px] justify-center">
-                            <span id="player-token-display">2</span> <i class="fa-solid fa-coins text-sm mb-0.5"></i>
-                        </div>
-                        <button onclick="updateTokens(1)" class="text-green-400 hover:text-green-300 w-6 h-6 flex items-center justify-center rounded-full bg-slate-800 active:bg-slate-700"><i class="fa-solid fa-plus text-xs"></i></button>
-                    </div>
+            <!-- Top Bar -->
+            <div class="w-full flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-md mb-4 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="switchScreen('role-screen')" class="text-slate-400 hover:text-white px-2"><i class="fa-solid fa-arrow-left"></i> Exit</button>
+                    <span class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                        <i class="fa-solid fa-layer-group text-green-400"></i> Cards: <span id="player-score-display">0</span> / 10
+                    </span>
                 </div>
-
-                <!-- Score (Cards) Counter -->
-                <div class="flex flex-col items-end gap-1">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Timeline Cards</span>
-                    <div class="text-2xl font-black text-white bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-600 shadow-inner flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-green-400 text-sm mb-0.5"></i>
-                        <span id="player-score-display" class="text-green-400">0</span> 
-                        <span class="text-slate-500 text-lg">/ 10</span>
-                    </div>
-                </div>
-
+                <button onclick="resetPlayerGame()" class="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30">
+                    <i class="fa-solid fa-trash-can"></i> Reset Board
+                </button>
             </div>
 
-            <!-- SEARCH AREA -->
-            <div class="w-full bg-slate-800/90 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-3">
-                <h3 class="font-bold text-white text-base"><i class="fa-solid fa-headphones text-indigo-400 mr-1"></i> What song is the DJ playing?</h3>
-                <div class="relative">
-                    <input type="text" id="search-input" placeholder="Search by song or artist..." class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 pl-12 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-lg">
-                    <i class="fa-solid fa-search absolute left-4 top-4 text-slate-400 text-lg"></i>
-                </div>
-                
-                <!-- Search Results -->
-                <div id="search-results" class="w-full max-h-56 overflow-y-auto space-y-2 hidden bg-slate-900 p-2 rounded-xl border border-slate-700 shadow-inner"></div>
-            </div>
-
-            <!-- MY GUESS CARD -->
-            <div id="my-guess-container" class="w-full hidden">
-                <div class="w-full bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.15)] relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full bg-indigo-600 text-white text-xs font-bold py-1 text-center uppercase tracking-widest">
-                        My Locked Guess
-                    </div>
-                    
-                    <div id="guess-album-cover" class="w-24 h-24 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-3 mt-4 border border-slate-700"></div>
-                    <div class="text-center space-y-1 w-full pb-4 border-b border-slate-700">
-                        <div id="guess-track-year" class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
-                        <div id="guess-track-title" class="font-bold text-lg text-white truncate w-full px-2 mt-1">Song Title</div>
-                        <div id="guess-track-artist" class="text-sm text-slate-400 truncate w-full px-2">Artist Name</div>
-                    </div>
-
-                    <div class="w-full pt-4 space-y-3">
-                        <p class="text-xs text-slate-400 text-center">Wait for the DJ to reveal the answer...</p>
-                        <h4 class="text-center font-bold text-white mb-2">Did you get it right?</h4>
-                        <div class="grid grid-cols-2 gap-3 w-full">
-                            <button onclick="gradeGuess(false)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-3 rounded-xl text-sm border border-red-500/30 transition flex items-center justify-center gap-1 shadow-md">
-                                <i class="fa-solid fa-xmark"></i> Wrong
-                            </button>
-                            <button onclick="gradeGuess(true)" class="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-bold py-3 rounded-xl text-sm border border-green-500/30 transition flex items-center justify-center gap-1 shadow-md">
-                                <i class="fa-solid fa-check"></i> Right! (+1)
-                            </button>
-                        </div>
-                        <button onclick="clearGuess()" class="text-xs text-slate-500 hover:text-white underline w-full text-center mt-2">I want to change my guess</button>
-                    </div>
+            <!-- TIMELINE AREA (Horizontal Scroll) -->
+            <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
+                <div id="timeline-container" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-2 px-6 py-4 hide-scrollbar scroll-smooth snap-x">
+                    <!-- Javascript generates timeline elements here -->
                 </div>
             </div>
 
-            <!-- MY TIMELINE (Collected Cards) -->
-            <div class="w-full bg-slate-800/90 rounded-2xl p-4 border border-slate-700 shadow-lg space-y-3">
-                <div class="flex justify-between items-center px-1">
-                    <h3 class="font-bold text-white text-sm"><i class="fa-solid fa-timeline text-indigo-400 mr-1"></i> My Timeline</h3>
-                    <span class="text-xs text-slate-400">Sorted by Year</span>
-                </div>
-                
-                <div id="timeline-container" class="flex overflow-x-auto gap-3 pb-3 hide-scrollbar snap-x">
-                    <!-- Cards injected by JS -->
-                    <div id="empty-timeline-msg" class="text-slate-500 text-sm italic w-full text-center py-6 border-2 border-dashed border-slate-600 rounded-xl">
-                        Your timeline is empty. Win a card to start!
-                    </div>
-                </div>
+            <!-- SCANNER MODAL -->
+            <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[150] hidden flex flex-col items-center justify-center p-4">
+                <h3 class="text-white font-bold text-xl mb-4 text-center">Scan the DJ's Code</h3>
+                <div id="reader" class="w-full max-w-sm rounded-2xl overflow-hidden border-4 border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.5)]"></div>
+                <button onclick="closeScanner()" class="mt-6 bg-red-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg">Cancel</button>
             </div>
 
-            <button onclick="resetPlayerGame()" class="text-xs text-red-400 hover:text-red-300 underline mt-4">Reset My Game & Score</button>
-            <button onclick="logoutAndReset()" class="text-xs text-slate-500 hover:text-white underline mt-2">Exit & Logout of Spotify</button>
         </section>
 
         <!-- WINNER SCREEN -->
-        <section id="winner-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-8 shadow-2xl border-4 border-yellow-500 text-center space-y-6">
+        <section id="winner-screen" class="w-full hidden max-w-md bg-slate-800/90 rounded-2xl p-8 shadow-2xl border-4 border-yellow-500 text-center space-y-6">
             <div class="text-yellow-400 text-7xl animate-bounce mb-4"><i class="fa-solid fa-crown"></i></div>
             <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">YOU WIN!</h2>
-            <p class="text-slate-300 text-lg">You collected 10 cards!</p>
-            <p class="text-sm text-yellow-200 font-bold bg-yellow-900/40 p-3 rounded-lg border border-yellow-700">Shout to the room that you won!</p>
-            <button onclick="resetPlayerGame()" class="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl mt-6 text-lg shadow-lg">Start New Game</button>
+            <p class="text-slate-300 text-lg">You completed your timeline!</p>
+            <button onclick="resetPlayerGame()" class="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl mt-6 text-lg shadow-lg">Play Again</button>
         </section>
 
     </main>
 
     <script>
         // --- UI TOOLS ---
-        function showMessage(msg, type = 'error', duration = 6000) {
+        function showMessage(msg, type = 'error', duration = 4000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500';
-            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-semibold flex items-start gap-3 transition-all duration-300`;
-            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-lg mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
+            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-xl mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
             container.appendChild(toast);
             requestAnimationFrame(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); toast.classList.add('translate-y-0', 'opacity-100'); });
             setTimeout(() => { toast.classList.remove('translate-y-0', 'opacity-100'); toast.classList.add('translate-y-[-20px]', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, duration);
         }
 
         function switchScreen(id) {
-            ['role-screen', 'host-setup-screen', 'host-game-screen', 'player-game-screen', 'winner-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            ['role-screen', 'login-screen', 'host-setup-screen', 'host-game-screen', 'player-game-screen', 'winner-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
             if (id === 'host-game-screen' || id === 'player-game-screen') document.getElementById(id).classList.add('flex');
+            
+            // Toggle Landscape Enforcement
+            if (id === 'player-game-screen') {
+                document.body.classList.add('landscape-only-mode');
+                document.getElementById('main-header').classList.add('hidden');
+            } else {
+                document.body.classList.remove('landscape-only-mode');
+                document.getElementById('main-header').classList.remove('hidden');
+            }
         }
 
         // --- GLOBAL STATE ---
@@ -283,64 +257,27 @@
         const REDIRECT_URI = window.location.origin + window.location.pathname;
 
         let accessToken = localStorage.getItem('spotify_token') || null;
-        let userMode = localStorage.getItem('hitster_mode') || null; // 'HOST' or 'PLAYER'
-        
-        // Host state
         let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentHostTrack = null;
         
-        // Player state
-        let playerTimeline = []; // Array of card objects
-        let playerTokens = 2;    // Starts with 2
-        let currentGuess = null; // The track object they just searched and locked in
-        let searchTimeout = null;
+        let playerTimeline = []; // Array of card objects: {y: 1999, t: "Title", a: "Artist", c: "image_id"}
+        let activeInsertIndex = null;
+        let html5QrCode = null;
 
-        // --- LOAD SAVED PLAYER STATE ---
-        function loadPlayerState() {
-            const savedTimeline = localStorage.getItem('hitster_timeline');
-            if (savedTimeline) {
-                playerTimeline = JSON.parse(savedTimeline);
-            } else {
-                playerTimeline = [];
-            }
-            
-            const savedTokens = localStorage.getItem('hitster_tokens');
-            if (savedTokens !== null) {
-                playerTokens = parseInt(savedTokens);
-            } else {
-                playerTokens = 2; // Default starting tokens
-            }
+        // --- ROLE ROUTING ---
+        function startHostFlow() {
+            if (accessToken) loadHostSetupScreen();
+            else switchScreen('login-screen');
         }
 
-        function savePlayerState() {
-            localStorage.setItem('hitster_timeline', JSON.stringify(playerTimeline));
-            localStorage.setItem('hitster_tokens', playerTokens);
+        function startPlayerFlow() {
+            loadPlayerState();
+            initPlayerScreen();
         }
 
-        // --- SPOTIFY OAUTH (PKCE) ---
+        // --- SPOTIFY OAUTH (HOST ONLY) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
         const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-        function startAuthFlow(mode) {
-            localStorage.setItem('hitster_mode', mode); 
-            if (accessToken) {
-                routeUserBasedOnMode();
-            } else {
-                loginToSpotify();
-            }
-        }
-
-        async function loginToSpotify() {
-            localStorage.removeItem('spotify_token');
-            const verifier = generateRandomString(64);
-            localStorage.setItem('code_verifier', verifier);
-            const hashed = await sha256(verifier);
-            const codeChallenge = base64encode(hashed);
-
-            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
-            const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true' });
-            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
-        }
 
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -356,37 +293,29 @@
                         accessToken = data.access_token;
                         localStorage.setItem('spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        routeUserBasedOnMode();
-                    } else {
-                        switchScreen('role-screen');
-                    }
+                        loadHostSetupScreen();
+                    } else switchScreen('role-screen');
                 } catch (e) { switchScreen('role-screen'); }
-            } else if (accessToken && userMode) {
-                routeUserBasedOnMode();
             } else {
                 switchScreen('role-screen');
             }
         });
 
-        function logoutAndReset() { 
-            localStorage.clear(); 
-            accessToken = null; 
-            userMode = null;
-            playerTimeline = [];
-            playerTokens = 2;
-            switchScreen('role-screen'); 
-            showMessage('Logged out successfully.', 'success'); 
-        }
+        document.getElementById('btn-login-spotify').addEventListener('click', async () => {
+            localStorage.clear();
+            const verifier = generateRandomString(64);
+            localStorage.setItem('code_verifier', verifier);
+            const hashed = await sha256(verifier);
+            const codeChallenge = base64encode(hashed);
+            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state';
+            const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI });
+            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        });
 
-        function routeUserBasedOnMode() {
-            if (userMode === 'HOST') {
-                loadHostSetupScreen();
-            } else if (userMode === 'PLAYER') {
-                loadPlayerState();
-                initPlayerScreen();
-            } else {
-                switchScreen('role-screen');
-            }
+        function logoutAndReset() { 
+            localStorage.removeItem('spotify_token'); 
+            accessToken = null; 
+            switchScreen('role-screen'); 
         }
 
         // ==========================================
@@ -399,25 +328,24 @@
             try {
                 const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (!userRes.ok) { logoutAndReset(); return; }
-                document.getElementById('host-email-display').textContent = (await userRes.json()).email || 'Connected';
+                document.getElementById('host-email-display').textContent = (await userRes.json()).email;
 
                 const plRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (!plRes.ok) return;
                 const plData = await plRes.json();
 
-                dropdown.innerHTML = '<option value="">-- Choose a Playlist --</option>';
-                dropdown.innerHTML += '<option value="LIKED_SONGS" class="font-bold text-green-400">❤️ My Liked Songs</option>';
-
+                dropdown.innerHTML = '<option value="">-- Or Choose Your Own --</option>';
                 if (plData.items) {
                     plData.items.forEach(pl => {
                         if (!pl) return;
-                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0}) - By: ${pl.owner?.display_name||'Unknown'}</option>`;
+                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0})</option>`;
                     });
                 }
             } catch (err) {}
         }
 
         document.getElementById('btn-start-host-game').addEventListener('click', async () => {
+            const presetVal = document.getElementById('preset-dropdown').value;
             const dropdownVal = document.getElementById('playlist-dropdown').value;
             const customVal = document.getElementById('custom-playlist-input').value;
             let finalId = null;
@@ -425,7 +353,11 @@
             if (customVal && customVal.trim() !== '') {
                 const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
                 finalId = m ? m[1] : customVal.trim();
-            } else if (dropdownVal) { finalId = dropdownVal; }
+            } else if (presetVal) {
+                finalId = presetVal;
+            } else if (dropdownVal) { 
+                finalId = dropdownVal; 
+            }
 
             if (!finalId) { showMessage('Select a playlist.', 'error'); return; }
             
@@ -442,42 +374,28 @@
 
         async function fetchPlaylistTracks(playlistId) {
             try {
-                let rawItems = [];
-                if (playlistId === 'LIKED_SONGS') {
-                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    if(!res.ok) throw new Error(await res.text());
-                    rawItems = (await res.json()).items || [];
-                } else {
-                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    
-                    if (!res.ok) {
-                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                        if(!res.ok) {
-                            showMessage(`Spotify API Error: ${res.status}`, 'error', 15000);
-                            return false;
-                        }
-                        const data = await res.json();
-                        rawItems = data.tracks?.items || [];
-                    } else {
-                        rawItems = (await res.json()).items || [];
-                    }
+                let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                if (!res.ok) {
+                    res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if(!res.ok) { showMessage(`Spotify Blocked this playlist. Try a Preset.`, 'error', 10000); return false; }
                 }
-
-                if (rawItems.length === 0) { showMessage('Playlist is empty or blocked.', 'error'); return false; }
+                const data = await res.json();
+                let rawItems = Array.isArray(data.items) ? data.items : (data.tracks?.items || []);
+                if (rawItems.length === 0) { showMessage('Playlist empty.', 'error'); return false; }
 
                 tracks = rawItems
-                    .filter(i => i && i.track && i.track.uri && i.track.album && i.track.album.release_date && !i.track.is_local)
+                    .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
                     .map(i => ({
-                        uri: i.track.uri, 
-                        title: i.track.name,
-                        artist: i.track.artists ? i.track.artists.map(a => a.name).join(', ') : 'Unknown',
-                        year: i.track.album.release_date.substring(0, 4), 
-                        cover: i.track.album.images?.[0]?.url || ''
+                        u: i.track.uri, 
+                        t: i.track.name.substring(0, 35), // truncate for QR size
+                        a: i.track.artists ? i.track.artists[0].name.substring(0,25) : 'Unknown', // Primary artist
+                        y: parseInt(i.track.album.release_date.substring(0, 4)), 
+                        c: i.track.album.images?.[0]?.url.split('/').pop() || '' // Just the ID
                     })).sort(() => Math.random() - 0.5);
 
-                if (tracks.length === 0) { showMessage(`Found songs, but none had valid release years!`, 'error'); return false; }
+                if (tracks.length === 0) { showMessage(`No valid years found.`, 'error'); return false; }
                 return true;
-            } catch (err) { showMessage(`Network Error: ${err.message}`, 'error'); return false; }
+            } catch (err) { showMessage(`Error: ${err.message}`, 'error'); return false; }
         }
 
         async function startDeviceRadar() {
@@ -492,27 +410,24 @@
                         activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
                         clearInterval(radarInterval); overlay.classList.add('hidden');
                         loadNextHostTrack();
-                        showMessage('Speaker Connected! You are the DJ.', 'success', 3000);
                         return true;
                     }
                     return false;
                 } catch(e) { return false; }
             };
-            
             if (!(await check())) { wakeBox.classList.remove('hidden'); radarInterval = setInterval(check, 2500); }
         }
 
         document.getElementById('btn-skip-radar').addEventListener('click', () => {
             clearInterval(radarInterval); document.getElementById('loading-overlay').classList.add('hidden');
             loadNextHostTrack();
-            showMessage('Radar skipped. Use the Play button to force wake your device.', 'success');
         });
 
         async function playHostTrack(uri) {
             try {
                 let url = 'https://api.spotify.com/v1/me/player/play' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', body: JSON.stringify({ uris: [uri] }), headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } });
-                isPlaying = true; document.getElementById('play-icon').className = 'fa-solid fa-pause ml-0';
+                isPlaying = true; 
             } catch(e) {}
         }
 
@@ -520,203 +435,181 @@
             try {
                 let url = 'https://api.spotify.com/v1/me/player/pause' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
-                isPlaying = false; document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
+                isPlaying = false; 
             } catch(e) {}
         }
 
         document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (currentHostTrack) isPlaying ? pauseHostTrack() : playHostTrack(currentHostTrack.uri);
+            if (currentHostTrack) {
+                isPlaying ? pauseHostTrack() : playHostTrack(currentHostTrack.u);
+            }
         });
 
         function loadNextHostTrack() {
             if (tracks.length === 0) { showMessage('Playlist finished!', 'success'); return; }
-            document.getElementById('host-music-card').classList.remove('card-flipped');
-            isPlaying = false; document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
+            
+            document.getElementById('reveal-area').classList.add('hidden');
+            document.getElementById('reveal-btn').classList.remove('hidden');
+            isPlaying = false; 
+
             currentHostTrack = tracks.pop();
-            document.getElementById('host-track-year').textContent = currentHostTrack.year;
-            document.getElementById('host-track-title').textContent = currentHostTrack.title;
-            document.getElementById('host-track-artist').textContent = currentHostTrack.artist;
-            document.getElementById('host-album-cover').style.backgroundImage = `url('${currentHostTrack.cover}')`;
+            
+            // Populate hidden reveal area
+            document.getElementById('host-track-year').textContent = currentHostTrack.y;
+            document.getElementById('host-track-title').textContent = currentHostTrack.t;
+            document.getElementById('host-track-artist').textContent = currentHostTrack.a;
+            document.getElementById('host-album-cover').src = currentHostTrack.c ? `https://i.scdn.co/image/${currentHostTrack.c}` : '';
+
+            // Generate QR Code
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: JSON.stringify(currentHostTrack),
+                width: 200,
+                height: 200,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
+            });
+
+            playHostTrack(currentHostTrack.u); // Auto-play
         }
 
         document.getElementById('next-track-btn').addEventListener('click', () => { pauseHostTrack(); loadNextHostTrack(); });
-        document.getElementById('reveal-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('host-music-card').classList.add('card-flipped'); });
-        document.getElementById('hide-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('host-music-card').classList.remove('card-flipped'); });
+        
+        document.getElementById('reveal-btn').addEventListener('click', (e) => { 
+            e.stopPropagation(); 
+            document.getElementById('reveal-area').classList.remove('hidden');
+            document.getElementById('reveal-btn').classList.add('hidden');
+        });
 
         // ==========================================
         //               PLAYER LOGIC
         // ==========================================
 
+        function loadPlayerState() {
+            const s = localStorage.getItem('hitster_tl');
+            playerTimeline = s ? JSON.parse(s) : [];
+        }
+
+        function savePlayerState() {
+            localStorage.setItem('hitster_tl', JSON.stringify(playerTimeline));
+        }
+
         function initPlayerScreen() {
             switchScreen('player-game-screen');
-            renderPlayerUI();
-        }
-
-        function updateTokens(change) {
-            let newTotal = playerTokens + change;
-            if (newTotal < 0) {
-                showMessage("You are out of tokens! 🪙", "error", 2000);
-                return;
-            }
-            playerTokens = newTotal;
-            savePlayerState();
-            renderPlayerUI();
-        }
-
-        function renderPlayerUI() {
-            // Update counts
-            document.getElementById('player-token-display').textContent = playerTokens;
-            document.getElementById('player-score-display').textContent = playerTimeline.length;
-            
-            // Check Win Condition
-            if (playerTimeline.length >= 10) {
-                switchScreen('winner-screen');
-                return;
-            }
-
-            // Render Timeline Cards
-            const container = document.getElementById('timeline-container');
-            const emptyMsg = document.getElementById('empty-timeline-msg');
-            
-            // Remove existing cards
-            container.querySelectorAll('.timeline-card').forEach(e => e.remove());
-
-            if (playerTimeline.length === 0) {
-                emptyMsg.classList.remove('hidden');
-            } else {
-                emptyMsg.classList.add('hidden');
-                
-                // Sort timeline securely by Year
-                playerTimeline.sort((a, b) => parseInt(a.year) - parseInt(b.year));
-
-                playerTimeline.forEach(track => {
-                    const card = document.createElement('div');
-                    card.className = "timeline-card flex-none w-28 bg-slate-900 border border-indigo-500/50 rounded-xl p-3 snap-center flex flex-col items-center shadow-lg transform transition hover:scale-105";
-                    
-                    card.innerHTML = `
-                        <span class="text-xl font-black text-green-400 mb-2 drop-shadow">${track.year}</span>
-                        <img src="${track.cover}" class="w-16 h-16 rounded-lg mb-2 object-cover shadow-md border border-slate-700">
-                        <span class="text-xs text-white font-bold w-full text-center truncate">${track.title}</span>
-                        <span class="text-[10px] text-slate-400 w-full text-center truncate">${track.artist}</span>
-                    `;
-                    container.appendChild(card);
-                });
-                
-                // Auto-scroll to the end
-                setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 100);
-            }
+            renderTimeline();
         }
 
         function resetPlayerGame() {
-            playerTimeline = [];
-            playerTokens = 2;
-            currentGuess = null;
-            savePlayerState();
-            clearGuess();
-            initPlayerScreen();
-            showMessage("Game reset. You have 2 tokens.", "success");
+            if(confirm("Erase your timeline and start over?")) {
+                playerTimeline = [];
+                savePlayerState();
+                initPlayerScreen();
+            }
         }
 
-        // Search Mechanics
-        const searchInput = document.getElementById('search-input');
-        const searchResultsBox = document.getElementById('search-results');
+        function renderTimeline() {
+            document.getElementById('player-score-display').textContent = playerTimeline.length;
+            if (playerTimeline.length >= 10) { switchScreen('winner-screen'); return; }
 
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            const query = e.target.value.trim();
-            if (query.length < 2) {
-                searchResultsBox.classList.add('hidden');
-                return;
-            }
-            searchTimeout = setTimeout(() => executeSpotifySearch(query), 400); // 400ms debounce
-        });
-
-        async function executeSpotifySearch(query) {
-            try {
-                const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=6`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (!res.ok) {
-                    if (res.status === 401) logoutAndReset(); 
-                    return;
-                }
-                const data = await res.json();
-                renderSearchResults(data.tracks.items);
-            } catch (err) { console.error("Search failed"); }
-        }
-
-        function renderSearchResults(items) {
-            searchResultsBox.innerHTML = '';
-            if (items.length === 0) {
-                searchResultsBox.classList.add('hidden');
-                return;
-            }
-            searchResultsBox.classList.remove('hidden');
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '';
             
-            items.forEach(track => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg cursor-pointer transition border border-slate-700 hover:border-indigo-500";
+            // Render [ + ] and [ Card ] sequence
+            for (let i = 0; i <= playerTimeline.length; i++) {
                 
-                const thumb = track.album.images[2]?.url || track.album.images[0]?.url || '';
-                const year = track.album.release_date ? track.album.release_date.substring(0, 4) : '????';
-                const artist = track.artists.map(a=>a.name).join(', ');
-                
-                div.innerHTML = `
-                    <img src="${thumb}" class="w-12 h-12 rounded shadow-sm">
-                    <div class="flex flex-col flex-1 overflow-hidden">
-                        <span class="text-sm font-bold text-white truncate">${track.name}</span>
-                        <span class="text-xs text-slate-400 truncate">${artist} • ${year}</span>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-slate-500 mr-2"></i>
-                `;
-                
-                div.onclick = () => lockInGuess({
-                    uri: track.uri,
-                    title: track.name,
-                    artist: artist,
-                    year: year,
-                    cover: thumb
-                });
-                
-                searchResultsBox.appendChild(div);
+                // Add PLUS Button
+                const btn = document.createElement('button');
+                btn.onclick = () => openScanner(i);
+                btn.className = "w-16 h-36 bg-indigo-500/10 border-2 border-dashed border-indigo-500/50 hover:bg-indigo-500/30 text-indigo-400 rounded-xl flex-none flex items-center justify-center text-3xl transition snap-center mx-1";
+                btn.innerHTML = `<i class="fa-solid fa-plus"></i>`;
+                container.appendChild(btn);
+
+                // Add CARD (if not the end)
+                if (i < playerTimeline.length) {
+                    const t = playerTimeline[i];
+                    const card = document.createElement('div');
+                    card.className = "w-36 h-48 bg-slate-900 border-2 border-green-500 rounded-xl p-3 flex-none flex flex-col items-center shadow-[0_0_15px_rgba(34,197,94,0.3)] snap-center relative overflow-hidden";
+                    
+                    const imgUrl = t.c ? `https://i.scdn.co/image/${t.c}` : '';
+                    card.innerHTML = `
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-2 leading-none">${t.y}</div>
+                        <img src="${imgUrl}" class="w-16 h-16 rounded object-cover shadow-md border border-slate-700 mb-2">
+                        <div class="text-xs font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
+                        <div class="text-[10px] text-slate-400 text-center w-full truncate mt-1">${t.a}</div>
+                    `;
+                    container.appendChild(card);
+                }
+            }
+        }
+
+        // --- SCANNER LOGIC ---
+        function openScanner(insertIndex) {
+            activeInsertIndex = insertIndex;
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                (errorMessage) => { /* ignore standard frame errors */ }
+            ).catch(err => {
+                showMessage("Camera error: " + err, "error");
+                closeScanner();
             });
         }
 
-        function lockInGuess(trackObj) {
-            currentGuess = trackObj;
-            searchResultsBox.classList.add('hidden');
-            searchInput.value = '';
-            
-            document.getElementById('guess-track-year').textContent = trackObj.year;
-            document.getElementById('guess-track-title').textContent = trackObj.title;
-            document.getElementById('guess-track-artist').textContent = trackObj.artist;
-            document.getElementById('guess-album-cover').style.backgroundImage = `url('${trackObj.cover}')`;
-            
-            document.getElementById('my-guess-container').classList.remove('hidden');
-            document.getElementById('my-guess-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-
-        function clearGuess() {
-            currentGuess = null;
-            document.getElementById('my-guess-container').classList.add('hidden');
-            searchInput.focus();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function gradeGuess(wasCorrect) {
-            if (wasCorrect && currentGuess) {
-                // Add the card to the timeline
-                playerTimeline.push(currentGuess);
-                savePlayerState();
-                showMessage("Awesome! You got a card! 🃏", "success", 3000);
-            } else {
-                showMessage("Aww, maybe next time! ❌", "error", 3000);
+        function closeScanner() {
+            document.getElementById('scanner-modal').classList.add('hidden');
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.log(err));
             }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            closeScanner();
+            try {
+                const trackData = JSON.parse(decodedText);
+                if (!trackData.y) throw new Error("Invalid format");
+                evaluateGuess(trackData);
+            } catch(e) {
+                showMessage("Invalid QR Code scanned.", "error");
+            }
+        }
+
+        function evaluateGuess(trackData) {
+            const scannedYear = parseInt(trackData.y);
             
-            clearGuess();
-            renderPlayerUI();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Determine boundaries
+            const prevYear = activeInsertIndex > 0 ? parseInt(playerTimeline[activeInsertIndex - 1].y) : -Infinity;
+            const nextYear = activeInsertIndex < playerTimeline.length ? parseInt(playerTimeline[activeInsertIndex].y) : Infinity;
+
+            // Strict Validation: Year must fit logically
+            if (scannedYear >= prevYear && scannedYear <= nextYear) {
+                // Correct!
+                playerTimeline.splice(activeInsertIndex, 0, trackData);
+                savePlayerState();
+                renderTimeline();
+                
+                if (playerTimeline.length === 1) {
+                    showMessage("First Card Added! Now guess the timeline.", "success", 4000);
+                } else {
+                    showMessage(`CORRECT! Added ${scannedYear}`, "success", 4000);
+                }
+            } else {
+                // Wrong!
+                let msg = `WRONG! The year was ${scannedYear}. `;
+                if (scannedYear < prevYear) msg += `It should be EARLIER.`;
+                else msg += `It should be LATER.`;
+                
+                showMessage(msg, "error", 6000);
+            }
         }
 
     </script>
