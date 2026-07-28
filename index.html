@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר - Spotify Remote v1.1.3</title>
+    <title>היטסטר - Spotify Remote v1.1.5</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -39,7 +39,7 @@
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER REMOTE
         </h1>
-        <span class="text-xs bg-green-500/20 text-green-300 font-mono px-2.5 py-1 rounded-full border border-green-500/30">v1.1.3</span>
+        <span class="text-xs bg-green-500/20 text-green-300 font-mono px-2.5 py-1 rounded-full border border-green-500/30">v1.1.5</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center">
@@ -95,7 +95,7 @@
             </button>
         </section>
 
-        <!-- STEP 3: Game Screen -->
+        <!-- STEP 3: Game Screen (unchanged UI) -->
         <section id="game-screen" class="w-full hidden flex-col items-center space-y-6">
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
                 <div class="flex items-center gap-2">
@@ -158,7 +158,6 @@
                 </div>
             </div>
             
-            <!-- Loading Overlay -->
             <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
                 <i id="loading-spinner" class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
                 <h3 class="text-white font-bold text-xl" id="loading-title">מכין את המשחק...</h3>
@@ -210,7 +209,6 @@
             if (id === 'game-screen') target.classList.add('flex');
         }
 
-        // Extracts exactly what Spotify is complaining about
         async function getSpotifyErrorMessage(response) {
             try {
                 const data = await response.json();
@@ -290,19 +288,11 @@
                 'user-read-playback-state',
                 'user-modify-playback-state'
             ];
+            
+            const strictScopeString = encodeURIComponent(scopes.join(' '));
+            const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${CLIENT_ID}&scope=${strictScopeString}&code_challenge_method=S256&code_challenge=${codeChallenge}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&show_dialog=true`;
 
-            const authUrl = new URL("https://accounts.spotify.com/authorize");
-            authUrl.search = new URLSearchParams({
-                response_type: 'code',
-                client_id: CLIENT_ID,
-                scope: scopes.join(' '),
-                code_challenge_method: 'S256',
-                code_challenge: codeChallenge,
-                redirect_uri: REDIRECT_URI,
-                show_dialog: 'true'
-            }).toString();
-
-            window.location.href = authUrl.toString();
+            window.location.href = authUrl;
         });
 
         function logoutAndReset() {
@@ -354,10 +344,11 @@
                 if (playlistData.items && playlistData.items.length > 0) {
                     playlistData.items.forEach(pl => {
                         if (!pl) return;
+                        const owner = pl.owner ? pl.owner.display_name : 'Unknown';
                         const count = pl.tracks ? pl.tracks.total : 0;
                         const opt = document.createElement('option');
                         opt.value = pl.id;
-                        opt.textContent = `${pl.name} (${count} שירים)`;
+                        opt.textContent = `${pl.name} (${count} שירים) - יוצר: ${owner}`;
                         dropdown.appendChild(opt);
                     });
                 } else {
@@ -409,7 +400,13 @@
 
                 if (!response.ok) {
                     const errorMsg = await getSpotifyErrorMessage(response);
-                    showMessage(`שגיאה בשאיבת שירים: ${errorMsg}. אם הפלייליסט פרטי, ודא שהוא שלך.`, 'error', 10000);
+                    
+                    // Added custom handling for Development Mode 403 Forbidden errors
+                    if (response.status === 403) {
+                        showMessage(`שגיאה 403 (Forbidden): האפליקציה במצב פיתוח. ודא שהוספת את המייל שלך בלשונית "User Management" בדשבורד המפתחים של ספוטיפיי!`, 'error', 12000);
+                    } else {
+                        showMessage(`שגיאה בשאיבת שירים: ${errorMsg}.`, 'error', 10000);
+                    }
                     return false;
                 }
 
@@ -471,11 +468,10 @@
 
                     if (!res.ok) {
                         const errorMsg = await getSpotifyErrorMessage(res);
-                        // THIS is where Free accounts usually fail with "Premium required"
                         if (radarInterval) clearInterval(radarInterval);
                         switchScreen('setup-screen');
                         showMessage(`שגיאת מכשירים: ${errorMsg}`, 'error', 10000);
-                        return true; // Stop loop
+                        return true; 
                     }
 
                     const data = await res.json();
