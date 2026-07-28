@@ -276,8 +276,8 @@
             window.localStorage.setItem('code_verifier', codeVerifier);
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
-
-            const scopes = ['playlist-read-private', 'playlist-read-collaborative'];
+            
+            const scopes = ['playlist-read-private', 'playlist-read-collaborative', 'user-read-private', 'user-read-email'];
             
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             authUrl.search = new URLSearchParams({
