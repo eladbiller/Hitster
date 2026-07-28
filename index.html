@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר - Spotify Remote v3.0.0</title>
+    <title>Hitster - Local Party v5.1.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -20,6 +20,11 @@
         .card-front, .card-back { backface-visibility: hidden; }
         .card-back { transform: rotateY(180deg); }
         select option { background: #1e293b; color: white; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen pb-10">
@@ -29,123 +34,193 @@
     <!-- Header -->
     <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
-            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER REMOTE
+            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER PARTY
         </h1>
-        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v3.0.0</span>
+        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v5.1.0</span>
     </header>
 
-    <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center">
+    <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-start">
 
-        <!-- STEP 1: Login Screen -->
-        <section id="login-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
-            <div class="space-y-2">
-                <div class="w-20 h-20 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto text-4xl mb-4"><i class="fa-brands fa-spotify"></i></div>
-                <h2 class="text-2xl font-bold">התחברות לספוטיפיי</h2>
-                <p class="text-sm text-slate-400">התחבר כדי לשלוט במוזיקה דרך הטלפון.</p>
+        <!-- ROLE SELECTION SCREEN -->
+        <section id="role-screen" class="w-full bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
+            <h2 class="text-2xl font-bold">Choose Your Role</h2>
+            <p class="text-sm text-slate-400">Are you controlling the music, or are you guessing the songs?</p>
+            
+            <div class="space-y-4 pt-4">
+                <button onclick="startAuthFlow('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
+                    <span class="text-xl"><i class="fa-solid fa-crown text-yellow-400"></i> I am the DJ (Host)</span>
+                    <span class="text-xs text-indigo-200 font-normal">Connects to speaker, plays music, reveals answers. (Requires Spotify Premium)</span>
+                </button>
+                
+                <button onclick="startAuthFlow('PLAYER')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
+                    <span class="text-xl"><i class="fa-solid fa-mobile-screen text-green-400"></i> I am a Player (Guesser)</span>
+                    <span class="text-xs text-slate-300 font-normal">Search for songs, lock in guesses, track your score! (Free Spotify works)</span>
+                </button>
             </div>
-            <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
-                <i class="fa-solid fa-bolt"></i> התחבר ל-Spotify
-            </button>
         </section>
 
-        <!-- STEP 2: Choose Playlist -->
-        <section id="setup-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
-            <div id="user-info-badge" class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
-                <span><i class="fa-solid fa-user text-green-400 ml-1"></i> מחובר כ:</span>
-                <span id="user-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">טוען...</span>
+        <!-- ========================================== -->
+        <!--                HOST SCREENS                -->
+        <!-- ========================================== -->
+
+        <!-- HOST: Choose Playlist -->
+        <section id="host-setup-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
+            <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
+                <span><i class="fa-solid fa-crown text-yellow-400 mr-1"></i> Host DJ:</span>
+                <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
-            <h2 class="text-xl font-bold text-green-400">בחר מאגר למשחק</h2>
+            <h2 class="text-xl font-bold text-green-400">Choose Music to Play</h2>
 
-            <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-right appearance-none">
-                <option value="">טוען המידע...</option>
+            <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 appearance-none text-white">
+                <option value="">Loading your playlists...</option>
             </select>
             
             <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs">או</span><div class="flex-grow border-t border-slate-700"></div>
+                <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs">OR</span><div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <input type="text" id="custom-playlist-input" placeholder="הדבק קישור לפלייליסט..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 dir-ltr text-center font-mono">
+            <input type="text" id="custom-playlist-input" placeholder="Paste a Spotify Playlist Link..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-center font-mono text-white">
 
-            <button id="btn-start-game" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition mt-4 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-play"></i> התחל משחק מקומי!
+            <button id="btn-start-host-game" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition mt-4 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i> Start Playing Music!
             </button>
-            <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-2 block mx-auto">התנתק והחלף חשבון</button>
+            <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-2 block mx-auto">Logout & Switch Account</button>
         </section>
 
-        <!-- STEP 3: Game Screen -->
-        <section id="game-screen" class="w-full hidden flex-col items-center space-y-6">
-            
+        <!-- HOST: Game Screen -->
+        <section id="host-game-screen" class="w-full hidden flex-col items-center space-y-6">
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
-                <div class="flex items-center gap-2">
-                    <div class="bg-yellow-500/20 w-8 h-8 rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-trophy text-yellow-400 text-sm"></i>
-                    </div>
-                    <span class="text-sm text-slate-300">ניקוד:</span>
-                    <span id="score-count" class="font-bold text-xl text-white">0</span>
-                </div>
+                <span class="text-sm font-bold text-indigo-400"><i class="fa-solid fa-crown"></i> DJ Mode</span>
                 <div class="flex gap-2">
-                    <button id="btn-change-playlist" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2 px-3 rounded-lg transition shadow-lg">
-                        <i class="fa-solid fa-list"></i> חזור
-                    </button>
                     <button id="next-track-btn" class="bg-indigo-600 hover:bg-indigo-500 text-sm font-bold py-2 px-4 rounded-lg transition shadow-lg flex items-center gap-2">
-                        הבא <i class="fa-solid fa-forward"></i>
+                        Next Song <i class="fa-solid fa-forward"></i>
+                    </button>
+                    <button onclick="switchScreen('host-setup-screen')" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2 px-3 rounded-lg transition shadow-lg">
+                        <i class="fa-solid fa-list"></i> Back
                     </button>
                 </div>
             </div>
 
-            <!-- THE CARD -->
-            <div id="music-card" class="card-flip w-full max-w-sm mx-auto relative h-[380px]">
+            <div id="host-music-card" class="card-flip w-full max-w-sm mx-auto relative h-[380px]">
                 <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
                     <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
                         <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
-                            <span><i class="fa-solid fa-music mr-1"></i> כרטיס חידה</span>
+                            <span><i class="fa-solid fa-music mr-1"></i> Mystery Card</span>
                             <i class="fa-solid fa-question-circle text-indigo-400"></i>
                         </div>
                         <div class="w-full flex-grow flex flex-col items-center justify-center gap-4 relative">
                             <button id="play-pause-btn" class="w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
                                 <i class="fa-solid fa-play ml-2" id="play-icon"></i>
                             </button>
+                            <span class="text-sm text-slate-400 font-medium tracking-wide mt-2">Playing on your device...</span>
                         </div>
                         <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600 mt-4">
-                            <i class="fa-solid fa-eye"></i> חשוף תשובה
+                            <i class="fa-solid fa-eye"></i> Reveal Answer to Room
                         </button>
                     </div>
 
                     <div class="card-back absolute inset-0 bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-green-500">
-                        <div id="album-cover" class="w-32 h-32 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-2 border border-slate-700"></div>
+                        <div id="host-album-cover" class="w-32 h-32 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-2 border border-slate-700"></div>
                         <div class="text-center space-y-1 w-full">
-                            <div id="track-year" class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
-                            <div id="track-title" class="font-bold text-xl text-white truncate w-full px-2 mt-2">שם השיר</div>
-                            <div id="track-artist" class="text-base text-slate-400 truncate w-full px-2">שם האמן</div>
+                            <div id="host-track-year" class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
+                            <div id="host-track-title" class="font-bold text-xl text-white truncate w-full px-2 mt-2">Song Title</div>
+                            <div id="host-track-artist" class="text-base text-slate-400 truncate w-full px-2">Artist Name</div>
                         </div>
+                        <button id="hide-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-4">
+                            <i class="fa-solid fa-eye-slash"></i> Hide Card Again
+                        </button>
                     </div>
                 </div>
-            </div>
-            
-            <div class="w-full flex justify-center items-center gap-3">
-                <button id="btn-wrong" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-3 px-6 rounded-xl text-sm border border-red-500/30 transition flex items-center justify-center gap-1">
-                    <i class="fa-solid fa-xmark"></i> טעות
-                </button>
-                <button id="btn-correct" class="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-bold py-3 px-6 rounded-xl text-sm border border-green-500/30 transition flex items-center justify-center gap-1">
-                    <i class="fa-solid fa-check"></i> צדקתי (+1)
-                </button>
             </div>
             
             <!-- Radar Loading -->
             <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
                 <i class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
-                <h3 class="text-white font-bold text-xl">מכין משחק...</h3>
+                <h3 class="text-white font-bold text-xl">Preparing Spotify...</h3>
                 <div id="wake-spotify-box" class="hidden w-full space-y-3 pt-2">
-                    <div class="bg-slate-800 p-4 rounded-xl text-right">
-                        <p class="text-sm text-slate-200 font-bold mb-2">ספוטיפיי ישנה ברקע!</p>
-                        <p class="text-xs text-slate-400 mb-1">פתח אותה, נגן שיר לשנייה וחזור.</p>
+                    <div class="bg-slate-800 p-4 rounded-xl text-left">
+                        <p class="text-sm text-slate-200 font-bold mb-2">Spotify is asleep! 😴</p>
+                        <p class="text-xs text-slate-400 mb-1">Open Spotify, play a song for 1 second, then return here.</p>
                     </div>
                     <button id="btn-skip-radar" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-slate-600 transition text-sm">
-                        דלג והתחל בכוח
+                        Skip & Start Playing
                     </button>
                 </div>
             </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!--               PLAYER SCREENS               -->
+        <!-- ========================================== -->
+
+        <section id="player-game-screen" class="w-full hidden flex-col items-center space-y-4">
+            
+            <!-- Player Score Bar -->
+            <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
+                <div class="flex items-center gap-2">
+                    <div class="bg-green-500/20 w-8 h-8 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-layer-group text-green-400 text-sm"></i>
+                    </div>
+                    <span class="text-sm text-slate-300 font-bold">My Cards:</span>
+                </div>
+                <div class="text-2xl font-black text-white bg-slate-900 px-4 py-1 rounded-lg border border-slate-600 shadow-inner">
+                    <span id="player-score-display" class="text-green-400">0</span> <span class="text-slate-500 text-lg">/ 10</span>
+                </div>
+            </div>
+
+            <!-- SEARCH AREA -->
+            <div class="w-full bg-slate-800/90 rounded-2xl p-5 border border-slate-700 shadow-lg space-y-3">
+                <h3 class="font-bold text-white text-base"><i class="fa-solid fa-headphones text-indigo-400 mr-1"></i> What song is the DJ playing?</h3>
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="Search by song or artist..." class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 pl-12 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-lg">
+                    <i class="fa-solid fa-search absolute left-4 top-4 text-slate-400 text-lg"></i>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="search-results" class="w-full max-h-56 overflow-y-auto space-y-2 hidden bg-slate-900 p-2 rounded-xl border border-slate-700 shadow-inner"></div>
+            </div>
+
+            <!-- MY GUESS CARD -->
+            <div id="my-guess-container" class="w-full hidden">
+                <div class="w-full bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.15)] relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full bg-indigo-600 text-white text-xs font-bold py-1 text-center uppercase tracking-widest">
+                        My Locked Guess
+                    </div>
+                    
+                    <div id="guess-album-cover" class="w-24 h-24 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-3 mt-4 border border-slate-700"></div>
+                    <div class="text-center space-y-1 w-full pb-4 border-b border-slate-700">
+                        <div id="guess-track-year" class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
+                        <div id="guess-track-title" class="font-bold text-lg text-white truncate w-full px-2 mt-1">Song Title</div>
+                        <div id="guess-track-artist" class="text-sm text-slate-400 truncate w-full px-2">Artist Name</div>
+                    </div>
+
+                    <div class="w-full pt-4 space-y-3">
+                        <p class="text-xs text-slate-400 text-center">Wait for the DJ to reveal the answer...</p>
+                        <h4 class="text-center font-bold text-white mb-2">Did you get it right?</h4>
+                        <div class="grid grid-cols-2 gap-3 w-full">
+                            <button onclick="gradeGuess(false)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-3 rounded-xl text-sm border border-red-500/30 transition flex items-center justify-center gap-1 shadow-md">
+                                <i class="fa-solid fa-xmark"></i> Wrong
+                            </button>
+                            <button onclick="gradeGuess(true)" class="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-bold py-3 rounded-xl text-sm border border-green-500/30 transition flex items-center justify-center gap-1 shadow-md">
+                                <i class="fa-solid fa-check"></i> Right! (+1)
+                            </button>
+                        </div>
+                        <button onclick="clearGuess()" class="text-xs text-slate-500 hover:text-white underline w-full text-center mt-2">I want to change my guess</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="logoutAndReset()" class="text-xs text-slate-500 hover:text-white underline mt-6">Exit Game & Logout</button>
+        </section>
+
+        <!-- WINNER SCREEN -->
+        <section id="winner-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-8 shadow-2xl border-4 border-yellow-500 text-center space-y-6">
+            <div class="text-yellow-400 text-7xl animate-bounce mb-4"><i class="fa-solid fa-crown"></i></div>
+            <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">YOU WIN!</h2>
+            <p class="text-slate-300 text-lg">You collected 10 cards!</p>
+            <p class="text-sm text-yellow-200 font-bold bg-yellow-900/40 p-3 rounded-lg border border-yellow-700">Shout to the room that you won!</p>
+            <button onclick="resetPlayerScore()" class="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl mt-6 text-lg shadow-lg">Start New Game</button>
         </section>
 
     </main>
@@ -164,9 +239,9 @@
         }
 
         function switchScreen(id) {
-            ['login-screen', 'setup-screen', 'game-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            ['role-screen', 'host-setup-screen', 'host-game-screen', 'player-game-screen', 'winner-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
-            if (id === 'game-screen') document.getElementById(id).classList.add('flex');
+            if (id === 'host-game-screen' || id === 'player-game-screen') document.getElementById(id).classList.add('flex');
         }
 
         // --- GLOBAL STATE ---
@@ -174,12 +249,42 @@
         const REDIRECT_URI = window.location.origin + window.location.pathname;
 
         let accessToken = localStorage.getItem('spotify_token') || null;
-        let tracks = [], score = 0, isPlaying = false, activeDeviceId = null, radarInterval = null, currentTrack = null;
+        let userMode = localStorage.getItem('hitster_mode') || null; // 'HOST' or 'PLAYER'
+        let playerScore = parseInt(localStorage.getItem('hitster_score')) || 0;
+        
+        // Host state
+        let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentTrack = null;
+        
+        // Player state
+        let searchTimeout = null;
 
-        // --- SPOTIFY OAUTH ---
+        // --- SPOTIFY OAUTH (PKCE) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
         const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+        function startAuthFlow(mode) {
+            localStorage.setItem('hitster_mode', mode); // Remember what they clicked
+            
+            if (accessToken) {
+                routeUserBasedOnMode();
+            } else {
+                loginToSpotify();
+            }
+        }
+
+        async function loginToSpotify() {
+            localStorage.removeItem('spotify_token');
+            const verifier = generateRandomString(64);
+            localStorage.setItem('code_verifier', verifier);
+            const hashed = await sha256(verifier);
+            const codeChallenge = base64encode(hashed);
+
+            // We need playback scopes for the Host, and search/library scopes for the Player. Just request all.
+            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
+            const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true' });
+            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        }
 
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -195,74 +300,84 @@
                         accessToken = data.access_token;
                         localStorage.setItem('spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        loadSetupScreen();
+                        routeUserBasedOnMode();
+                    } else {
+                        switchScreen('role-screen');
                     }
-                } catch (e) {}
-            } else if (accessToken) {
-                loadSetupScreen();
+                } catch (e) { switchScreen('role-screen'); }
+            } else if (accessToken && userMode) {
+                routeUserBasedOnMode();
             } else {
-                switchScreen('login-screen');
+                switchScreen('role-screen');
             }
         });
 
-        document.getElementById('btn-login-spotify').addEventListener('click', async () => {
-            localStorage.clear();
-            const codeVerifier = generateRandomString(64);
-            localStorage.setItem('code_verifier', codeVerifier);
-            const hashed = await sha256(codeVerifier);
-            const codeChallenge = base64encode(hashed);
+        function logoutAndReset() { 
+            localStorage.clear(); 
+            accessToken = null; 
+            userMode = null;
+            playerScore = 0;
+            switchScreen('role-screen'); 
+            showMessage('Logged out successfully.', 'success'); 
+        }
 
-            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
-            const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true' });
-            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
-        });
+        function routeUserBasedOnMode() {
+            if (userMode === 'HOST') {
+                loadHostSetupScreen();
+            } else if (userMode === 'PLAYER') {
+                initPlayerScreen();
+            } else {
+                switchScreen('role-screen');
+            }
+        }
 
-        function logoutAndReset() { localStorage.clear(); accessToken = null; switchScreen('login-screen'); }
-        document.getElementById('btn-logout').addEventListener('click', () => { logoutAndReset(); showMessage('נמחק מידע מקומי. התחבר מחדש.', 'success'); });
+        // ==========================================
+        //                HOST LOGIC
+        // ==========================================
 
-        async function loadSetupScreen() {
-            switchScreen('setup-screen');
+        async function loadHostSetupScreen() {
+            switchScreen('host-setup-screen');
             const dropdown = document.getElementById('playlist-dropdown');
             try {
                 const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (!userRes.ok) { logoutAndReset(); return; }
-                document.getElementById('user-email-display').textContent = (await userRes.json()).email || 'מחובר';
+                document.getElementById('host-email-display').textContent = (await userRes.json()).email || 'Connected';
 
                 const plRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (!plRes.ok) return;
                 const plData = await plRes.json();
 
-                dropdown.innerHTML = '<option value="">-- בחר מאגר שירים מהרשימה --</option>';
-                dropdown.innerHTML += '<option value="LIKED_SONGS" class="font-bold text-green-400">❤️ שירי המועדפים שלי (Liked Songs)</option>';
+                dropdown.innerHTML = '<option value="">-- Choose a Playlist --</option>';
+                dropdown.innerHTML += '<option value="LIKED_SONGS" class="font-bold text-green-400">❤️ My Liked Songs</option>';
 
                 if (plData.items) {
                     plData.items.forEach(pl => {
                         if (!pl) return;
-                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0} שירים) - יוצר: ${pl.owner?.display_name||'Unknown'}</option>`;
+                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0}) - By: ${pl.owner?.display_name||'Unknown'}</option>`;
                     });
                 }
             } catch (err) {}
         }
 
-        document.getElementById('btn-start-game').addEventListener('click', async () => {
+        document.getElementById('btn-start-host-game').addEventListener('click', async () => {
             const dropdownVal = document.getElementById('playlist-dropdown').value;
             const customVal = document.getElementById('custom-playlist-input').value;
             let finalId = null;
 
             if (customVal && customVal.trim() !== '') {
-                const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]{22})/);
-                finalId = m ? m[1] : (/^[a-zA-Z0-9]{22}$/.test(customVal) ? customVal : null);
+                const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
+                finalId = m ? m[1] : customVal.trim();
             } else if (dropdownVal) { finalId = dropdownVal; }
 
-            if (!finalId) { showMessage('בחר פלייליסט', 'error'); return; }
+            if (!finalId) { showMessage('Select a playlist.', 'error'); return; }
             
-            switchScreen('game-screen');
+            switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
             overlay.classList.remove('hidden'); wakeBox.classList.add('hidden');
             
             const success = await fetchPlaylistTracks(finalId);
-            if (!success) { switchScreen('setup-screen'); return; }
+            if (!success) { switchScreen('host-setup-screen'); return; }
 
             startDeviceRadar();
         });
@@ -270,23 +385,19 @@
         async function fetchPlaylistTracks(playlistId) {
             try {
                 let rawItems = [];
-                
                 if (playlistId === 'LIKED_SONGS') {
-                    // Fetch Liked Songs
-                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     if(!res.ok) throw new Error(await res.text());
                     rawItems = (await res.json()).items || [];
                 } else {
-                    // Try the specific tracks endpoint first, with market=from_token to bypass region blocks
-                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    // Attempt 1: Without market token
+                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     
                     if (!res.ok) {
-                        // Fallback to the main playlist endpoint if tracks endpoint throws 403 Forbidden
-                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                        // Attempt 2: Fallback to general playlist data
+                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                         if(!res.ok) {
-                            const errText = await res.text();
-                            showMessage(`שגיאת הרשאות ספוטיפיי לפלייליסט הזה. הקוד: ${res.status}`, 'error', 10000);
-                            console.error(errText);
+                            showMessage(`Spotify API Error: ${res.status}`, 'error', 15000);
                             return false;
                         }
                         const data = await res.json();
@@ -296,25 +407,23 @@
                     }
                 }
 
-                if (rawItems.length === 0) { showMessage('המאגר ריק או חסום.', 'error'); return false; }
+                if (rawItems.length === 0) { showMessage('Playlist is empty or blocked.', 'error'); return false; }
 
                 tracks = rawItems
-                    .filter(i => i?.track?.uri && i?.track?.album?.release_date && !i.track.is_local)
+                    .filter(i => i && i.track && i.track.uri && i.track.album && i.track.album.release_date && !i.track.is_local)
                     .map(i => ({
-                        uri: i.track.uri, title: i.track.name,
+                        uri: i.track.uri, 
+                        title: i.track.name,
                         artist: i.track.artists ? i.track.artists.map(a => a.name).join(', ') : 'Unknown',
-                        year: i.track.album.release_date.substring(0, 4), cover: i.track.album.images?.[0]?.url || ''
+                        year: i.track.album.release_date.substring(0, 4), 
+                        cover: i.track.album.images?.[0]?.url || ''
                     })).sort(() => Math.random() - 0.5);
 
-                if (tracks.length === 0) { showMessage('לא נמצאו שירים עם תאריך במאגר זה.', 'error'); return false; }
+                if (tracks.length === 0) { showMessage(`Found songs, but none had valid release years!`, 'error'); return false; }
                 return true;
-            } catch (err) { 
-                showMessage(`תקלת תקשורת: ${err.message}`, 'error'); 
-                return false; 
-            }
+            } catch (err) { showMessage(`Network Error: ${err.message}`, 'error'); return false; }
         }
 
-        // --- SPOTIFY PLAYBACK ---
         async function startDeviceRadar() {
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
@@ -326,8 +435,8 @@
                     if (data.devices?.length > 0) {
                         activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
                         clearInterval(radarInterval); overlay.classList.add('hidden');
-                        loadNextTrack();
-                        showMessage('ספוטיפיי מחובר!', 'success', 3000);
+                        loadNextHostTrack();
+                        showMessage('Speaker Connected! You are the DJ.', 'success', 3000);
                         return true;
                     }
                     return false;
@@ -339,11 +448,11 @@
 
         document.getElementById('btn-skip-radar').addEventListener('click', () => {
             clearInterval(radarInterval); document.getElementById('loading-overlay').classList.add('hidden');
-            loadNextTrack();
-            showMessage('דילגנו על החיפוש. נסה ללחוץ Play.', 'success');
+            loadNextHostTrack();
+            showMessage('Radar skipped. Use the Play button to force wake your device.', 'success');
         });
 
-        async function playTrack(uri) {
+        async function playHostTrack(uri) {
             try {
                 let url = 'https://api.spotify.com/v1/me/player/play' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', body: JSON.stringify({ uris: [uri] }), headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } });
@@ -351,7 +460,7 @@
             } catch(e) {}
         }
 
-        async function pauseTrack() {
+        async function pauseHostTrack() {
             try {
                 let url = 'https://api.spotify.com/v1/me/player/pause' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
@@ -361,26 +470,146 @@
 
         document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (currentTrack) isPlaying ? pauseTrack() : playTrack(currentTrack.uri);
+            if (currentTrack) isPlaying ? pauseHostTrack() : playHostTrack(currentTrack.uri);
         });
 
-        function loadNextTrack() {
-            if (tracks.length === 0) { showMessage('סיימתם את כל השירים!', 'success'); return; }
-            document.getElementById('music-card').classList.remove('card-flipped');
+        function loadNextHostTrack() {
+            if (tracks.length === 0) { showMessage('Playlist finished!', 'success'); return; }
+            document.getElementById('host-music-card').classList.remove('card-flipped');
             isPlaying = false; document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
             currentTrack = tracks.pop();
-            document.getElementById('track-year').textContent = currentTrack.year;
-            document.getElementById('track-title').textContent = currentTrack.title;
-            document.getElementById('track-artist').textContent = currentTrack.artist;
-            document.getElementById('album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
+            document.getElementById('host-track-year').textContent = currentTrack.year;
+            document.getElementById('host-track-title').textContent = currentTrack.title;
+            document.getElementById('host-track-artist').textContent = currentTrack.artist;
+            document.getElementById('host-album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
         }
 
-        document.getElementById('next-track-btn').addEventListener('click', () => { pauseTrack(); loadNextTrack(); });
-        document.getElementById('reveal-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('music-card').classList.add('card-flipped'); });
-        
-        document.getElementById('btn-correct').addEventListener('click', () => { score++; document.getElementById('score-count').textContent = score; pauseTrack(); loadNextTrack(); });
-        document.getElementById('btn-wrong').addEventListener('click', () => { pauseTrack(); loadNextTrack(); });
-        document.getElementById('btn-change-playlist').addEventListener('click', () => { pauseTrack(); if(radarInterval) clearInterval(radarInterval); switchScreen('setup-screen'); });
+        document.getElementById('next-track-btn').addEventListener('click', () => { pauseHostTrack(); loadNextHostTrack(); });
+        document.getElementById('reveal-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('host-music-card').classList.add('card-flipped'); });
+        document.getElementById('hide-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('host-music-card').classList.remove('card-flipped'); });
+
+        // ==========================================
+        //               PLAYER LOGIC
+        // ==========================================
+
+        function initPlayerScreen() {
+            switchScreen('player-game-screen');
+            updateScoreDisplay();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('player-score-display').textContent = playerScore;
+            if (playerScore >= 10) {
+                switchScreen('winner-screen');
+            }
+        }
+
+        function resetPlayerScore() {
+            playerScore = 0;
+            localStorage.setItem('hitster_score', playerScore);
+            initPlayerScreen();
+        }
+
+        // Search Mechanics
+        const searchInput = document.getElementById('search-input');
+        const searchResultsBox = document.getElementById('search-results');
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            if (query.length < 2) {
+                searchResultsBox.classList.add('hidden');
+                return;
+            }
+            searchTimeout = setTimeout(() => executeSpotifySearch(query), 400); // 400ms debounce
+        });
+
+        async function executeSpotifySearch(query) {
+            try {
+                // Free accounts can use the search endpoint perfectly!
+                const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=6`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) logoutAndReset(); // Token expired
+                    return;
+                }
+                const data = await res.json();
+                renderSearchResults(data.tracks.items);
+            } catch (err) { console.error("Search failed"); }
+        }
+
+        function renderSearchResults(items) {
+            searchResultsBox.innerHTML = '';
+            if (items.length === 0) {
+                searchResultsBox.classList.add('hidden');
+                return;
+            }
+            searchResultsBox.classList.remove('hidden');
+            
+            items.forEach(track => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg cursor-pointer transition border border-slate-700 hover:border-indigo-500";
+                
+                const thumb = track.album.images[2]?.url || track.album.images[0]?.url || '';
+                const year = track.album.release_date ? track.album.release_date.substring(0, 4) : '????';
+                const artist = track.artists.map(a=>a.name).join(', ');
+                
+                div.innerHTML = `
+                    <img src="${thumb}" class="w-12 h-12 rounded shadow-sm">
+                    <div class="flex flex-col flex-1 overflow-hidden">
+                        <span class="text-sm font-bold text-white truncate">${track.name}</span>
+                        <span class="text-xs text-slate-400 truncate">${artist} • ${year}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 mr-2"></i>
+                `;
+                
+                div.onclick = () => lockInGuess({
+                    title: track.name,
+                    artist: artist,
+                    year: year,
+                    cover: thumb
+                });
+                
+                searchResultsBox.appendChild(div);
+            });
+        }
+
+        function lockInGuess(trackObj) {
+            searchResultsBox.classList.add('hidden');
+            searchInput.value = '';
+            
+            // Populate the "My Guess" card
+            document.getElementById('guess-track-year').textContent = trackObj.year;
+            document.getElementById('guess-track-title').textContent = trackObj.title;
+            document.getElementById('guess-track-artist').textContent = trackObj.artist;
+            document.getElementById('guess-album-cover').style.backgroundImage = `url('${trackObj.cover}')`;
+            
+            // Show it
+            document.getElementById('my-guess-container').classList.remove('hidden');
+            
+            // Smooth scroll down
+            document.getElementById('my-guess-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearGuess() {
+            document.getElementById('my-guess-container').classList.add('hidden');
+            searchInput.focus();
+        }
+
+        function gradeGuess(wasCorrect) {
+            if (wasCorrect) {
+                playerScore++;
+                localStorage.setItem('hitster_score', playerScore);
+                showMessage("Awesome! You got a card! 🃏", "success", 3000);
+            } else {
+                showMessage("Aww, maybe next time! ❌", "error", 3000);
+            }
+            clearGuess();
+            updateScoreDisplay();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
     </script>
 </body>
 </html>
