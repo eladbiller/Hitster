@@ -120,7 +120,7 @@
             <div id="music-card" class="card-flip w-full cursor-pointer max-w-sm mx-auto relative h-[380px]">
                 <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
                     
-                    <!-- Front of Card (The Mystery Player) -->
+                    <!-- Front of Card -->
                     <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
                         <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
                             <span><i class="fa-solid fa-music mr-1"></i> כרטיס חידה</span>
@@ -140,7 +140,7 @@
                         </button>
                     </div>
 
-                    <!-- Back of Card (The Answer) -->
+                    <!-- Back of Card -->
                     <div class="card-back absolute inset-0 bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-green-500 shadow-[0_0_30px_rgba(29,185,84,0.1)]">
                         <div id="album-cover" class="w-32 h-32 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-2 border border-slate-700"></div>
 
@@ -344,7 +344,7 @@
                 const data = await response.json();
                 
                 dropdown.innerHTML = '<option value="">-- בחר פלייליסט מהרשימה --</option>';
-                if (data.items && data.items.length > 0) {
+                if (data.items && Array.isArray(data.items) && data.items.length > 0) {
                     data.items.forEach(playlist => {
                         if (!playlist || !playlist.id) return;
                         const totalTracks = playlist.tracks?.total ?? 0;
@@ -415,36 +415,35 @@
             startDeviceRadar();
         }
 
-        // --- Robust Track Fetching with Fallback & Market Resolution ---
+        // --- Safe Track Fetching with Array Validation ---
         async function fetchPlaylistTracks(playlistId) {
             try {
-                // Primary Request: /tracks with market=from_token
-                let url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`;
-                let response = await fetch(url, {
+                const url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+                const response = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
 
-                let data = await response.json();
+                const data = await response.json();
 
-                // Fallback Request: fetch full playlist object if /tracks fails
                 if (!response.ok) {
-                    const fallbackUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?market=from_token`;
-                    const fallbackResponse = await fetch(fallbackUrl, {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    
-                    if (fallbackResponse.ok) {
-                        data = await fallbackResponse.json();
-                        response = fallbackResponse;
-                    } else {
-                        const errDetail = data.error?.message || `HTTP ${response.status}`;
-                        throw new Error(`Spotify API Error (${response.status}): ${errDetail}`);
-                    }
+                    const errDetail = data.error?.message || `HTTP ${response.status}`;
+                    throw new Error(`Spotify API Error (${response.status}): ${errDetail}`);
                 }
 
-                // Extract tracks array regardless of endpoint structure
-                const rawItems = data.items || data.tracks?.items || [];
+                // Safely extract items array using Array.isArray checks
+                let rawItems = [];
+                if (Array.isArray(data.items)) {
+                    rawItems = data.items;
+                } else if (data.tracks && Array.isArray(data.tracks.items)) {
+                    rawItems = data.tracks.items;
+                }
 
+                if (rawItems.length === 0) {
+                    showMessage('הפלייליסט שנבחר ריק או שאינו מכיל שירים זמינים.', 'error');
+                    return false;
+                }
+
+                // Safely filter and map valid track items
                 tracks = rawItems
                     .filter(item => {
                         if (!item || !item.track) return false;
@@ -464,7 +463,7 @@
                         };
                     });
 
-                // Randomize tracks
+                // Randomize track order
                 tracks.sort(() => Math.random() - 0.5);
 
                 if (tracks.length === 0) {
@@ -504,7 +503,7 @@
 
                     const data = await res.json();
                     
-                    if (data.devices && data.devices.length > 0) {
+                    if (data.devices && Array.isArray(data.devices) && data.devices.length > 0) {
                         const active = data.devices.find(d => d.is_active);
                         activeDeviceId = active ? active.id : data.devices[0].id;
                         
