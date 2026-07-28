@@ -26,7 +26,6 @@
         .card-back { transform: rotateY(180deg); }
         select option { background: #1e293b; color: white; }
     </style>
-    <!-- Spotify SDK MUST be defined before script loads -->
     <script>
         window.spotifySDKReady = false;
         window.onSpotifyWebPlaybackSDKReady = () => {
@@ -165,7 +164,6 @@
                 </div>
             </div>
 
-            <!-- Loading Overlay -->
             <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
                 <i class="fa-solid fa-circle-notch fa-spin text-4xl text-green-500 mb-2"></i>
                 <p class="text-white font-medium text-base leading-relaxed" id="loading-text">מכין את נגן הדפדפן...</p>
@@ -219,7 +217,6 @@
         let score = 0;
         let isPlaying = false;
 
-        // --- PKCE Authentication ---
         const generateRandomString = (length) => {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const values = crypto.getRandomValues(new Uint8Array(length));
@@ -237,7 +234,6 @@
                 .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         };
 
-        // --- Initialization ---
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -278,7 +274,6 @@
             }
         });
 
-        // Login Handler
         document.getElementById('btn-login-spotify').addEventListener('click', async () => {
             const codeVerifier = generateRandomString(64);
             window.localStorage.setItem('code_verifier', codeVerifier);
@@ -308,13 +303,12 @@
             window.location.href = authUrl.toString();
         });
 
-        // Logout
         document.getElementById('btn-logout').addEventListener('click', () => {
             localStorage.clear();
             window.location.href = REDIRECT_URI;
         });
 
-        // --- Fetch Playlists for Setup Screen ---
+        // --- Fetch Playlists ---
         async function loadSetupScreen() {
             switchScreen('setup-screen');
             const dropdown = document.getElementById('playlist-dropdown');
@@ -335,14 +329,22 @@
                 dropdown.innerHTML = '<option value="">-- בחר פלייליסט מהרשימה --</option>';
                 if (data.items && data.items.length > 0) {
                     data.items.forEach(playlist => {
-                        if (playlist) {
-                            const count = (playlist.tracks && typeof playlist.tracks.total === 'number') ? playlist.tracks.total : (playlist.items ? playlist.items.length : '');
-                            const countText = count !== '' ? ` (${count} שירים)` : '';
-                            const opt = document.createElement('option');
-                            opt.value = playlist.id;
-                            opt.textContent = `${playlist.name}${countText}`;
-                            dropdown.appendChild(opt);
+                        if (!playlist) return;
+                        
+                        // Safely grab ID, fallback to parsing URI, skip if both fail
+                        const pid = playlist.id || (playlist.uri ? playlist.uri.split(':').pop() : null);
+                        if (!pid) return;
+
+                        // Safely extract total tracks without risking 'undefined' string
+                        let countText = '';
+                        if (playlist.tracks && playlist.tracks.total != null) {
+                            countText = ` (${playlist.tracks.total} שירים)`;
                         }
+
+                        const opt = document.createElement('option');
+                        opt.value = pid;
+                        opt.textContent = `${playlist.name}${countText}`;
+                        dropdown.appendChild(opt);
                     });
                 } else {
                     dropdown.innerHTML = '<option value="">לא נמצאו פלייליסטים, הדבק קישור למטה</option>';
@@ -387,7 +389,7 @@
                     });
 
                     player.addListener('account_error', () => {
-                        showMessage('נדרש חשבון Spotify Premium לניגון בדפדפן', 'error');
+                        showMessage('נדרש חשבון Spotify Premium', 'error');
                         reject('Premium required');
                     });
 
@@ -443,6 +445,11 @@
 
         // --- Game Logic ---
         async function initGame(playlistId) {
+            if (!playlistId || playlistId === 'undefined') {
+                showMessage('מזהה הפלייליסט שגוי. נסה לבחור פלייליסט אחר.', 'error');
+                return;
+            }
+
             switchScreen('game-screen');
             const overlay = document.getElementById('loading-overlay');
             const loadingText = document.getElementById('loading-text');
@@ -461,7 +468,7 @@
                 await initWebSDKPlayer();
                 overlay.classList.add('hidden');
                 loadNextTrack();
-                showMessage('נגן הדפדפן מוכן!', 'success');
+                showMessage('המשחק מוכן!', 'success');
             } catch (err) {
                 overlay.classList.add('hidden');
                 switchScreen('setup-screen');
@@ -474,31 +481,34 @@
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
-                if (!response.ok) throw new Error('Fetch failed');
+                if (!response.ok) {
+                    console.error('Spotify API Error:', response.status);
+                    throw new Error('שגיאה בתקשורת מול ספוטיפיי.');
+                }
 
                 const data = await response.json();
                 const rawItems = data.items || [];
 
+                // Use optional chaining for supreme safety
                 tracks = rawItems
-                    .filter(item => item && item.track && item.track.album && item.track.album.release_date && item.track.is_local === false)
+                    .filter(item => item?.track?.album?.release_date && !item.track.is_local)
                     .map(item => ({
                         uri: item.track.uri,
                         title: item.track.name,
                         artist: item.track.artists ? item.track.artists.map(a => a.name).join(', ') : 'אמן לא ידוע',
                         year: item.track.album.release_date.substring(0, 4),
-                        cover: (item.track.album.images && item.track.album.images[0]) ? item.track.album.images[0].url : ''
+                        cover: item.track.album.images?.[0]?.url || ''
                     }));
 
-                // Shuffle
                 tracks.sort(() => Math.random() - 0.5);
                 
                 if (tracks.length === 0) {
-                    showMessage('לא נמצאו שירים בפלייליסט זה', 'error');
+                    showMessage('לא נמצאו שירים תקינים בפלייליסט זה (או שכולם מקומיים).', 'error');
                     return false;
                 }
                 return true;
             } catch (err) {
-                showMessage('שגיאה בטעינת השירים מהפלייליסט', 'error');
+                showMessage(err.message || 'שגיאה בטעינת השירים מהפלייליסט', 'error');
                 return false;
             }
         }
@@ -514,7 +524,7 @@
                 isPlaying = true;
                 document.getElementById('play-icon').className = 'fa-solid fa-pause ml-0';
             } catch(e) {
-                showMessage('שגיאה בנגינת השיר בדפדפן.', 'error');
+                showMessage('שגיאה בנגינת השיר.', 'error');
             }
         }
 
@@ -543,7 +553,7 @@
             document.getElementById('album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
         }
 
-        // --- Controls & UI Listeners ---
+        // --- Controls Listeners ---
         document.getElementById('play-pause-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             if (!currentTrack) return;
@@ -580,7 +590,6 @@
             pauseTrack();
             switchScreen('setup-screen');
         });
-
     </script>
 </body>
 </html>
