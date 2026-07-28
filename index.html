@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster - Local Party v5.1.0</title>
+    <title>Hitster - Local Party v5.2.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -21,10 +21,14 @@
         .card-back { transform: rotateY(180deg); }
         select option { background: #1e293b; color: white; }
         
-        ::-webkit-scrollbar { width: 6px; }
+        /* Custom Scrollbar for Search Results & Timeline */
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen pb-10">
@@ -36,7 +40,7 @@
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER PARTY
         </h1>
-        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v5.1.0</span>
+        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v5.2.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-start">
@@ -54,7 +58,7 @@
                 
                 <button onclick="startAuthFlow('PLAYER')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
                     <span class="text-xl"><i class="fa-solid fa-mobile-screen text-green-400"></i> I am a Player (Guesser)</span>
-                    <span class="text-xs text-slate-300 font-normal">Search for songs, lock in guesses, track your score! (Free Spotify works)</span>
+                    <span class="text-xs text-slate-300 font-normal">Search for songs, build your timeline, track tokens! (Free Spotify works)</span>
                 </button>
             </div>
         </section>
@@ -156,17 +160,31 @@
 
         <section id="player-game-screen" class="w-full hidden flex-col items-center space-y-4">
             
-            <!-- Player Score Bar -->
+            <!-- Player Stats Bar (Tokens & Cards) -->
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
-                <div class="flex items-center gap-2">
-                    <div class="bg-green-500/20 w-8 h-8 rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-layer-group text-green-400 text-sm"></i>
+                
+                <!-- Tokens Counter -->
+                <div class="flex flex-col items-start gap-1">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Tokens</span>
+                    <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 shadow-inner">
+                        <button onclick="updateTokens(-1)" class="text-red-400 hover:text-red-300 w-6 h-6 flex items-center justify-center rounded-full bg-slate-800 active:bg-slate-700"><i class="fa-solid fa-minus text-xs"></i></button>
+                        <div class="text-xl font-black text-yellow-400 flex items-center gap-1.5 min-w-[32px] justify-center">
+                            <span id="player-token-display">2</span> <i class="fa-solid fa-coins text-sm mb-0.5"></i>
+                        </div>
+                        <button onclick="updateTokens(1)" class="text-green-400 hover:text-green-300 w-6 h-6 flex items-center justify-center rounded-full bg-slate-800 active:bg-slate-700"><i class="fa-solid fa-plus text-xs"></i></button>
                     </div>
-                    <span class="text-sm text-slate-300 font-bold">My Cards:</span>
                 </div>
-                <div class="text-2xl font-black text-white bg-slate-900 px-4 py-1 rounded-lg border border-slate-600 shadow-inner">
-                    <span id="player-score-display" class="text-green-400">0</span> <span class="text-slate-500 text-lg">/ 10</span>
+
+                <!-- Score (Cards) Counter -->
+                <div class="flex flex-col items-end gap-1">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Timeline Cards</span>
+                    <div class="text-2xl font-black text-white bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-600 shadow-inner flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-green-400 text-sm mb-0.5"></i>
+                        <span id="player-score-display" class="text-green-400">0</span> 
+                        <span class="text-slate-500 text-lg">/ 10</span>
+                    </div>
                 </div>
+
             </div>
 
             <!-- SEARCH AREA -->
@@ -211,7 +229,23 @@
                 </div>
             </div>
 
-            <button onclick="logoutAndReset()" class="text-xs text-slate-500 hover:text-white underline mt-6">Exit Game & Logout</button>
+            <!-- MY TIMELINE (Collected Cards) -->
+            <div class="w-full bg-slate-800/90 rounded-2xl p-4 border border-slate-700 shadow-lg space-y-3">
+                <div class="flex justify-between items-center px-1">
+                    <h3 class="font-bold text-white text-sm"><i class="fa-solid fa-timeline text-indigo-400 mr-1"></i> My Timeline</h3>
+                    <span class="text-xs text-slate-400">Sorted by Year</span>
+                </div>
+                
+                <div id="timeline-container" class="flex overflow-x-auto gap-3 pb-3 hide-scrollbar snap-x">
+                    <!-- Cards injected by JS -->
+                    <div id="empty-timeline-msg" class="text-slate-500 text-sm italic w-full text-center py-6 border-2 border-dashed border-slate-600 rounded-xl">
+                        Your timeline is empty. Win a card to start!
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="resetPlayerGame()" class="text-xs text-red-400 hover:text-red-300 underline mt-4">Reset My Game & Score</button>
+            <button onclick="logoutAndReset()" class="text-xs text-slate-500 hover:text-white underline mt-2">Exit & Logout of Spotify</button>
         </section>
 
         <!-- WINNER SCREEN -->
@@ -220,18 +254,18 @@
             <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">YOU WIN!</h2>
             <p class="text-slate-300 text-lg">You collected 10 cards!</p>
             <p class="text-sm text-yellow-200 font-bold bg-yellow-900/40 p-3 rounded-lg border border-yellow-700">Shout to the room that you won!</p>
-            <button onclick="resetPlayerScore()" class="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl mt-6 text-lg shadow-lg">Start New Game</button>
+            <button onclick="resetPlayerGame()" class="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl mt-6 text-lg shadow-lg">Start New Game</button>
         </section>
 
     </main>
 
     <script>
         // --- UI TOOLS ---
-        function showMessage(msg, type = 'error', duration = 8000) {
+        function showMessage(msg, type = 'error', duration = 6000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500';
-            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-semibold flex items-start gap-3 transition-all duration-300 break-all`;
+            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-semibold flex items-start gap-3 transition-all duration-300`;
             toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-lg mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
             container.appendChild(toast);
             requestAnimationFrame(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); toast.classList.add('translate-y-0', 'opacity-100'); });
@@ -250,13 +284,37 @@
 
         let accessToken = localStorage.getItem('spotify_token') || null;
         let userMode = localStorage.getItem('hitster_mode') || null; // 'HOST' or 'PLAYER'
-        let playerScore = parseInt(localStorage.getItem('hitster_score')) || 0;
         
         // Host state
-        let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentTrack = null;
+        let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentHostTrack = null;
         
         // Player state
+        let playerTimeline = []; // Array of card objects
+        let playerTokens = 2;    // Starts with 2
+        let currentGuess = null; // The track object they just searched and locked in
         let searchTimeout = null;
+
+        // --- LOAD SAVED PLAYER STATE ---
+        function loadPlayerState() {
+            const savedTimeline = localStorage.getItem('hitster_timeline');
+            if (savedTimeline) {
+                playerTimeline = JSON.parse(savedTimeline);
+            } else {
+                playerTimeline = [];
+            }
+            
+            const savedTokens = localStorage.getItem('hitster_tokens');
+            if (savedTokens !== null) {
+                playerTokens = parseInt(savedTokens);
+            } else {
+                playerTokens = 2; // Default starting tokens
+            }
+        }
+
+        function savePlayerState() {
+            localStorage.setItem('hitster_timeline', JSON.stringify(playerTimeline));
+            localStorage.setItem('hitster_tokens', playerTokens);
+        }
 
         // --- SPOTIFY OAUTH (PKCE) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
@@ -264,8 +322,7 @@
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
         function startAuthFlow(mode) {
-            localStorage.setItem('hitster_mode', mode); // Remember what they clicked
-            
+            localStorage.setItem('hitster_mode', mode); 
             if (accessToken) {
                 routeUserBasedOnMode();
             } else {
@@ -280,7 +337,6 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
 
-            // We need playback scopes for the Host, and search/library scopes for the Player. Just request all.
             const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
             const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true' });
             window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
@@ -316,7 +372,8 @@
             localStorage.clear(); 
             accessToken = null; 
             userMode = null;
-            playerScore = 0;
+            playerTimeline = [];
+            playerTokens = 2;
             switchScreen('role-screen'); 
             showMessage('Logged out successfully.', 'success'); 
         }
@@ -325,6 +382,7 @@
             if (userMode === 'HOST') {
                 loadHostSetupScreen();
             } else if (userMode === 'PLAYER') {
+                loadPlayerState();
                 initPlayerScreen();
             } else {
                 switchScreen('role-screen');
@@ -390,11 +448,9 @@
                     if(!res.ok) throw new Error(await res.text());
                     rawItems = (await res.json()).items || [];
                 } else {
-                    // Attempt 1: Without market token
                     let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     
                     if (!res.ok) {
-                        // Attempt 2: Fallback to general playlist data
                         res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                         if(!res.ok) {
                             showMessage(`Spotify API Error: ${res.status}`, 'error', 15000);
@@ -470,18 +526,18 @@
 
         document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (currentTrack) isPlaying ? pauseHostTrack() : playHostTrack(currentTrack.uri);
+            if (currentHostTrack) isPlaying ? pauseHostTrack() : playHostTrack(currentHostTrack.uri);
         });
 
         function loadNextHostTrack() {
             if (tracks.length === 0) { showMessage('Playlist finished!', 'success'); return; }
             document.getElementById('host-music-card').classList.remove('card-flipped');
             isPlaying = false; document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
-            currentTrack = tracks.pop();
-            document.getElementById('host-track-year').textContent = currentTrack.year;
-            document.getElementById('host-track-title').textContent = currentTrack.title;
-            document.getElementById('host-track-artist').textContent = currentTrack.artist;
-            document.getElementById('host-album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
+            currentHostTrack = tracks.pop();
+            document.getElementById('host-track-year').textContent = currentHostTrack.year;
+            document.getElementById('host-track-title').textContent = currentHostTrack.title;
+            document.getElementById('host-track-artist').textContent = currentHostTrack.artist;
+            document.getElementById('host-album-cover').style.backgroundImage = `url('${currentHostTrack.cover}')`;
         }
 
         document.getElementById('next-track-btn').addEventListener('click', () => { pauseHostTrack(); loadNextHostTrack(); });
@@ -494,20 +550,72 @@
 
         function initPlayerScreen() {
             switchScreen('player-game-screen');
-            updateScoreDisplay();
+            renderPlayerUI();
         }
 
-        function updateScoreDisplay() {
-            document.getElementById('player-score-display').textContent = playerScore;
-            if (playerScore >= 10) {
+        function updateTokens(change) {
+            let newTotal = playerTokens + change;
+            if (newTotal < 0) {
+                showMessage("You are out of tokens! 🪙", "error", 2000);
+                return;
+            }
+            playerTokens = newTotal;
+            savePlayerState();
+            renderPlayerUI();
+        }
+
+        function renderPlayerUI() {
+            // Update counts
+            document.getElementById('player-token-display').textContent = playerTokens;
+            document.getElementById('player-score-display').textContent = playerTimeline.length;
+            
+            // Check Win Condition
+            if (playerTimeline.length >= 10) {
                 switchScreen('winner-screen');
+                return;
+            }
+
+            // Render Timeline Cards
+            const container = document.getElementById('timeline-container');
+            const emptyMsg = document.getElementById('empty-timeline-msg');
+            
+            // Remove existing cards
+            container.querySelectorAll('.timeline-card').forEach(e => e.remove());
+
+            if (playerTimeline.length === 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+                
+                // Sort timeline securely by Year
+                playerTimeline.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+
+                playerTimeline.forEach(track => {
+                    const card = document.createElement('div');
+                    card.className = "timeline-card flex-none w-28 bg-slate-900 border border-indigo-500/50 rounded-xl p-3 snap-center flex flex-col items-center shadow-lg transform transition hover:scale-105";
+                    
+                    card.innerHTML = `
+                        <span class="text-xl font-black text-green-400 mb-2 drop-shadow">${track.year}</span>
+                        <img src="${track.cover}" class="w-16 h-16 rounded-lg mb-2 object-cover shadow-md border border-slate-700">
+                        <span class="text-xs text-white font-bold w-full text-center truncate">${track.title}</span>
+                        <span class="text-[10px] text-slate-400 w-full text-center truncate">${track.artist}</span>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                // Auto-scroll to the end
+                setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 100);
             }
         }
 
-        function resetPlayerScore() {
-            playerScore = 0;
-            localStorage.setItem('hitster_score', playerScore);
+        function resetPlayerGame() {
+            playerTimeline = [];
+            playerTokens = 2;
+            currentGuess = null;
+            savePlayerState();
+            clearGuess();
             initPlayerScreen();
+            showMessage("Game reset. You have 2 tokens.", "success");
         }
 
         // Search Mechanics
@@ -526,12 +634,11 @@
 
         async function executeSpotifySearch(query) {
             try {
-                // Free accounts can use the search endpoint perfectly!
                 const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=6`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 if (!res.ok) {
-                    if (res.status === 401) logoutAndReset(); // Token expired
+                    if (res.status === 401) logoutAndReset(); 
                     return;
                 }
                 const data = await res.json();
@@ -565,6 +672,7 @@
                 `;
                 
                 div.onclick = () => lockInGuess({
+                    uri: track.uri,
                     title: track.name,
                     artist: artist,
                     year: year,
@@ -576,37 +684,38 @@
         }
 
         function lockInGuess(trackObj) {
+            currentGuess = trackObj;
             searchResultsBox.classList.add('hidden');
             searchInput.value = '';
             
-            // Populate the "My Guess" card
             document.getElementById('guess-track-year').textContent = trackObj.year;
             document.getElementById('guess-track-title').textContent = trackObj.title;
             document.getElementById('guess-track-artist').textContent = trackObj.artist;
             document.getElementById('guess-album-cover').style.backgroundImage = `url('${trackObj.cover}')`;
             
-            // Show it
             document.getElementById('my-guess-container').classList.remove('hidden');
-            
-            // Smooth scroll down
-            document.getElementById('my-guess-container').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('my-guess-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function clearGuess() {
+            currentGuess = null;
             document.getElementById('my-guess-container').classList.add('hidden');
             searchInput.focus();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function gradeGuess(wasCorrect) {
-            if (wasCorrect) {
-                playerScore++;
-                localStorage.setItem('hitster_score', playerScore);
+            if (wasCorrect && currentGuess) {
+                // Add the card to the timeline
+                playerTimeline.push(currentGuess);
+                savePlayerState();
                 showMessage("Awesome! You got a card! 🃏", "success", 3000);
             } else {
                 showMessage("Aww, maybe next time! ❌", "error", 3000);
             }
+            
             clearGuess();
-            updateScoreDisplay();
+            renderPlayerUI();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
