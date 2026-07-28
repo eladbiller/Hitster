@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר אישי - Ultimate Web Edition</title>
+    <title>היטסטר - Spotify Remote</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -28,6 +28,14 @@
         .card-front, .card-back { backface-visibility: hidden; }
         .card-back { transform: rotateY(180deg); }
         select option { background: #1e293b; color: white; }
+        
+        .pulse-btn {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px rgba(29, 185, 84, 0.5); }
+            100% { box-shadow: 0 0 0 15px rgba(29, 185, 84, 0); }
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen pb-10">
@@ -36,7 +44,7 @@
 
     <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md">
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
-            <i class="fa-solid fa-record-vinyl mr-2 text-green-400"></i> HITSTER
+            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER REMOTE
         </h1>
     </header>
 
@@ -49,7 +57,7 @@
                     <i class="fa-brands fa-spotify"></i>
                 </div>
                 <h2 class="text-2xl font-bold">ברוכים הבאים!</h2>
-                <p class="text-sm text-slate-400">המשחק עודכן לגרסת הרשת המלאה. התחבר לספוטיפיי כדי להתחיל.</p>
+                <p class="text-sm text-slate-400">התחבר לחשבון הספוטיפיי שלך כדי לשלוט בשירים בטלפון.</p>
             </div>
             <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fa-solid fa-bolt"></i> התחבר ל-Spotify
@@ -60,7 +68,7 @@
         <section id="setup-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <div class="space-y-2">
                 <h2 class="text-xl font-bold text-green-400">בחר פלייליסט למשחק</h2>
-                <p class="text-xs text-slate-400">בחר מתוך הפלייליסטים שלך או הדבק קישור:</p>
+                <p class="text-xs text-slate-400">כל הפלייליסטים נתמכים! (פרט ל-Daily Mix):</p>
             </div>
 
             <div class="space-y-4">
@@ -83,7 +91,7 @@
             </button>
             
             <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300 underline mt-4 font-bold">
-                <i class="fa-solid fa-rotate"></i> התנתק והחלף חשבון
+                <i class="fa-solid fa-rotate"></i> התנתק ואיפוס הרשאות
             </button>
         </section>
 
@@ -110,31 +118,25 @@
             </div>
 
             <!-- Music Card -->
-            <div id="music-card" class="card-flip w-full h-80 cursor-pointer max-w-sm mx-auto relative">
+            <div id="music-card" class="card-flip w-full cursor-pointer max-w-sm mx-auto relative h-[380px]">
                 <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
                     
                     <!-- Front of Card (The Mystery Player) -->
                     <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
-                        <div class="w-full flex justify-between text-slate-400 text-sm font-medium">
+                        <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
                             <span><i class="fa-solid fa-music mr-1"></i> כרטיס חידה</span>
                             <i class="fa-solid fa-question-circle text-indigo-400"></i>
                         </div>
 
-                        <!-- The Magic IFrame Widget Area -->
-                        <div class="w-full relative rounded-xl overflow-hidden shadow-lg border border-slate-600 bg-slate-800 my-auto" style="height: 80px;" dir="ltr">
-                            <!-- Spotify native embed (loads securely in browser) -->
-                            <iframe id="spotify-widget" src="" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
-                            
-                            <!-- The Mystery Overlay (Covers the song title, leaves the play button exposed) -->
-                            <div class="absolute top-0 right-0 bottom-0 flex flex-col items-center justify-center bg-slate-800 z-10 border-l border-slate-700" style="left: 80px;">
-                                <span class="text-green-400 font-bold text-base tracking-wide flex items-center gap-2">
-                                    <i class="fa-solid fa-mask"></i> שיר מוסתר
-                                </span>
-                                <span class="text-slate-400 text-xs mt-1">לחץ Play משמאל <i class="fa-solid fa-arrow-left"></i></span>
-                            </div>
+                        <!-- Big Play Button for Remote -->
+                        <div class="w-full flex-grow flex flex-col items-center justify-center gap-4 relative">
+                            <button id="play-pause-btn" class="w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
+                                <i class="fa-solid fa-play ml-2" id="play-icon"></i>
+                            </button>
+                            <span class="text-sm text-slate-400 font-medium tracking-wide mt-2">מנגן דרך האפליקציה בטלפון</span>
                         </div>
 
-                        <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600">
+                        <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600 mt-4">
                             <i class="fa-solid fa-eye"></i> חשוף תשובה
                         </button>
                     </div>
@@ -168,9 +170,22 @@
                 </div>
             </div>
 
-            <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
-                <i class="fa-solid fa-circle-notch fa-spin text-4xl text-green-500 mb-2"></i>
-                <p class="text-white font-bold text-lg leading-relaxed" id="loading-text">טוען שירים...</p>
+            <!-- The "Radar" Device Wake Up Overlay -->
+            <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
+                <i id="loading-spinner" class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
+                <h3 class="text-white font-bold text-xl" id="loading-title">מכין את המשחק...</h3>
+                <p class="text-slate-300 text-sm leading-relaxed max-w-xs" id="loading-text">אנחנו מחפשים את ספוטיפיי...</p>
+                
+                <div id="wake-spotify-box" class="hidden w-full space-y-4 pt-4">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <p class="text-sm text-slate-200 font-medium mb-2">ספוטיפיי נרדמה ברקע! 😴</p>
+                        <p class="text-xs text-slate-400">1. לחץ על הכפתור הירוק כדי לפתוח אותה.<br>2. <b>חזור מיד לכאן.</b> המשחק יתחיל אוטומטית!</p>
+                    </div>
+                    <!-- This opens the app directly -->
+                    <a href="spotify://" class="w-full spotify-green text-slate-950 font-extrabold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] transition flex items-center justify-center gap-2 text-lg pulse-btn">
+                        <i class="fa-brands fa-spotify text-2xl"></i> פתח את ספוטיפיי
+                    </a>
+                </div>
             </div>
 
         </section>
@@ -179,7 +194,7 @@
 
     <script>
         // --- UI Tools ---
-        function showMessage(message, type = 'error', duration = 6000) {
+        function showMessage(message, type = 'error', duration = 5000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-500/95 border-red-600' : 'bg-green-500/95 border-green-600';
@@ -217,6 +232,9 @@
         let tracks = [];
         let currentTrack = null;
         let score = 0;
+        let isPlaying = false;
+        let activeDeviceId = null;
+        let radarInterval = null;
 
         const generateRandomString = (length) => {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -280,8 +298,13 @@
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
 
-            // הרשאות לקריאת פלייליסטים בלבד. אין יותר צורך ב-Playback!
-            const scopes = ['playlist-read-private', 'playlist-read-collaborative'];
+            // Scope needed for Remote Control
+            const scopes = [
+                'playlist-read-private', 
+                'playlist-read-collaborative', 
+                'user-read-playback-state', 
+                'user-modify-playback-state'
+            ];
             
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             authUrl.search = new URLSearchParams({
@@ -349,13 +372,12 @@
 
             if (customVal) {
                 try {
-                    // טיפול בכל סוגי הקישורים של ספוטיפיי
                     if (customVal.includes('playlist/')) {
                         finalPlaylistId = customVal.split('playlist/')[1].split('?')[0];
                     } else if (customVal.includes('spotify:playlist:')) {
                         finalPlaylistId = customVal.split(':')[2];
                     } else {
-                        finalPlaylistId = customVal; // מזהה נקי
+                        finalPlaylistId = customVal;
                     }
                 } catch (e) {
                     showMessage('שגיאה: הקישור לא תקין.', 'error');
@@ -375,7 +397,14 @@
         async function initGame(playlistId) {
             switchScreen('game-screen');
             const overlay = document.getElementById('loading-overlay');
+            const title = document.getElementById('loading-title');
+            const text = document.getElementById('loading-text');
+            const wakeBox = document.getElementById('wake-spotify-box');
+            
             overlay.classList.remove('hidden');
+            wakeBox.classList.add('hidden');
+            title.textContent = 'שואב שירים...';
+            text.textContent = 'מתחבר לפלייליסט שלך.';
             
             const tracksLoaded = await fetchPlaylistTracks(playlistId);
             if (!tracksLoaded) {
@@ -383,8 +412,7 @@
                 return;
             }
 
-            overlay.classList.add('hidden');
-            loadNextTrack();
+            startDeviceRadar();
         }
 
         async function fetchPlaylistTracks(playlistId) {
@@ -394,18 +422,18 @@
                 });
                 
                 if (response.status === 403) {
-                    throw new Error("🚫 הפלייליסט פרטי מדי או חסום על ידי ספוטיפיי. אנא נסה פלייליסט אחר או ודא שהפלייליסט שלך מוגדר כציבורי.");
+                    throw new Error("🚫 הפלייליסט הזה חסום להשמעה. נסה ליצור פלייליסט חדש ולהעתיק אליו את השירים.");
                 } else if (!response.ok) {
-                    throw new Error(`שגיאה מספוטיפיי (קוד ${response.status}).`);
+                    throw new Error(`שגיאה ${response.status} בעת משיכת השירים.`);
                 }
 
                 const data = await response.json();
                 
-                // אנחנו שולפים את ה-ID של השיר - 100% מהשירים עובדים בשיטה הזו!
+                // אנחנו מאפשרים את כל השירים (גם אם אין להם Preview) כי אנחנו מנגנים דרך האפליקציה!
                 tracks = (data.items || [])
-                    .filter(item => item?.track?.id && item?.track?.album?.release_date && !item.track.is_local)
+                    .filter(item => item?.track?.uri && item?.track?.album?.release_date && !item.track.is_local)
                     .map(item => ({
-                        id: item.track.id,
+                        uri: item.track.uri,
                         title: item.track.name,
                         artist: item.track.artists ? item.track.artists.map(a => a.name).join(', ') : 'אמן לא ידוע',
                         year: item.track.album.release_date.substring(0, 4),
@@ -415,7 +443,7 @@
                 tracks.sort(() => Math.random() - 0.5);
                 
                 if (tracks.length === 0) {
-                    showMessage('שגיאה: לא מצאתי שירים בפלייליסט הזה.', 'error');
+                    showMessage('שגיאה: לא מצאתי שירים תקינים בפלייליסט הזה.', 'error');
                     return false;
                 }
                 
@@ -426,23 +454,94 @@
             }
         }
 
+        // --- The Radar (Finds Spotify in background) ---
+        async function startDeviceRadar() {
+            const overlay = document.getElementById('loading-overlay');
+            const title = document.getElementById('loading-title');
+            const text = document.getElementById('loading-text');
+            const wakeBox = document.getElementById('wake-spotify-box');
+            
+            title.textContent = 'מחפש את ספוטיפיי...';
+            text.textContent = 'בודק אם האפליקציה פתוחה בטלפון.';
+            
+            const checkDevice = async () => {
+                try {
+                    const res = await fetch('https://api.spotify.com/v1/me/player/devices', {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const data = await res.json();
+                    
+                    if (data.devices && data.devices.length > 0) {
+                        // מצאנו מכשיר!
+                        const active = data.devices.find(d => d.is_active);
+                        activeDeviceId = active ? active.id : data.devices[0].id;
+                        
+                        clearInterval(radarInterval);
+                        overlay.classList.add('hidden');
+                        loadNextTrack();
+                        showMessage('התחברנו לספוטיפיי בהצלחה! 🟢', 'success');
+                        return true;
+                    }
+                    return false;
+                } catch(e) {
+                    return false;
+                }
+            };
+
+            const foundImmediately = await checkDevice();
+            
+            if (!foundImmediately) {
+                // ספוטיפיי רדומה, מציגים את כפתור הפתיחה
+                title.textContent = 'ממתין לספוטיפיי...';
+                text.textContent = 'האפליקציה בטלפון שלך רדומה.';
+                wakeBox.classList.remove('hidden');
+                
+                // סורק ברקע כל שתי שניות עד שהוא מוצא
+                radarInterval = setInterval(async () => {
+                    await checkDevice();
+                }, 2000);
+            }
+        }
+
+        // --- Audio Remote Controls ---
+        async function playTrack(uri) {
+            if (!activeDeviceId) return;
+            try {
+                await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ uris: [uri] }),
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
+                });
+                isPlaying = true;
+                document.getElementById('play-icon').className = 'fa-solid fa-pause ml-0';
+            } catch(e) {
+                showMessage('שגיאה בשליחת פקודת נגינה.', 'error');
+            }
+        }
+
+        async function pauseTrack() {
+            if (!activeDeviceId) return;
+            try {
+                await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                isPlaying = false;
+                document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
+            } catch(e) {}
+        }
+
         function loadNextTrack() {
             if (tracks.length === 0) {
                 showMessage('סיימתם את כל השירים!', 'success');
                 return;
             }
 
-            // החזרת הכרטיס לצד הקדמי
             document.getElementById('music-card').classList.remove('card-flipped');
+            pauseTrack();
 
-            // שליפת שיר
             currentTrack = tracks.pop();
             
-            // טעינת השיר לתוך הווידג'ט של ספוטיפיי (זה עוצר את השיר הקודם אוטומטית)
-            const iframe = document.getElementById('spotify-widget');
-            iframe.src = `https://open.spotify.com/embed/track/${currentTrack.id}?utm_source=generator&theme=0`;
-            
-            // עדכון גב הכרטיס לתשובה
             document.getElementById('track-year').textContent = currentTrack.year;
             document.getElementById('track-title').textContent = currentTrack.title;
             document.getElementById('track-artist').textContent = currentTrack.artist;
@@ -450,6 +549,16 @@
         }
 
         // --- Events ---
+        document.getElementById('play-pause-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!currentTrack) return;
+            if (isPlaying) {
+                pauseTrack();
+            } else {
+                playTrack(currentTrack.uri);
+            }
+        });
+
         document.getElementById('reveal-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             document.getElementById('music-card').classList.add('card-flipped');
@@ -468,8 +577,8 @@
         });
 
         document.getElementById('btn-change-playlist').addEventListener('click', () => {
-            // עוצר את המוזיקה על ידי איפוס הנגן
-            document.getElementById('spotify-widget').src = "";
+            pauseTrack();
+            if(radarInterval) clearInterval(radarInterval);
             switchScreen('setup-screen');
         });
     </script>
