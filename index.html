@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר - Multiplayer v2.0.0</title>
+    <title>היטסטר - Multiplayer v2.0.1</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -15,7 +15,6 @@
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // --- FIREBASE INITIALIZATION (Canvas Environment Setup) ---
         let app, db, auth, appId;
         
         try {
@@ -25,8 +24,6 @@
             db = getFirestore(app);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
-            // Expose crucial Firebase functions to the global window object
-            // so our standard script below can use them to sync game state.
             window.fbDb = db;
             window.fbDoc = doc;
             window.fbSetDoc = setDoc;
@@ -37,7 +34,6 @@
             window.fbArrayUnion = arrayUnion;
             window.appId = appId;
             
-            // Authenticate user anonymously to allow database access
             const initAuth = async () => {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -50,13 +46,12 @@
             onAuthStateChanged(auth, (user) => {
                 window.fbUser = user;
                 if(user) {
-                    console.log("Firebase Auth Ready!");
                     document.getElementById('firebase-status').classList.add('hidden');
                 }
             });
 
         } catch (e) {
-            console.error("Firebase init failed. Multiplayer disabled.", e);
+            console.error("Firebase init failed.", e);
         }
     </script>
 
@@ -80,7 +75,6 @@
 </head>
 <body class="flex flex-col min-h-screen pb-10">
 
-    <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
     <div id="firebase-status" class="w-full bg-yellow-600 text-white text-center py-1 text-xs font-bold">
@@ -92,7 +86,7 @@
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER MULTI
         </h1>
-        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v2.0.0</span>
+        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v2.0.1</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center">
@@ -251,6 +245,30 @@
                 </div>
             </div>
             
+            <!-- Radar Loading Overlay (With Force Skip) -->
+            <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
+                <i id="loading-spinner" class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
+                <h3 class="text-white font-bold text-xl" id="loading-title">מכין את המשחק...</h3>
+                <p class="text-slate-300 text-sm leading-relaxed max-w-xs" id="loading-text">מחפש את ספוטיפיי...</p>
+                
+                <div id="wake-spotify-box" class="hidden w-full space-y-3 pt-2">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-right">
+                        <p class="text-sm text-slate-200 font-bold mb-2">ספוטיפיי ישנה ברקע! 😴</p>
+                        <p class="text-xs text-slate-400 mb-1">1. לחץ על הכפתור הירוק כדי לפתוח אותה.</p>
+                        <p class="text-xs text-slate-400 mb-1">2. <b>נגן שיר כלשהו לשנייה.</b></p>
+                        <p class="text-xs text-slate-400">3. חזור מיד לכאן, והמשחק יתחיל.</p>
+                    </div>
+                    
+                    <a href="spotify://" class="w-full spotify-green text-slate-950 font-extrabold py-3.5 px-4 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] transition flex items-center justify-center gap-2 text-lg">
+                        <i class="fa-brands fa-spotify text-2xl"></i> פתח את ספוטיפיי
+                    </a>
+                    
+                    <button id="btn-skip-radar" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-slate-600 transition text-sm">
+                        <i class="fa-solid fa-forward-step"></i> דלג והתחל בכוח
+                    </button>
+                </div>
+            </div>
+            
         </section>
 
     </main>
@@ -264,22 +282,18 @@
             toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-semibold flex items-start gap-3 transition-all duration-300 break-all`;
             toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-lg mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), duration);
+            requestAnimationFrame(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); toast.classList.add('translate-y-0', 'opacity-100'); });
+            setTimeout(() => { toast.classList.remove('translate-y-0', 'opacity-100'); toast.classList.add('translate-y-[-20px]', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, duration);
         }
 
         function switchScreen(id) {
             ['splash-screen', 'login-screen', 'join-screen', 'setup-screen', 'game-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
-            const target = document.getElementById(id);
-            target.classList.remove('hidden');
-            if (id === 'game-screen') target.classList.add('flex');
+            document.getElementById(id).classList.remove('hidden');
+            if (id === 'game-screen') document.getElementById(id).classList.add('flex');
         }
 
         function startHostFlow() {
-            if (accessToken) {
-                loadSetupScreen();
-            } else {
-                switchScreen('login-screen');
-            }
+            accessToken ? loadSetupScreen() : switchScreen('login-screen');
         }
 
         function startJoinFlow() {
@@ -298,37 +312,28 @@
         let tracks = [];
         let activeDeviceId = null;
         let isPlaying = false;
-        let unsubscribeRoom = null; // To stop listening to Firebase when leaving
+        let unsubscribeRoom = null;
 
         // --- FIREBASE MULTIPLAYER LOGIC ---
         function generateRoomCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let result = '';
-            for (let i = 0; i < 4; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
             return result;
         }
 
         async function createRoomAndStart(playlistId) {
-            if (!window.fbUser) {
-                showMessage("שגיאת חיבור לשרת המשחק. נסה לרענן.", "error");
-                return;
-            }
+            if (!window.fbUser) { showMessage("שגיאת חיבור לשרת המשחק. נסה לרענן.", "error"); return; }
 
-            // 1. Fetch Tracks (Host Only)
-            showMessage("מכין פלייליסט...", "success", 2000);
+            showMessage("מכין את רשימת השירים...", "success", 2000);
             const success = await fetchPlaylistTracks(playlistId);
             if (!success) return;
 
-            // 2. Setup Firebase Room
             currentRoomCode = generateRoomCode();
             isHost = true;
             myName = "מארח (Host)";
             
             const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
-            
-            // Push the first track to the database
             const firstTrack = tracks.pop();
             
             await window.fbSetDoc(roomRef, {
@@ -339,11 +344,8 @@
                 isRevealed: false
             });
 
-            // 3. Update UI
             setupGameUI();
             listenToRoom(currentRoomCode);
-            
-            // 4. Try connecting to Spotify Player
             startDeviceRadar();
         }
 
@@ -358,15 +360,9 @@
             const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', codeInput);
             const roomSnap = await window.fbGetDoc(roomRef);
 
-            if (!roomSnap.exists()) {
-                showMessage("החדר לא קיים. בדוק את הקוד שוב.", "error");
-                return;
-            }
+            if (!roomSnap.exists()) { showMessage("החדר לא קיים. בדוק את הקוד שוב.", "error"); return; }
 
-            // Add player to room
-            await window.fbUpdateDoc(roomRef, {
-                players: window.fbArrayUnion(nameInput)
-            });
+            await window.fbUpdateDoc(roomRef, { players: window.fbArrayUnion(nameInput) });
 
             currentRoomCode = codeInput;
             isHost = false;
@@ -383,67 +379,43 @@
             
             unsubscribeRoom = window.fbOnSnapshot(roomRef, (docSnap) => {
                 if (!docSnap.exists()) {
-                    showMessage("החדר נסגר על ידי המארח.", "error");
+                    showMessage("החדר נסגר.", "error");
                     switchScreen('splash-screen');
                     return;
                 }
                 
                 const data = docSnap.data();
-                
-                // Update Player Count
                 document.getElementById('player-count').textContent = data.players.length;
 
-                // Sync Card State
                 const card = document.getElementById('music-card');
-                
-                if (data.isRevealed) {
-                    card.classList.add('card-flipped');
-                } else {
-                    card.classList.remove('card-flipped');
-                }
+                data.isRevealed ? card.classList.add('card-flipped') : card.classList.remove('card-flipped');
 
-                // Sync Track Data
                 if (data.currentTrack) {
                     document.getElementById('track-year').textContent = data.currentTrack.year;
                     document.getElementById('track-title').textContent = data.currentTrack.title;
                     document.getElementById('track-artist').textContent = data.currentTrack.artist;
                     document.getElementById('album-cover').style.backgroundImage = `url('${data.currentTrack.cover}')`;
                 }
-            }, (error) => {
-                console.error("Firestore Listen Error:", error);
-            });
+            }, (error) => console.error("Firestore Listen Error:", error));
         }
 
-        // --- HOST CONTROLS & SYNCING ---
         async function hostNextTrack() {
             if (!isHost || tracks.length === 0) return;
-            
             const next = tracks.pop();
             const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
-            
-            // Push to Firebase -> Everyone updates instantly
-            await window.fbUpdateDoc(roomRef, {
-                currentTrack: next,
-                isRevealed: false
-            });
-
-            // Pause Host's spotify
+            await window.fbUpdateDoc(roomRef, { currentTrack: next, isRevealed: false });
             pauseTrack();
         }
 
         async function hostRevealAnswer() {
             if (!isHost) return;
             const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
-            await window.fbUpdateDoc(roomRef, {
-                isRevealed: true
-            });
+            await window.fbUpdateDoc(roomRef, { isRevealed: true });
         }
 
         document.getElementById('next-track-btn').addEventListener('click', hostNextTrack);
         document.getElementById('reveal-btn').addEventListener('click', hostRevealAnswer);
 
-
-        // --- UI UPDATES ---
         function setupGameUI() {
             switchScreen('game-screen');
             document.getElementById('display-room-code').textContent = currentRoomCode;
@@ -463,7 +435,6 @@
                 document.getElementById('player-waiting-msg').classList.remove('hidden');
             }
         }
-
 
         // --- SPOTIFY OAUTH & FETCHING (Host Only) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
@@ -501,10 +472,7 @@
             const codeChallenge = base64encode(hashed);
 
             const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
-            
-            const params = new URLSearchParams({
-                response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true'
-            });
+            const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true' });
             window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
         });
 
@@ -533,7 +501,7 @@
             } catch (err) {}
         }
 
-        document.getElementById('btn-start-game').addEventListener('click', () => {
+        document.getElementById('btn-create-room').addEventListener('click', () => {
             const dropdownVal = document.getElementById('playlist-dropdown').value;
             const customVal = document.getElementById('custom-playlist-input').value;
             let finalId = null;
@@ -551,7 +519,11 @@
 
         async function fetchPlaylistTracks(playlistId) {
             try {
-                let url = playlistId === 'LIKED_SONGS' ? `https://api.spotify.com/v1/me/tracks?limit=50` : `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+                // FIXED: Re-added market=from_token to pull release_date properly on standard playlists
+                let url = playlistId === 'LIKED_SONGS' 
+                    ? `https://api.spotify.com/v1/me/tracks?limit=50` 
+                    : `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`;
+                
                 const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 const data = await res.json();
                 
@@ -567,35 +539,52 @@
                         cover: i.track.album.images?.[0]?.url || ''
                     })).sort(() => Math.random() - 0.5);
 
-                if (tracks.length === 0) return false;
+                if (tracks.length === 0) { showMessage('לא נמצאו שירים עם תאריך במאגר זה.', 'error'); return false; }
                 return true;
             } catch (err) { return false; }
         }
 
         // --- SPOTIFY PLAYBACK (HOST ONLY) ---
         async function startDeviceRadar() {
+            const overlay = document.getElementById('loading-overlay');
+            const wakeBox = document.getElementById('wake-spotify-box');
+            
             const check = async () => {
                 try {
                     const res = await fetch('https://api.spotify.com/v1/me/player/devices', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     const data = await res.json();
                     if (data.devices?.length > 0) {
                         activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
+                        clearInterval(radarInterval);
+                        overlay.classList.add('hidden');
                         showMessage('ספוטיפיי מחובר ומוכן! 🟢', 'success', 3000);
                         return true;
                     }
                     return false;
                 } catch(e) { return false; }
             };
+            
             if (!(await check())) {
-                showMessage("פתח את ספוטיפיי בטלפון שלך ברקע!", "error", 10000);
-                setInterval(check, 3000);
+                wakeBox.classList.remove('hidden');
+                radarInterval = setInterval(check, 2500);
             }
         }
 
+        // FORCE SKIP RADAR
+        document.getElementById('btn-skip-radar').addEventListener('click', () => {
+            clearInterval(radarInterval);
+            document.getElementById('loading-overlay').classList.add('hidden');
+            showMessage('דילגנו על חיפוש המכשיר. ייתכן והשירים לא יתנגנו.', 'success');
+        });
+
         async function playTrack(uri) {
-            if (!activeDeviceId || !isHost) return;
+            if (!isHost) return;
             try {
-                await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`, {
+                // If activeDeviceId is missing because we skipped, we send request without it to target currently playing device
+                let url = 'https://api.spotify.com/v1/me/player/play';
+                if (activeDeviceId) url += `?device_id=${activeDeviceId}`;
+                
+                await fetch(url, {
                     method: 'PUT', body: JSON.stringify({ uris: [uri] }),
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -605,9 +594,11 @@
         }
 
         async function pauseTrack() {
-            if (!activeDeviceId || !isHost) return;
+            if (!isHost) return;
             try {
-                await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
+                let url = 'https://api.spotify.com/v1/me/player/pause';
+                if (activeDeviceId) url += `?device_id=${activeDeviceId}`;
+                await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
                 isPlaying = false;
                 document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
             } catch(e) {}
@@ -615,7 +606,6 @@
 
         document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            // Fetch current track from Firebase to play
             const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
             const snap = await window.fbGetDoc(roomRef);
             const trk = snap.data()?.currentTrack;
