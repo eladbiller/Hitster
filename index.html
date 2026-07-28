@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר - Spotify Remote</title>
+    <title>היטסטר - Spotify Remote v1.1.0</title>
+    <!-- Tailwind CSS for UI styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
@@ -40,11 +42,13 @@
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
-    <!-- App Header -->
-    <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md">
+    <!-- App Header with Version Number -->
+    <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER REMOTE
         </h1>
+        <!-- VERSION BADGE: Displays on page so you know new code deployed -->
+        <span class="text-xs bg-green-500/20 text-green-300 font-mono px-2.5 py-1 rounded-full border border-green-500/30">v1.1.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center">
@@ -97,7 +101,7 @@
         <!-- STEP 3: Game Screen -->
         <section id="game-screen" class="w-full hidden flex-col items-center space-y-6">
 
-            <!-- Top Bar -->
+            <!-- Top Score Bar -->
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
                 <div class="flex items-center gap-2">
                     <div class="bg-yellow-500/20 w-8 h-8 rounded-full flex items-center justify-center">
@@ -116,18 +120,17 @@
                 </div>
             </div>
 
-            <!-- Interactive Music Card -->
+            <!-- Card UI -->
             <div id="music-card" class="card-flip w-full cursor-pointer max-w-sm mx-auto relative h-[380px]">
                 <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
                     
-                    <!-- Front of Card -->
+                    <!-- Card Front -->
                     <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
                         <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
                             <span><i class="fa-solid fa-music mr-1"></i> כרטיס חידה</span>
                             <i class="fa-solid fa-question-circle text-indigo-400"></i>
                         </div>
 
-                        <!-- Big Play Button for Remote -->
                         <div class="w-full flex-grow flex flex-col items-center justify-center gap-4 relative">
                             <button id="play-pause-btn" class="w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
                                 <i class="fa-solid fa-play ml-2" id="play-icon"></i>
@@ -140,7 +143,7 @@
                         </button>
                     </div>
 
-                    <!-- Back of Card -->
+                    <!-- Card Back -->
                     <div class="card-back absolute inset-0 bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-green-500 shadow-[0_0_30px_rgba(29,185,84,0.1)]">
                         <div id="album-cover" class="w-32 h-32 bg-slate-800 rounded-2xl shadow-xl bg-cover bg-center mb-2 border border-slate-700"></div>
 
@@ -191,7 +194,20 @@
     </main>
 
     <script>
-        // --- UI Toast Banner Notification ---
+        // --- App Configuration & Version ---
+        const APP_VERSION = '1.1.0';
+        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1';
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+
+        let accessToken = localStorage.getItem('spotify_token') || null;
+        let tracks = [];
+        let currentTrack = null;
+        let score = 0;
+        let isPlaying = false;
+        let activeDeviceId = null;
+        let radarInterval = null;
+
+        // --- Notification Toast ---
         function showMessage(message, type = 'error', duration = 8000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -223,17 +239,7 @@
             if (screenId === 'game-screen') target.classList.add('flex');
         }
 
-        // --- App Configuration & State ---
-        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1';
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
-        let accessToken = localStorage.getItem('spotify_token') || null;
-        let tracks = [];
-        let currentTrack = null;
-        let score = 0;
-        let isPlaying = false;
-        let activeDeviceId = null;
-        let radarInterval = null;
-
+        // --- PKCE Helpers ---
         const generateRandomString = (length) => {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const values = crypto.getRandomValues(new Uint8Array(length));
@@ -251,7 +257,7 @@
                 .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         };
 
-        // --- Init & OAuth Handler ---
+        // --- OAuth Authorization Flow ---
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -297,6 +303,7 @@
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
 
+            // Complete permissions required for public, private & collaborative playlists
             const scopes = [
                 'playlist-read-private', 
                 'playlist-read-collaborative', 
@@ -320,10 +327,14 @@
             window.location.href = authUrl.toString();
         });
 
-        document.getElementById('btn-logout').addEventListener('click', () => {
+        function logoutAndReset() {
             localStorage.clear();
-            window.location.href = REDIRECT_URI;
-        });
+            accessToken = null;
+            switchScreen('login-screen');
+            showMessage('איפוס הרשאות מושלם! אנא התחבר מחדש.', 'success', 4000);
+        }
+
+        document.getElementById('btn-logout').addEventListener('click', logoutAndReset);
 
         // --- Fetch User Playlists ---
         async function loadSetupScreen() {
@@ -335,9 +346,9 @@
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
 
-                if (response.status === 401) {
-                    localStorage.clear();
-                    window.location.reload();
+                // Auto-clear stale/forbidden tokens
+                if (response.status === 401 || response.status === 403) {
+                    logoutAndReset();
                     return;
                 }
 
@@ -361,7 +372,7 @@
             }
         }
 
-        // --- Playlist ID Parsing ---
+        // --- Helper: Parse Playlist ID or Link ---
         function parsePlaylistId(input) {
             if (!input) return null;
             const str = input.trim();
@@ -393,7 +404,73 @@
             initGame(finalPlaylistId);
         });
 
-        // --- Game Initialization & Track Fetching ---
+        // --- Fetch Playlist Tracks Safely ---
+        async function fetchPlaylistTracks(playlistId) {
+            try {
+                const url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (response.status === 403 || response.status === 401) {
+                    logoutAndReset();
+                    showMessage('שגיאת הרשאות (403). אנא התחבר מחדש להורדת הרשאות מעודכנות.', 'error', 8000);
+                    return false;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errDetail = data.error?.message || `HTTP ${response.status}`;
+                    throw new Error(`Spotify API Error (${response.status}): ${errDetail}`);
+                }
+
+                let rawItems = [];
+                if (Array.isArray(data.items)) {
+                    rawItems = data.items;
+                } else if (data.tracks && Array.isArray(data.tracks.items)) {
+                    rawItems = data.tracks.items;
+                }
+
+                if (rawItems.length === 0) {
+                    showMessage('הפלייליסט שנבחר ריק.', 'error');
+                    return false;
+                }
+
+                tracks = rawItems
+                    .filter(item => {
+                        if (!item || !item.track) return false;
+                        const t = item.track;
+                        if (t.is_local || t.type === 'episode' || !t.uri) return false;
+                        if (!t.album || !t.album.release_date) return false;
+                        return true;
+                    })
+                    .map(item => {
+                        const t = item.track;
+                        return {
+                            uri: t.uri,
+                            title: t.name,
+                            artist: t.artists ? t.artists.map(a => a.name).join(', ') : 'אמן לא ידוע',
+                            year: t.album.release_date.substring(0, 4),
+                            cover: t.album.images?.[0]?.url || ''
+                        };
+                    });
+
+                tracks.sort(() => Math.random() - 0.5);
+
+                if (tracks.length === 0) {
+                    showMessage('לא נמצאו שירים תקינים בפלייליסט הזה.', 'error');
+                    return false;
+                }
+
+                return true;
+            } catch (err) {
+                showMessage(err.message, 'error', 8000);
+                return false;
+            }
+        }
+
+        // --- Game Initialization ---
         async function initGame(playlistId) {
             switchScreen('game-screen');
             const overlay = document.getElementById('loading-overlay');
@@ -415,71 +492,7 @@
             startDeviceRadar();
         }
 
-        // --- Safe Track Fetching with Array Validation ---
-        async function fetchPlaylistTracks(playlistId) {
-            try {
-                const url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
-                const response = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    const errDetail = data.error?.message || `HTTP ${response.status}`;
-                    throw new Error(`Spotify API Error (${response.status}): ${errDetail}`);
-                }
-
-                // Safely extract items array using Array.isArray checks
-                let rawItems = [];
-                if (Array.isArray(data.items)) {
-                    rawItems = data.items;
-                } else if (data.tracks && Array.isArray(data.tracks.items)) {
-                    rawItems = data.tracks.items;
-                }
-
-                if (rawItems.length === 0) {
-                    showMessage('הפלייליסט שנבחר ריק או שאינו מכיל שירים זמינים.', 'error');
-                    return false;
-                }
-
-                // Safely filter and map valid track items
-                tracks = rawItems
-                    .filter(item => {
-                        if (!item || !item.track) return false;
-                        const t = item.track;
-                        if (t.is_local || t.type === 'episode' || !t.uri) return false;
-                        if (!t.album || !t.album.release_date) return false;
-                        return true;
-                    })
-                    .map(item => {
-                        const t = item.track;
-                        return {
-                            uri: t.uri,
-                            title: t.name,
-                            artist: t.artists ? t.artists.map(a => a.name).join(', ') : 'אמן לא ידוע',
-                            year: t.album.release_date.substring(0, 4),
-                            cover: t.album.images?.[0]?.url || ''
-                        };
-                    });
-
-                // Randomize track order
-                tracks.sort(() => Math.random() - 0.5);
-
-                if (tracks.length === 0) {
-                    showMessage('לא נמצאו שירים תקינים עם תאריך יציאה בפלייליסט הזה.', 'error');
-                    return false;
-                }
-
-                return true;
-            } catch (err) {
-                console.error("fetchPlaylistTracks failed:", err);
-                showMessage(err.message, 'error', 10000);
-                return false;
-            }
-        }
-
-        // --- Radar: Locate Active Mobile Spotify Player ---
+        // --- Device Connection Radar ---
         async function startDeviceRadar() {
             const overlay = document.getElementById('loading-overlay');
             const title = document.getElementById('loading-title');
@@ -495,9 +508,8 @@
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
 
-                    if (res.status === 401) {
-                        localStorage.clear();
-                        window.location.reload();
+                    if (res.status === 401 || res.status === 403) {
+                        logoutAndReset();
                         return false;
                     }
 
@@ -531,7 +543,7 @@
             }
         }
 
-        // --- Playback Controls ---
+        // --- Playback Commands ---
         async function playTrack(uri) {
             if (!activeDeviceId) return;
             try {
@@ -579,7 +591,7 @@
             document.getElementById('album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
         }
 
-        // --- User Interface Event Listeners ---
+        // --- Controls Event Listeners ---
         document.getElementById('play-pause-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             if (!currentTrack) return;
