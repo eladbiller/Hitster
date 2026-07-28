@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v6.1.0</title>
+    <title>Hitster - QR Scanner v6.2.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -26,7 +26,7 @@
         ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
         
         #portrait-blocker { display: none; }
-        @media screen and (orientation: portrait) {
+        @media screen and (orientation: portrait) and (max-width: 768px) {
             .landscape-only-mode #portrait-blocker { display: flex !important; }
             .landscape-only-mode #player-game-screen { display: none !important; }
         }
@@ -42,7 +42,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.1.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.2.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-4xl flex flex-col items-center justify-start h-full">
@@ -51,7 +51,7 @@
         <section id="role-screen" class="w-full max-w-md bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <h2 class="text-2xl font-bold">Choose Your Role</h2>
             <div class="space-y-4 pt-2">
-                <button onclick="startHostFlow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
+                <button onclick="startAuthFlow('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
                     <span class="text-xl"><i class="fa-solid fa-crown text-yellow-400"></i> I am the DJ (Host)</span>
                     <span class="text-xs text-indigo-200 font-normal">Connects to Spotify, plays music, shows QR codes.</span>
                 </button>
@@ -75,28 +75,31 @@
         </section>
 
         <!-- HOST: Setup -->
-        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
-            <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
+        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-4">
+            <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-crown text-yellow-400 mr-1"></i> Host DJ:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
             <h2 class="text-xl font-bold text-green-400">Choose Music to Play</h2>
 
-            <!-- Added Special Options directly to Preset Dropdown -->
+            <!-- RANDOM PLAY BUTTON -->
+            <button id="btn-start-random-game" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg border-2 border-purple-400/30">
+                <i class="fa-solid fa-dice text-2xl"></i> Play Random Songs (All Time)
+            </button>
+
+            <div class="relative flex py-1 items-center mt-2 mb-2">
+                <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">Or Pick a Playlist</span><div class="flex-grow border-t border-slate-700"></div>
+            </div>
+
             <select id="preset-dropdown" onchange="clearOtherInputs('preset')" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-white font-bold text-indigo-300">
                 <option value="">-- Special & Presets --</option>
                 <option value="liked">❤️ My Liked Songs</option>
-                <option value="random">🎲 Random Songs (All Time)</option>
                 <option value="37i9dQZF1DXcBWIGoYBM5M">🔥 Today's Top Hits</option>
                 <option value="37i9dQZF1DX4o1oenSJRJd">💿 All Out 2000s</option>
                 <option value="37i9dQZF1DXbTxeAdrVG2l">🎸 All Out 90s</option>
                 <option value="37i9dQZF1DX4UtSsGT1Sbe">🕺 All Out 80s</option>
             </select>
-
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs">OR</span><div class="flex-grow border-t border-slate-700"></div>
-            </div>
 
             <select id="playlist-dropdown" onchange="clearOtherInputs('playlist')" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 appearance-none text-white">
                 <option value="">Your Personal Playlists...</option>
@@ -105,7 +108,7 @@
             <input type="text" id="custom-playlist-input" oninput="clearOtherInputs('custom')" placeholder="Paste a Spotify Link..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-center font-mono text-white mt-2">
 
             <button id="btn-start-host-game" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition mt-4 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-play"></i> Start Playing Music!
+                <i class="fa-solid fa-play"></i> Start Playing Playlist!
             </button>
             <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-2 block mx-auto">Logout & Switch Account</button>
         </section>
@@ -209,7 +212,7 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500';
-            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300`;
+            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300 z-[300]`;
             toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-xl mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
             container.appendChild(toast);
             requestAnimationFrame(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); toast.classList.add('translate-y-0', 'opacity-100'); });
@@ -230,7 +233,6 @@
             }
         }
 
-        // Prevents dropdowns from confusing the code
         function clearOtherInputs(activeType) {
             if (activeType !== 'preset') document.getElementById('preset-dropdown').value = '';
             if (activeType !== 'playlist') document.getElementById('playlist-dropdown').value = '';
@@ -289,7 +291,7 @@
             localStorage.setItem('code_verifier', verifier);
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
-            // Added 'user-library-read' to allow fetching Liked Songs
+            // Permissions
             const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
             const params = new URLSearchParams({ response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI });
             window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
@@ -307,7 +309,6 @@
             try {
                 const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 
-                // Automatically log user out if token is expired
                 if (userRes.status === 401) { logoutAndReset(); return; }
 
                 document.getElementById('host-email-display').textContent = (await userRes.json()).email;
@@ -326,6 +327,20 @@
             } catch (err) {}
         }
 
+        // Dedicated Random Button Flow
+        document.getElementById('btn-start-random-game').addEventListener('click', async () => {
+            switchScreen('host-game-screen');
+            const overlay = document.getElementById('loading-overlay');
+            const wakeBox = document.getElementById('wake-spotify-box');
+            overlay.classList.remove('hidden'); wakeBox.classList.add('hidden');
+            
+            const success = await fetchPlaylistTracks('random');
+            if (!success) { switchScreen('host-setup-screen'); return; }
+
+            startDeviceRadar();
+        });
+
+        // Dropdown/Custom Flow
         document.getElementById('btn-start-host-game').addEventListener('click', async () => {
             const presetVal = document.getElementById('preset-dropdown').value;
             const dropdownVal = document.getElementById('playlist-dropdown').value;
@@ -354,49 +369,51 @@
             startDeviceRadar();
         });
 
-        // Updated Data Fetching Logic for Liked Songs and Random Songs
         async function fetchPlaylistTracks(playlistId) {
             try {
-                let url = '';
+                let rawItems = [];
                 
                 if (playlistId === 'liked') {
-                    // Fetch Liked Songs
-                    url = 'https://api.spotify.com/v1/me/tracks?limit=50';
+                    // Liked Songs - specific endpoint
+                    const res = await fetch(`https://api.spotify.com/v1/me/tracks?limit=50&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if(res.status === 401) { logoutAndReset(); return false; }
+                    if(!res.ok) throw new Error("Failed to fetch Liked Songs.");
+                    rawItems = (await res.json()).items || [];
                 } else if (playlistId === 'random') {
-                    // Fetch Random Songs using Spotify Search API (Offset up to 800)
-                    const randomOffset = Math.floor(Math.random() * 800);
-                    url = `https://api.spotify.com/v1/search?q=year:1960-2024&type=track&limit=50&offset=${randomOffset}`;
-                } else {
-                    // Standard Playlist Fetch
-                    url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
-                }
-
-                let res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-
-                // Catch Expired Session gracefully
-                if (res.status === 401) {
-                    showMessage("Spotify session expired! Please login again.", 'error', 6000);
-                    setTimeout(logoutAndReset, 2500);
-                    return false;
-                }
-
-                // Fallback if the standard playlist route fails
-                if (!res.ok && playlistId !== 'liked' && playlistId !== 'random') {
-                    res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    if(!res.ok) { showMessage(`Spotify Blocked this playlist. Try a Preset.`, 'error', 10000); return false; }
-                }
-
-                const data = await res.json();
-                
-                // Parse correctly depending on the endpoint used
-                let rawItems = [];
-                if (playlistId === 'random') {
+                    // Random Search - Pick a random year and search
+                    const randomYear = Math.floor(Math.random() * (2023 - 1970 + 1)) + 1970;
+                    const res = await fetch(`https://api.spotify.com/v1/search?q=year:${randomYear}&type=track&limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if(res.status === 401) { logoutAndReset(); return false; }
+                    if(!res.ok) throw new Error("Failed to fetch Random Songs.");
+                    const data = await res.json();
                     rawItems = data.tracks?.items?.map(t => ({ track: t })) || [];
                 } else {
-                    rawItems = Array.isArray(data.items) ? data.items : (data.tracks?.items || []);
+                    // Normal Playlists: 3-Tier Fallback logic
+                    // 1. With market token (fixes local user playlists)
+                    let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    if (res.status === 401) { logoutAndReset(); return false; }
+
+                    // 2. Without market token (fixes official presets)
+                    if (!res.ok) {
+                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    }
+
+                    // 3. Root playlist endpoint (fixes extreme dev mode blocking)
+                    if (!res.ok) {
+                        res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                        if(!res.ok) {
+                            const errData = await res.json();
+                            showMessage(`Spotify Blocked this: ${errData.error?.message || res.status}`, 'error', 10000);
+                            return false;
+                        }
+                        const data = await res.json();
+                        rawItems = data.tracks?.items || [];
+                    } else {
+                        rawItems = (await res.json()).items || [];
+                    }
                 }
 
-                if (rawItems.length === 0) { showMessage('Playlist empty or no songs found.', 'error'); return false; }
+                if (rawItems.length === 0) { showMessage('Playlist is empty or blocked.', 'error'); return false; }
 
                 tracks = rawItems
                     .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
@@ -408,7 +425,7 @@
                         c: i.track.album.images?.[0]?.url.split('/').pop() || '' 
                     })).sort(() => Math.random() - 0.5);
 
-                if (tracks.length === 0) { showMessage(`No valid years found in selection.`, 'error'); return false; }
+                if (tracks.length === 0) { showMessage(`Found songs, but none had valid release years!`, 'error'); return false; }
                 return true;
             } catch (err) { showMessage(`Error: ${err.message}`, 'error'); return false; }
         }
@@ -493,7 +510,10 @@
             document.getElementById('reveal-btn').classList.add('hidden');
         });
 
-        // --- PLAYER LOGIC ---
+        // ==========================================
+        //               PLAYER LOGIC
+        // ==========================================
+
         function loadPlayerState() {
             const s = localStorage.getItem('hitster_tl');
             playerTimeline = s ? JSON.parse(s) : [];
