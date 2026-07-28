@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v10.0.0</title>
+    <title>Hitster - QR Scanner v11.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -15,11 +15,17 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
-        body { font-family: 'Rubik', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
+        body { 
+            font-family: 'Rubik', sans-serif; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); 
+            color: #f8fafc; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
         .spotify-green { background-color: #1DB954; }
         .spotify-green:hover { background-color: #1ed760; }
         
-        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar { height: 8px; width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
         
@@ -34,15 +40,15 @@
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <!-- Toast Notification Container -->
+    <!-- Toast Notifications -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
-    <!-- Main Header -->
+    <!-- Header -->
     <header id="main-header" class="p-3 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2 relative">
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v10.0.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v11.0.0</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -61,17 +67,17 @@
                 </button>
                 <button onclick="setRole('PLAYER')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
                     <span class="text-xl"><i class="fa-solid fa-camera text-green-400 mr-1"></i> I am a Player</span>
-                    <span class="text-xs text-slate-300 font-normal">Scan QR codes & build your song timeline!</span>
+                    <span class="text-xs text-slate-300 font-normal">Scan QR codes with your camera to build your timeline!</span>
                 </button>
             </div>
         </section>
 
-        <!-- 2. HOST: Login Screen -->
+        <!-- 2. HOST: LOGIN SCREEN -->
         <section id="login-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <div class="space-y-2">
                 <div class="w-20 h-20 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto text-4xl mb-4"><i class="fa-brands fa-spotify"></i></div>
-                <h2 class="text-2xl font-bold">Host Spotify Connect</h2>
-                <p class="text-xs text-slate-400">Log in with Spotify Premium to control playback on your speaker.</p>
+                <h2 class="text-2xl font-bold">Host Spotify Login</h2>
+                <p class="text-xs text-slate-400">Spotify Premium is required for music playback control.</p>
             </div>
             <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
@@ -79,56 +85,72 @@
             <button onclick="switchScreen('role-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">Back</button>
         </section>
 
-        <!-- 3. HOST: Setup Screen -->
-        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-4">
+        <!-- 3. HOST: SETUP SCREEN -->
+        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
-                <span><i class="fa-solid fa-crown text-yellow-400 mr-1"></i> Host Account:</span>
+                <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
-            <h2 class="text-xl font-bold text-green-400 pt-1">Select Music Mode</h2>
+            <h2 class="text-xl font-bold text-green-400">Choose Music Source</h2>
 
-            <!-- Main Fast Options -->
-            <div class="space-y-3 w-full">
-                <button onclick="startGameFlow('liked')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition border border-slate-600 flex items-center gap-3 px-4 shadow-md">
-                    <i class="fa-solid fa-heart text-red-400 text-xl w-6"></i> My Liked Songs
-                </button>
-                
-                <button onclick="startGameFlow('top')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl transition border border-slate-600 flex items-center gap-3 px-4 shadow-md">
-                    <i class="fa-solid fa-star text-yellow-400 text-xl w-6"></i> My Top Songs
-                </button>
+            <!-- MODE 1: LIKED SONGS -->
+            <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base">
+                <i class="fa-solid fa-heart text-2xl"></i> ❤️ My Liked Songs
+            </button>
 
-                <button onclick="startGameFlow('random')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 rounded-xl transition border border-purple-400/50 flex items-center gap-3 px-4 shadow-lg">
-                    <i class="fa-solid fa-dice text-white text-xl w-6"></i> Random Hits (All Decades)
-                </button>
-            </div>
-
-            <div class="relative flex py-2 items-center">
+            <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">Or Pick A Playlist</span>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR BY ARTIST</span>
                 <div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <!-- Custom / User Playlists -->
-            <div class="space-y-3 w-full">
-                <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 appearance-none text-white">
-                    <option value="">Your Playlists...</option>
-                </select>
+            <!-- MODE 2: SEARCH ARTIST TOP TRACKS -->
+            <div class="space-y-2">
+                <div class="flex gap-2">
+                    <input type="text" id="artist-search-input" placeholder="Type artist name (e.g. Queen)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-white">
+                    <button onclick="startMode('artist')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl shadow transition text-sm">
+                        Play
+                    </button>
+                </div>
+                <div class="flex flex-wrap gap-1.5 justify-center pt-1">
+                    <button onclick="setArtistAndPlay('Queen')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Queen</button>
+                    <button onclick="setArtistAndPlay('Coldplay')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Coldplay</button>
+                    <button onclick="setArtistAndPlay('ABBA')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">ABBA</button>
+                    <button onclick="setArtistAndPlay('Michael Jackson')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">MJ</button>
+                    <button onclick="setArtistAndPlay('Taylor Swift')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Taylor Swift</button>
+                </div>
+            </div>
 
-                <input type="text" id="custom-playlist-input" placeholder="Paste Spotify Playlist Link..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-center font-mono text-white">
+            <div class="relative flex py-1 items-center">
+                <div class="flex-grow border-t border-slate-700"></div>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR BY DECADE / GENRE</span>
+                <div class="flex-grow border-t border-slate-700"></div>
+            </div>
 
-                <button id="btn-start-playlist" class="w-full spotify-green text-slate-950 font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-play"></i> Play Selected Playlist
+            <!-- MODE 3: GENRE & DECADE SEARCH -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="startMode('genre', '80s pop')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
+                    🕺 80s Pop Hits
+                </button>
+                <button onclick="startMode('genre', '90s rock')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
+                    🎸 90s Rock Classics
+                </button>
+                <button onclick="startMode('genre', '2000s hits')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
+                    💿 2000s Hits
+                </button>
+                <button onclick="startMode('genre', 'greatest hits')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-3 rounded-xl text-xs transition">
+                    🎲 Random Mix
                 </button>
             </div>
 
             <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-4 block mx-auto">Logout & Switch Account</button>
         </section>
 
-        <!-- 4. HOST: Game Screen -->
+        <!-- 4. HOST: GAME SCREEN -->
         <section id="host-game-screen" class="w-full max-w-md hidden flex-col items-center space-y-4">
             <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
-                <span class="text-sm font-bold text-indigo-400"><i class="fa-solid fa-crown mr-1"></i> DJ Host Mode</span>
+                <span class="text-sm font-bold text-indigo-400"><i class="fa-solid fa-crown mr-1"></i> Host DJ</span>
                 <div class="flex gap-2">
                     <button id="next-track-btn" class="bg-indigo-600 hover:bg-indigo-500 text-sm font-bold py-2 px-4 rounded-lg transition shadow-lg flex items-center gap-2">
                         Next Song <i class="fa-solid fa-forward"></i>
@@ -140,17 +162,17 @@
             </div>
 
             <div class="w-full bg-slate-900 rounded-3xl p-6 flex flex-col items-center border-2 border-indigo-500 shadow-2xl relative min-h-[420px]">
-                <h3 class="text-white font-bold mb-4 text-lg"><i class="fa-solid fa-qrcode mr-2 text-indigo-400"></i>Players: Scan to Guess!</h3>
+                <h3 class="text-white font-bold mb-4 text-lg"><i class="fa-solid fa-qrcode mr-2 text-indigo-400"></i>Players: Scan this Code!</h3>
                 
-                <!-- QR Code Container -->
-                <div id="qrcode" class="bg-white p-2 rounded-xl shadow-inner mb-6 transition-transform hover:scale-105"></div>
+                <!-- QR Code Box -->
+                <div id="qrcode" class="bg-white p-2 rounded-xl shadow-inner mb-6 min-w-[200px] min-h-[200px] flex items-center justify-center"></div>
                 
                 <!-- Large Play/Pause Button -->
                 <button id="play-pause-btn" class="w-full bg-green-500 hover:bg-green-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] transition text-xl flex items-center justify-center gap-3 mb-4">
                     <i class="fa-solid fa-pause text-2xl" id="play-icon"></i> <span id="play-text">Pause Music</span>
                 </button>
 
-                <!-- Revealed Info Box -->
+                <!-- Secret Reveal Area -->
                 <div id="reveal-area" class="w-full text-center hidden flex-col items-center border-t border-slate-700 pt-4 mb-2">
                     <img id="host-album-cover" src="" class="w-16 h-16 rounded object-cover mb-2 shadow hidden">
                     <div id="host-track-year" class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">----</div>
@@ -173,7 +195,7 @@
                         <p class="text-xs text-slate-400 mb-1">Open Spotify, play a song for 1 second, then return here.</p>
                     </div>
                     <button id="btn-skip-radar" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-slate-600 transition text-sm">
-                        Skip Radar & Play
+                        Skip Radar & Start Game
                     </button>
                 </div>
             </div>
@@ -183,7 +205,7 @@
         <div id="portrait-blocker" class="fixed inset-0 bg-slate-900 z-[200] flex flex-col items-center justify-center p-8 text-center space-y-4">
             <i class="fa-solid fa-mobile-screen text-6xl text-indigo-500 animate-pulse" style="transform: rotate(90deg);"></i>
             <h2 class="text-3xl font-black text-white">Rotate Your Phone</h2>
-            <p class="text-slate-400">Turn your device sideways to view your timeline grid!</p>
+            <p class="text-slate-400">Turn your device sideways to view your timeline!</p>
         </div>
 
         <!-- 6. PLAYER: Game Screen -->
@@ -200,18 +222,18 @@
                     </span>
                 </div>
                 <button onclick="resetPlayerGame()" class="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-500/30">
-                    <i class="fa-solid fa-trash-can mr-1"></i> Reset Board
+                    <i class="fa-solid fa-trash-can mr-1"></i> Clear Timeline
                 </button>
             </div>
 
-            <!-- Timeline Grid Area -->
+            <!-- Horizontal Scrollable Timeline -->
             <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
                 <div id="timeline-container" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-2 px-6 py-4 hide-scrollbar scroll-smooth snap-x">
-                    <!-- Populated dynamically -->
+                    <!-- Javascript generates [+] and cards here -->
                 </div>
             </div>
 
-            <!-- Camera Scanner Modal -->
+            <!-- Scanner Modal -->
             <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[300] hidden flex flex-col items-center justify-center p-4">
                 <h3 class="text-white font-bold text-xl mb-4 text-center">Scan the DJ's QR Code</h3>
                 <div id="reader" style="width: 280px; height: 280px;" class="rounded-2xl overflow-hidden border-4 border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.5)] bg-black flex items-center justify-center"></div>
@@ -230,7 +252,7 @@
     </main>
 
     <script>
-        // --- UI & NOTIFICATION TOOLS ---
+        // --- UI UTILS & FULLSCREEN ---
         function toggleFullScreen() {
             let elem = document.documentElement;
             let icon1 = document.getElementById('fullscreen-icon');
@@ -276,10 +298,11 @@
         }
 
         // --- UNICODE SAFE QR ENCODING / DECODING ---
-        function safeEncodeToQR(obj) {
+        // Converts strings to URL-encoded format so multi-byte UTF-8 (Hebrew, emojis, accents) never break qrcode.js
+        function encodeQRData(obj) {
             return encodeURIComponent(JSON.stringify(obj));
         }
-        function safeDecodeFromQR(str) {
+        function decodeQRData(str) {
             try {
                 return JSON.parse(decodeURIComponent(str));
             } catch(e) {
@@ -311,7 +334,7 @@
             }
         }
 
-        // --- SPOTIFY AUTHENTICATION (PKCE) ---
+        // --- AUTHENTICATION (PKCE) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
         const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -352,7 +375,8 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             
-            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read user-top-read';
+            // Scope user-library-read is required for Liked Songs
+            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read user-top-read';
             const params = new URLSearchParams({ 
                 response_type: 'code', 
                 client_id: CLIENT_ID, 
@@ -371,115 +395,102 @@
             switchScreen('role-screen'); 
         }
 
-        // --- HOST LOGIC & FETCHING ---
+        // --- HOST LOGIC ---
         async function loadHostSetupScreen() {
             switchScreen('host-setup-screen');
             try {
                 const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                 if (userRes.status === 401) { logoutAndReset(); return; }
-
                 document.getElementById('host-email-display').textContent = (await userRes.json()).email || 'Connected';
-
-                const plRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                if (!plRes.ok) return;
-                const plData = await plRes.json();
-
-                const dropdown = document.getElementById('playlist-dropdown');
-                dropdown.innerHTML = '<option value="">Your Personal Playlists...</option>';
-                if (plData.items) {
-                    plData.items.forEach(pl => {
-                        if (!pl) return;
-                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0})</option>`;
-                    });
-                }
             } catch (err) {}
         }
 
-        document.getElementById('btn-start-playlist').addEventListener('click', () => {
-            const dropdownVal = document.getElementById('playlist-dropdown').value;
-            const customVal = document.getElementById('custom-playlist-input').value.trim();
-            
-            let finalId = null;
-            if (customVal !== '') {
-                const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
-                finalId = m ? m[1] : customVal;
-            } else if (dropdownVal) {
-                finalId = dropdownVal;
-            }
-
-            if (!finalId) { showMessage('Please select or paste a playlist.', 'error'); return; }
-            startGameFlow('playlist', finalId);
-        });
-
-        async function fetchSpotifyAPI(url) {
-            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-            if (res.status === 401) {
-                logoutAndReset();
-                throw new Error("Spotify session expired. Please log in again.");
-            }
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`);
-            }
-            return await res.json();
+        function setArtistAndPlay(artistName) {
+            document.getElementById('artist-search-input').value = artistName;
+            startMode('artist');
         }
 
-        async function startGameFlow(sourceType, playlistId = null) {
+        async function startMode(modeType, extraQuery = '') {
             switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
             overlay.classList.remove('hidden'); wakeBox.classList.add('hidden');
-            
+
             try {
                 let rawItems = [];
-                
-                if (sourceType === 'liked') {
-                    const data = await fetchSpotifyAPI(`https://api.spotify.com/v1/me/tracks?limit=50`);
+
+                if (modeType === 'liked') {
+                    // Proven Liked Songs endpoint
+                    const res = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    if (res.status === 401) { logoutAndReset(); return; }
+                    if (!res.ok) throw new Error(`Liked Songs HTTP ${res.status}`);
+                    const data = await res.json();
                     rawItems = data.items || [];
-                } 
-                else if (sourceType === 'top') {
-                    const data = await fetchSpotifyAPI(`https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term`);
+                }
+                else if (modeType === 'top') {
+                    // Top User Tracks
+                    const res = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term', {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    if (res.status === 401) { logoutAndReset(); return; }
+                    if (!res.ok) throw new Error(`Top Tracks HTTP ${res.status}`);
+                    const data = await res.json();
                     rawItems = data.items ? data.items.map(t => ({ track: t })) : [];
                 }
-                else if (sourceType === 'random') {
-                    const randYear = Math.floor(Math.random() * (2024 - 1960 + 1)) + 1960;
-                    const offset = Math.floor(Math.random() * 40);
-                    const data = await fetchSpotifyAPI(`https://api.spotify.com/v1/search?q=year:${randYear}&type=track&limit=50&offset=${offset}`);
-                    rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
+                else if (modeType === 'artist') {
+                    const query = document.getElementById('artist-search-input').value.trim();
+                    if (!query) throw new Error("Please type an artist name.");
+                    
+                    // Search artist
+                    const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const searchData = await searchRes.json();
+                    const artist = searchData.artists?.items?.[0];
+                    if (!artist) throw new Error("Artist not found.");
+
+                    // Fetch top tracks for that artist
+                    const topRes = await fetch(`https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=from_token`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const topData = await topRes.json();
+                    rawItems = topData.tracks ? topData.tracks.map(t => ({ track: t })) : [];
                 }
-                else if (sourceType === 'playlist') {
-                    const cleanId = playlistId.split('?')[0];
-                    try {
-                        const data = await fetchSpotifyAPI(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100`);
-                        rawItems = data.items || [];
-                    } catch(e) {
-                        // Fallback to base playlist object
-                        const data = await fetchSpotifyAPI(`https://api.spotify.com/v1/playlists/${cleanId}`);
-                        rawItems = data.tracks?.items || [];
-                    }
+                else if (modeType === 'genre') {
+                    const offset = Math.floor(Math.random() * 20);
+                    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(extraQuery)}&type=track&limit=50&offset=${offset}`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    if (res.status === 401) { logoutAndReset(); return; }
+                    if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
+                    const data = await res.json();
+                    rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
                 }
 
                 if (!rawItems || rawItems.length === 0) {
-                    throw new Error("No tracks found in this selection.");
+                    throw new Error("No tracks found for this selection.");
                 }
 
                 tracks = rawItems
                     .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
                     .map(i => ({
-                        u: i.track.uri, 
-                        t: i.track.name.substring(0, 30), 
-                        a: i.track.artists ? i.track.artists[0].name.substring(0,25) : 'Unknown',
-                        y: parseInt(i.track.album.release_date.substring(0, 4)), 
-                        c: i.track.album.images?.[0]?.url.split('/').pop() || '' 
+                        u: i.track.uri,
+                        t: i.track.name.substring(0, 32),
+                        a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
+                        y: parseInt(i.track.album.release_date.substring(0, 4)),
+                        c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                     }));
 
-                if (tracks.length === 0) throw new Error("No songs with valid release dates were found.");
-                
+                if (tracks.length === 0) throw new Error("No valid release years found.");
+
                 tracks.sort(() => Math.random() - 0.5); // Shuffle
                 startDeviceRadar();
 
-            } catch (err) { 
+            } catch (err) {
                 switchScreen('host-setup-screen');
-                showMessage(`Fetch Failed: ${err.message}`, "error", 6000);
+                showMessage(`Error: ${err.message}`, "error", 6000);
             }
         }
 
@@ -519,11 +530,11 @@
             if (isPlayingNow) {
                 icon.className = 'fa-solid fa-pause text-2xl';
                 text.textContent = "Pause Music";
-                btn.className = "w-full bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.4)] transition text-xl flex items-center justify-center gap-3 mb-6";
+                btn.className = "w-full bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.4)] transition text-xl flex items-center justify-center gap-3 mb-4";
             } else {
                 icon.className = 'fa-solid fa-play text-2xl ml-1';
                 text.textContent = "Play Music";
-                btn.className = "w-full bg-green-500 hover:bg-green-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] transition text-xl flex items-center justify-center gap-3 mb-6";
+                btn.className = "w-full bg-green-500 hover:bg-green-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] transition text-xl flex items-center justify-center gap-3 mb-4";
             }
         }
 
@@ -574,8 +585,8 @@
                 coverEl.classList.add('hidden');
             }
 
-            // Clean QR encoding payload
-            const qrPayload = safeEncodeToQR({
+            // Generate Unicode-Safe QR Code Payload
+            const qrPayload = encodeQRData({
                 y: currentHostTrack.y,
                 t: currentHostTrack.t,
                 a: currentHostTrack.a,
@@ -603,7 +614,7 @@
             document.getElementById('reveal-btn').classList.add('hidden');
         });
 
-        // --- PLAYER LOGIC & SCANNER ---
+        // --- PLAYER LOGIC & CAMERA SCANNER ---
         function loadPlayerState() {
             const s = localStorage.getItem('hitster_tl');
             playerTimeline = s ? JSON.parse(s) : [];
@@ -679,7 +690,7 @@
                     () => {}
                 );
             } catch(err) {
-                showMessage("Camera permission error. Please allow camera access in browser settings.", "error", 5000);
+                showMessage("Camera access error. Please allow camera permissions in browser.", "error", 5000);
                 closeScanner();
             }
         }
@@ -694,7 +705,7 @@
         function onScanSuccess(decodedText) {
             closeScanner();
             try {
-                const trackData = safeDecodeFromQR(decodedText);
+                const trackData = decodeQRData(decodedText);
                 if (!trackData || !trackData.y) throw new Error("Invalid format");
                 evaluateGuess(trackData);
             } catch(e) { 
