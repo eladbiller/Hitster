@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v6.2.0</title>
+    <title>Hitster - QR Scanner v6.3.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -42,7 +42,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.2.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v6.3.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-4xl flex flex-col items-center justify-start h-full">
@@ -51,11 +51,12 @@
         <section id="role-screen" class="w-full max-w-md bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <h2 class="text-2xl font-bold">Choose Your Role</h2>
             <div class="space-y-4 pt-2">
-                <button onclick="startAuthFlow('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
+                <!-- FIXED BUG: changed onclick to setRole -->
+                <button onclick="setRole('HOST')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2">
                     <span class="text-xl"><i class="fa-solid fa-crown text-yellow-400"></i> I am the DJ (Host)</span>
                     <span class="text-xs text-indigo-200 font-normal">Connects to Spotify, plays music, shows QR codes.</span>
                 </button>
-                <button onclick="startPlayerFlow()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
+                <button onclick="setRole('PLAYER')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-slate-600">
                     <span class="text-xl"><i class="fa-solid fa-camera text-green-400"></i> I am a Player</span>
                     <span class="text-xs text-slate-300 font-normal">Use your camera to scan QR codes and build your timeline!</span>
                 </button>
@@ -244,19 +245,24 @@
         const REDIRECT_URI = window.location.origin + window.location.pathname;
 
         let accessToken = localStorage.getItem('spotify_token') || null;
+        let userMode = localStorage.getItem('hitster_mode') || null;
+        
         let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentHostTrack = null;
         let playerTimeline = []; 
         let activeInsertIndex = null;
         let html5QrCode = null;
 
-        function startHostFlow() {
-            if (accessToken) loadHostSetupScreen();
-            else switchScreen('login-screen');
-        }
-
-        function startPlayerFlow() {
-            loadPlayerState();
-            initPlayerScreen();
+        // FIXED: Unified entry function for routing
+        function setRole(mode) {
+            userMode = mode;
+            localStorage.setItem('hitster_mode', mode);
+            if (mode === 'HOST') {
+                if (accessToken) loadHostSetupScreen();
+                else switchScreen('login-screen');
+            } else if (mode === 'PLAYER') {
+                loadPlayerState();
+                initPlayerScreen();
+            }
         }
 
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
@@ -277,10 +283,12 @@
                         accessToken = data.access_token;
                         localStorage.setItem('spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        loadHostSetupScreen();
+                        // Send back to role screen so they can choose intentionally
+                        switchScreen('role-screen');
                     } else switchScreen('role-screen');
                 } catch (e) { switchScreen('role-screen'); }
             } else {
+                // If they reload the page, let them pick their role again.
                 switchScreen('role-screen');
             }
         });
@@ -369,6 +377,7 @@
             startDeviceRadar();
         });
 
+        // Fixed & Robust Random Search
         async function fetchPlaylistTracks(playlistId) {
             try {
                 let rawItems = [];
@@ -380,25 +389,25 @@
                     if(!res.ok) throw new Error("Failed to fetch Liked Songs.");
                     rawItems = (await res.json()).items || [];
                 } else if (playlistId === 'random') {
-                    // Random Search - Pick a random year and search
-                    const randomYear = Math.floor(Math.random() * (2023 - 1970 + 1)) + 1970;
-                    const res = await fetch(`https://api.spotify.com/v1/search?q=year:${randomYear}&type=track&limit=50`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                    // Pulling random mix from 1950-2024 using a random offset to prevent the same 50 songs
+                    const randomOffset = Math.floor(Math.random() * 950); 
+                    const res = await fetch(`https://api.spotify.com/v1/search?q=year:1950-2024&type=track&limit=50&offset=${randomOffset}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     if(res.status === 401) { logoutAndReset(); return false; }
                     if(!res.ok) throw new Error("Failed to fetch Random Songs.");
                     const data = await res.json();
                     rawItems = data.tracks?.items?.map(t => ({ track: t })) || [];
                 } else {
                     // Normal Playlists: 3-Tier Fallback logic
-                    // 1. With market token (fixes local user playlists)
+                    // 1. With market token
                     let res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&market=from_token`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     if (res.status === 401) { logoutAndReset(); return false; }
 
-                    // 2. Without market token (fixes official presets)
+                    // 2. Without market token
                     if (!res.ok) {
                         res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     }
 
-                    // 3. Root playlist endpoint (fixes extreme dev mode blocking)
+                    // 3. Root playlist endpoint
                     if (!res.ok) {
                         res = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers: { 'Authorization': `Bearer ${accessToken}` } });
                         if(!res.ok) {
@@ -459,7 +468,7 @@
             try {
                 let url = 'https://api.spotify.com/v1/me/player/play' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', body: JSON.stringify({ uris: [uri] }), headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } });
-                isPlaying = true; 
+                isPlaying = true; document.getElementById('play-icon').className = 'fa-solid fa-pause ml-0';
             } catch(e) {}
         }
 
@@ -467,7 +476,7 @@
             try {
                 let url = 'https://api.spotify.com/v1/me/player/pause' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
                 await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
-                isPlaying = false; 
+                isPlaying = false; document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
             } catch(e) {}
         }
 
