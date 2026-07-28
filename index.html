@@ -3,11 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>היטסטר - Spotify Remote v1.1.8</title>
+    <title>היטסטר - Multiplayer v2.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDKs (Required for Multiplayer Sync) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // --- FIREBASE INITIALIZATION (Canvas Environment Setup) ---
+        let app, db, auth, appId;
+        
+        try {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            // Expose crucial Firebase functions to the global window object
+            // so our standard script below can use them to sync game state.
+            window.fbDb = db;
+            window.fbDoc = doc;
+            window.fbSetDoc = setDoc;
+            window.fbGetDoc = getDoc;
+            window.fbUpdateDoc = updateDoc;
+            window.fbOnSnapshot = onSnapshot;
+            window.fbCollection = collection;
+            window.fbArrayUnion = arrayUnion;
+            window.appId = appId;
+            
+            // Authenticate user anonymously to allow database access
+            const initAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            };
+            initAuth();
+            
+            onAuthStateChanged(auth, (user) => {
+                window.fbUser = user;
+                if(user) {
+                    console.log("Firebase Auth Ready!");
+                    document.getElementById('firebase-status').classList.add('hidden');
+                }
+            });
+
+        } catch (e) {
+            console.error("Firebase init failed. Multiplayer disabled.", e);
+        }
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
         body {
@@ -19,10 +71,7 @@
         .spotify-green { background-color: #1DB954; }
         .spotify-green:hover { background-color: #1ed760; }
         .card-flip { perspective: 1000px; }
-        .card-inner {
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-        }
+        .card-inner { transition: transform 0.6s; transform-style: preserve-3d; }
         .card-flipped .card-inner { transform: rotateY(180deg); }
         .card-front, .card-back { backface-visibility: hidden; }
         .card-back { transform: rotateY(180deg); }
@@ -34,107 +83,154 @@
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
+    <div id="firebase-status" class="w-full bg-yellow-600 text-white text-center py-1 text-xs font-bold">
+        מתחבר לשרת המשחק...
+    </div>
+
     <!-- Header -->
     <header class="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 text-center sticky top-0 z-50 shadow-md flex items-center justify-center gap-2">
         <h1 class="text-2xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
-            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER REMOTE
+            <i class="fa-solid fa-gamepad mr-2 text-green-400"></i> HITSTER MULTI
         </h1>
-        <span class="text-xs bg-green-500/20 text-green-300 font-mono px-2.5 py-1 rounded-full border border-green-500/30">v1.1.8</span>
+        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2.5 py-1 rounded-full border border-indigo-500/30">v2.0.0</span>
     </header>
 
     <main class="flex-grow container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center">
 
-        <!-- STEP 1: Login Screen -->
+        <!-- STEP 0: Splash Screen (Host or Join) -->
+        <section id="splash-screen" class="w-full bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
+            <div class="w-24 h-24 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto text-5xl mb-2">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <h2 class="text-2xl font-bold">איך תרצו לשחק?</h2>
+            <p class="text-sm text-slate-400">צור חדר חדש כדי לשלוט במוזיקה, או הצטרף לחדר קיים של חבר.</p>
+            
+            <div class="space-y-3 pt-4">
+                <button onclick="startHostFlow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
+                    <i class="fa-solid fa-crown"></i> צור חדר (מארח)
+                </button>
+                <button onclick="startJoinFlow()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg border border-slate-600">
+                    <i class="fa-solid fa-right-to-bracket"></i> הצטרף לחדר (שחקן)
+                </button>
+            </div>
+        </section>
+
+        <!-- JOIN FLOW: Enter Code -->
+        <section id="join-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
+            <h2 class="text-xl font-bold text-indigo-400">הצטרף למשחק</h2>
+            
+            <div class="space-y-4">
+                <input type="text" id="player-name" placeholder="הכנס את השם שלך..." 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-center focus:outline-none focus:border-indigo-500 font-bold">
+                    
+                <input type="text" id="room-code-input" placeholder="קוד חדר (4 ספרות)" 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-center focus:outline-none focus:border-indigo-500 text-2xl font-mono tracking-[0.5em] uppercase" maxlength="4">
+            </div>
+
+            <button id="btn-join-room" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                הכנס אותי!
+            </button>
+            <button onclick="switchScreen('splash-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">חזור לאחור</button>
+        </section>
+
+        <!-- HOST FLOW 1: Login to Spotify -->
         <section id="login-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <div class="space-y-2">
                 <div class="w-20 h-20 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto text-4xl mb-4">
                     <i class="fa-brands fa-spotify"></i>
                 </div>
-                <h2 class="text-2xl font-bold">ברוכים הבאים!</h2>
-                <p class="text-sm text-slate-400">התחבר לחשבון הספוטיפיי שלך כדי לשלוט בשירים.</p>
+                <h2 class="text-2xl font-bold">התחברות כמארח</h2>
+                <p class="text-sm text-slate-400">המארח שולט במוזיקה דרך החשבון שלו.</p>
             </div>
             <button id="btn-login-spotify" class="w-full spotify-green text-slate-950 font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fa-solid fa-bolt"></i> התחבר ל-Spotify
             </button>
+            <button onclick="switchScreen('splash-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">חזור לאחור</button>
         </section>
 
-        <!-- STEP 2: Choose Playlist Screen -->
+        <!-- HOST FLOW 2: Choose Playlist & Create Room -->
         <section id="setup-screen" class="w-full hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
             <div id="user-info-badge" class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
-                <span><i class="fa-solid fa-user text-green-400 ml-1"></i> מחובר כ:</span>
+                <span><i class="fa-solid fa-crown text-yellow-400 ml-1"></i> מארח:</span>
                 <span id="user-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">טוען...</span>
             </div>
 
             <div class="space-y-1">
-                <h2 class="text-xl font-bold text-green-400">בחר פלייליסט למשחק</h2>
-                <p class="text-xs text-slate-400">בחר פלייליסט מהחשבון שלך או הדבק קישור:</p>
+                <h2 class="text-xl font-bold text-green-400">בחר מאגר למשחק</h2>
             </div>
 
             <div class="space-y-4">
                 <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-right appearance-none">
-                    <option value="">טוען את הפלייליסטים שלך...</option>
+                    <option value="">טוען את המידע שלך...</option>
                 </select>
-                
                 <div class="relative flex py-1 items-center">
-                    <div class="flex-grow border-t border-slate-700"></div>
-                    <span class="flex-shrink-0 mx-4 text-slate-500 text-xs">או</span>
-                    <div class="flex-grow border-t border-slate-700"></div>
+                    <div class="flex-grow border-t border-slate-700"></div><span class="flex-shrink-0 mx-4 text-slate-500 text-xs">או</span><div class="flex-grow border-t border-slate-700"></div>
                 </div>
-
-                <input type="text" id="custom-playlist-input" placeholder="הדבק קישור לפלייליסט אישי..." 
-                    class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 dir-ltr text-center font-mono">
+                <input type="text" id="custom-playlist-input" placeholder="הדבק קישור לפלייליסט..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 dir-ltr text-center font-mono">
             </div>
 
-            <div class="space-y-3">
-                <button id="btn-start-game" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-play"></i> התחל לשחק!
-                </button>
-                
-                <button id="btn-test-public" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm border border-blue-500">
-                    <i class="fa-solid fa-vial"></i> פלייליסט ניסיון (Today's Top Hits)
-                </button>
-            </div>
-            
+            <button id="btn-create-room" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-users"></i> צור חדר והתחל!
+            </button>
             <button id="btn-logout" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-2 block mx-auto">
-                <i class="fa-solid fa-rotate"></i> התנתק ואיפוס הרשאות מלא
+                <i class="fa-solid fa-rotate"></i> התנתק והחלף חשבון
             </button>
         </section>
 
-        <!-- STEP 3: Game Screen -->
+        <!-- SHARED GAME SCREEN -->
         <section id="game-screen" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
+            
+            <!-- Lobby Info Bar -->
+            <div class="w-full flex justify-between items-center bg-indigo-900/60 p-3 rounded-xl border border-indigo-700/50 shadow-md">
                 <div class="flex items-center gap-2">
-                    <div class="bg-yellow-500/20 w-8 h-8 rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-trophy text-yellow-400 text-sm"></i>
-                    </div>
-                    <span class="text-sm text-slate-300">ניקוד:</span>
-                    <span id="score-count" class="font-bold text-xl text-white">0</span>
+                    <span class="text-xs text-indigo-300">קוד חדר:</span>
+                    <span id="display-room-code" class="font-mono font-bold text-xl text-white tracking-widest uppercase">----</span>
                 </div>
-                <div class="flex gap-2">
-                    <button id="btn-change-playlist" class="bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2 px-3 rounded-lg transition shadow-lg">
-                        <i class="fa-solid fa-list"></i> חזור
-                    </button>
+                <div class="text-xs text-slate-300 flex items-center gap-1">
+                    <i class="fa-solid fa-users"></i> <span id="player-count">1</span> שחקנים
+                </div>
+            </div>
+
+            <div class="w-full flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-md">
+                <div class="flex flex-col text-right">
+                    <span class="text-xs text-slate-400" id="role-badge">תפקיד</span>
+                    <span class="text-sm font-bold text-white" id="display-player-name">שחקן</span>
+                </div>
+                
+                <!-- HOST ONLY CONTROLS -->
+                <div id="host-controls" class="hidden flex gap-2">
                     <button id="next-track-btn" class="bg-indigo-600 hover:bg-indigo-500 text-sm font-bold py-2 px-4 rounded-lg transition shadow-lg flex items-center gap-2">
                         הבא <i class="fa-solid fa-forward"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="music-card" class="card-flip w-full cursor-pointer max-w-sm mx-auto relative h-[380px]">
+            <!-- THE CARD -->
+            <div id="music-card" class="card-flip w-full max-w-sm mx-auto relative h-[380px]">
                 <div class="card-inner relative w-full h-full rounded-3xl shadow-2xl border border-slate-700">
+                    
                     <div class="card-front absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 flex flex-col items-center justify-between border-2 border-indigo-500/30">
                         <div class="w-full flex justify-between text-slate-400 text-sm font-medium mb-4">
                             <span><i class="fa-solid fa-music mr-1"></i> כרטיס חידה</span>
                             <i class="fa-solid fa-question-circle text-indigo-400"></i>
                         </div>
+                        
                         <div class="w-full flex-grow flex flex-col items-center justify-center gap-4 relative">
-                            <button id="play-pause-btn" class="w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
+                            <!-- Host Play Button -->
+                            <button id="play-pause-btn" class="hidden w-28 h-28 spotify-green text-slate-950 rounded-full flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(29,185,84,0.4)] hover:scale-105 active:scale-95 transition">
                                 <i class="fa-solid fa-play ml-2" id="play-icon"></i>
                             </button>
-                            <span class="text-sm text-slate-400 font-medium tracking-wide mt-2">מנגן דרך האפליקציה בטלפון</span>
+                            <!-- Player Status -->
+                            <div id="player-waiting-msg" class="text-center">
+                                <div class="w-20 h-20 mx-auto border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <span class="text-lg font-bold text-white block">ממתין למארח...</span>
+                                <span class="text-xs text-slate-400">האזן לשיר ונחש את השנה.</span>
+                            </div>
                         </div>
-                        <button id="reveal-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600 mt-4">
-                            <i class="fa-solid fa-eye"></i> חשוף תשובה
+
+                        <!-- Host Reveal Button -->
+                        <button id="reveal-btn" class="hidden w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition text-base flex items-center justify-center gap-2 shadow-lg border border-slate-600 mt-4">
+                            <i class="fa-solid fa-eye"></i> חשוף תשובה לכולם
                         </button>
                     </div>
 
@@ -151,56 +247,20 @@
                                 שם האמן
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3 w-full mt-4">
-                            <button id="btn-wrong" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-3 rounded-xl text-sm border border-red-500/30 transition flex items-center justify-center gap-1">
-                                <i class="fa-solid fa-xmark"></i> טעות
-                            </button>
-                            <button id="btn-correct" class="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-bold py-3 rounded-xl text-sm border border-green-500/30 transition flex items-center justify-center gap-1">
-                                <i class="fa-solid fa-check"></i> צודק (+1)
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
             
-            <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900/95 backdrop-blur-md z-[60] flex flex-col items-center justify-center rounded-xl p-6 text-center space-y-4">
-                <i id="loading-spinner" class="fa-solid fa-radar fa-spin text-5xl text-green-500 mb-2"></i>
-                <h3 class="text-white font-bold text-xl" id="loading-title">מכין את המשחק...</h3>
-                <p class="text-slate-300 text-sm leading-relaxed max-w-xs" id="loading-text">אנחנו מחפשים את ספוטיפיי...</p>
-                
-                <div id="wake-spotify-box" class="hidden w-full space-y-4 pt-4">
-                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                        <p class="text-sm text-slate-200 font-medium mb-2">ספוטיפיי נרדמה ברקע! 😴</p>
-                        <p class="text-xs text-slate-400">1. לחץ על הכפתור הירוק כדי לפתוח אותה.<br>2. <b>חזור מיד לכאן.</b> המשחק יתחיל אוטומטית!</p>
-                    </div>
-                    <a href="spotify://" class="w-full spotify-green text-slate-950 font-extrabold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] transition flex items-center justify-center gap-2 text-lg pulse-btn">
-                        <i class="fa-brands fa-spotify text-2xl"></i> פתח את ספוטיפיי
-                    </a>
-                </div>
-            </div>
         </section>
 
     </main>
 
     <script>
-        // --- CONFIGURATION ---
-        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
-
-        let accessToken = localStorage.getItem('spotify_token') || null;
-        let tracks = [];
-        let currentTrack = null;
-        let score = 0;
-        let isPlaying = false;
-        let activeDeviceId = null;
-        let radarInterval = null;
-
-        // --- HELPER FUNCTIONS ---
-        function showMessage(msg, type = 'error', duration = 12000) {
+        // --- UI TOOLS ---
+        function showMessage(msg, type = 'error', duration = 8000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500';
-            
             toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-xs font-semibold flex items-start gap-3 transition-all duration-300 break-all`;
             toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'} text-lg mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
             container.appendChild(toast);
@@ -208,37 +268,207 @@
         }
 
         function switchScreen(id) {
-            ['login-screen', 'setup-screen', 'game-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            ['splash-screen', 'login-screen', 'join-screen', 'setup-screen', 'game-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
             const target = document.getElementById(id);
             target.classList.remove('hidden');
             if (id === 'game-screen') target.classList.add('flex');
         }
 
-        async function getSpotifyErrorMessage(response) {
-            try {
-                const data = await response.json();
-                return JSON.stringify(data);
-            } catch (e) {
-                return `HTTP ${response.status} (No JSON body)`;
+        function startHostFlow() {
+            if (accessToken) {
+                loadSetupScreen();
+            } else {
+                switchScreen('login-screen');
             }
         }
 
-        // --- PKCE AUTHENTICATION ---
-        const generateRandomString = (length) => {
-            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            const values = crypto.getRandomValues(new Uint8Array(length));
-            return values.reduce((acc, x) => acc + possible[x % possible.length], "");
-        };
+        function startJoinFlow() {
+            switchScreen('join-screen');
+        }
 
-        const sha256 = async (plain) => {
-            const encoder = new TextEncoder();
-            return window.crypto.subtle.digest('SHA-256', encoder.encode(plain));
-        };
+        // --- GLOBAL STATE ---
+        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
 
-        const base64encode = (input) => {
-            return btoa(String.fromCharCode(...new Uint8Array(input)))
-                .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-        };
+        let accessToken = localStorage.getItem('spotify_token') || null;
+        let isHost = false;
+        let myName = "";
+        let currentRoomCode = "";
+        
+        let tracks = [];
+        let activeDeviceId = null;
+        let isPlaying = false;
+        let unsubscribeRoom = null; // To stop listening to Firebase when leaving
+
+        // --- FIREBASE MULTIPLAYER LOGIC ---
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        async function createRoomAndStart(playlistId) {
+            if (!window.fbUser) {
+                showMessage("שגיאת חיבור לשרת המשחק. נסה לרענן.", "error");
+                return;
+            }
+
+            // 1. Fetch Tracks (Host Only)
+            showMessage("מכין פלייליסט...", "success", 2000);
+            const success = await fetchPlaylistTracks(playlistId);
+            if (!success) return;
+
+            // 2. Setup Firebase Room
+            currentRoomCode = generateRoomCode();
+            isHost = true;
+            myName = "מארח (Host)";
+            
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
+            
+            // Push the first track to the database
+            const firstTrack = tracks.pop();
+            
+            await window.fbSetDoc(roomRef, {
+                createdAt: Date.now(),
+                hostId: window.fbUser.uid,
+                players: [myName],
+                currentTrack: firstTrack,
+                isRevealed: false
+            });
+
+            // 3. Update UI
+            setupGameUI();
+            listenToRoom(currentRoomCode);
+            
+            // 4. Try connecting to Spotify Player
+            startDeviceRadar();
+        }
+
+        async function joinRoom() {
+            const nameInput = document.getElementById('player-name').value.trim();
+            const codeInput = document.getElementById('room-code-input').value.trim().toUpperCase();
+
+            if (nameInput.length < 2) { showMessage("הכנס שם תקין", "error"); return; }
+            if (codeInput.length !== 4) { showMessage("קוד חדר מורכב מ-4 תווים", "error"); return; }
+            if (!window.fbUser) { showMessage("לא מחובר לשרת", "error"); return; }
+
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', codeInput);
+            const roomSnap = await window.fbGetDoc(roomRef);
+
+            if (!roomSnap.exists()) {
+                showMessage("החדר לא קיים. בדוק את הקוד שוב.", "error");
+                return;
+            }
+
+            // Add player to room
+            await window.fbUpdateDoc(roomRef, {
+                players: window.fbArrayUnion(nameInput)
+            });
+
+            currentRoomCode = codeInput;
+            isHost = false;
+            myName = nameInput;
+            
+            setupGameUI();
+            listenToRoom(currentRoomCode);
+        }
+
+        document.getElementById('btn-join-room').addEventListener('click', joinRoom);
+
+        function listenToRoom(roomCode) {
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', roomCode);
+            
+            unsubscribeRoom = window.fbOnSnapshot(roomRef, (docSnap) => {
+                if (!docSnap.exists()) {
+                    showMessage("החדר נסגר על ידי המארח.", "error");
+                    switchScreen('splash-screen');
+                    return;
+                }
+                
+                const data = docSnap.data();
+                
+                // Update Player Count
+                document.getElementById('player-count').textContent = data.players.length;
+
+                // Sync Card State
+                const card = document.getElementById('music-card');
+                
+                if (data.isRevealed) {
+                    card.classList.add('card-flipped');
+                } else {
+                    card.classList.remove('card-flipped');
+                }
+
+                // Sync Track Data
+                if (data.currentTrack) {
+                    document.getElementById('track-year').textContent = data.currentTrack.year;
+                    document.getElementById('track-title').textContent = data.currentTrack.title;
+                    document.getElementById('track-artist').textContent = data.currentTrack.artist;
+                    document.getElementById('album-cover').style.backgroundImage = `url('${data.currentTrack.cover}')`;
+                }
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+            });
+        }
+
+        // --- HOST CONTROLS & SYNCING ---
+        async function hostNextTrack() {
+            if (!isHost || tracks.length === 0) return;
+            
+            const next = tracks.pop();
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
+            
+            // Push to Firebase -> Everyone updates instantly
+            await window.fbUpdateDoc(roomRef, {
+                currentTrack: next,
+                isRevealed: false
+            });
+
+            // Pause Host's spotify
+            pauseTrack();
+        }
+
+        async function hostRevealAnswer() {
+            if (!isHost) return;
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
+            await window.fbUpdateDoc(roomRef, {
+                isRevealed: true
+            });
+        }
+
+        document.getElementById('next-track-btn').addEventListener('click', hostNextTrack);
+        document.getElementById('reveal-btn').addEventListener('click', hostRevealAnswer);
+
+
+        // --- UI UPDATES ---
+        function setupGameUI() {
+            switchScreen('game-screen');
+            document.getElementById('display-room-code').textContent = currentRoomCode;
+            document.getElementById('display-player-name').textContent = myName;
+            
+            if (isHost) {
+                document.getElementById('role-badge').textContent = "מארח (Spotify מחובר)";
+                document.getElementById('host-controls').classList.remove('hidden');
+                document.getElementById('play-pause-btn').classList.remove('hidden');
+                document.getElementById('reveal-btn').classList.remove('hidden');
+                document.getElementById('player-waiting-msg').classList.add('hidden');
+            } else {
+                document.getElementById('role-badge').textContent = "שחקן";
+                document.getElementById('host-controls').classList.add('hidden');
+                document.getElementById('play-pause-btn').classList.add('hidden');
+                document.getElementById('reveal-btn').classList.add('hidden');
+                document.getElementById('player-waiting-msg').classList.remove('hidden');
+            }
+        }
+
+
+        // --- SPOTIFY OAUTH & FETCHING (Host Only) ---
+        const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
+        const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+        const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -247,34 +477,19 @@
             if (code) {
                 const codeVerifier = localStorage.getItem('code_verifier');
                 try {
-                    const response = await fetch('https://accounts.spotify.com/api/token', {
+                    const res = await fetch('https://accounts.spotify.com/api/token', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({
-                            client_id: CLIENT_ID,
-                            grant_type: 'authorization_code',
-                            code: code,
-                            redirect_uri: REDIRECT_URI,
-                            code_verifier: codeVerifier,
-                        }),
+                        body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: codeVerifier }),
                     });
-
-                    const data = await response.json();
+                    const data = await res.json();
                     if (data.access_token) {
                         accessToken = data.access_token;
                         localStorage.setItem('spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         loadSetupScreen();
-                    } else {
-                        switchScreen('login-screen');
                     }
-                } catch (e) {
-                    switchScreen('login-screen');
-                }
-            } else if (accessToken) {
-                loadSetupScreen();
-            } else {
-                switchScreen('login-screen');
+                } catch (e) {}
             }
         });
 
@@ -285,321 +500,128 @@
             const hashed = await sha256(codeVerifier);
             const codeChallenge = base64encode(hashed);
 
-            // Added user-library-read to allow access to Liked Songs
-            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-playback-state user-modify-playback-state user-library-read';
+            const scopes = 'user-read-email user-read-private playlist-read-private playlist-read-collaborative user-read-playback-state user-modify-playback-state user-library-read';
             
             const params = new URLSearchParams({
-                response_type: 'code',
-                client_id: CLIENT_ID,
-                scope: scopes,
-                code_challenge_method: 'S256',
-                code_challenge: codeChallenge,
-                redirect_uri: REDIRECT_URI,
-                show_dialog: 'true'
+                response_type: 'code', client_id: CLIENT_ID, scope: scopes, code_challenge_method: 'S256', code_challenge: codeChallenge, redirect_uri: REDIRECT_URI, show_dialog: 'true'
             });
-
             window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
         });
 
-        function logoutAndReset() {
-            localStorage.clear();
-            accessToken = null;
-            switchScreen('login-screen');
-        }
-
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            logoutAndReset();
-            showMessage('הרשאות אופסו בהצלחה. להתחברות מחדש לחץ על הכפתור.', 'success', 4000);
-        });
-
-        // --- FETCH USER & PLAYLISTS ---
         async function loadSetupScreen() {
             switchScreen('setup-screen');
             const dropdown = document.getElementById('playlist-dropdown');
-            const userDisplay = document.getElementById('user-email-display');
-
             try {
-                const userRes = await fetch('https://api.spotify.com/v1/me', {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-
-                if (!userRes.ok) {
-                    logoutAndReset();
-                    return;
-                }
-
+                const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                if (!userRes.ok) { localStorage.clear(); switchScreen('login-screen'); return; }
                 const userData = await userRes.json();
-                userDisplay.textContent = userData.email || userData.id || 'מחובר';
+                document.getElementById('user-email-display').textContent = userData.email || 'מחובר';
 
-                const playlistRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                const plRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                if (!plRes.ok) return;
+                const plData = await plRes.json();
 
-                if (!playlistRes.ok) {
-                    dropdown.innerHTML = '<option value="">שגיאה בטעינת נתונים</option>';
-                    return;
-                }
-
-                const playlistData = await playlistRes.json();
-
-                // ADD LIKED SONGS AS THE FIRST OPTION
-                dropdown.innerHTML = '<option value="">-- בחר פלייליסט מהרשימה --</option>';
+                dropdown.innerHTML = '<option value="">-- בחר מאגר שירים מהרשימה --</option>';
                 dropdown.innerHTML += '<option value="LIKED_SONGS" class="font-bold text-green-400">❤️ שירי המועדפים שלי (Liked Songs)</option>';
 
-                if (playlistData.items && playlistData.items.length > 0) {
-                    playlistData.items.forEach(pl => {
+                if (plData.items) {
+                    plData.items.forEach(pl => {
                         if (!pl) return;
-                        const owner = pl.owner ? pl.owner.display_name : 'Unknown';
-                        const count = pl.tracks ? pl.tracks.total : 0;
-                        const opt = document.createElement('option');
-                        opt.value = pl.id;
-                        opt.textContent = `${pl.name} (${count} שירים) - יוצר: ${owner}`;
-                        dropdown.appendChild(opt);
+                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name}</option>`;
                     });
                 }
-
-            } catch (err) {
-                dropdown.innerHTML = '<option value="">שגיאה בטעינת נתונים</option>';
-            }
+            } catch (err) {}
         }
 
-        // --- GAME LOGIC ---
-        function parsePlaylistId(input) {
-            if (!input) return null;
-            const str = input.trim();
-            const urlMatch = str.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]{22})/);
-            if (urlMatch && urlMatch[1]) return urlMatch[1];
-            if (/^[a-zA-Z0-9]{22}$/.test(str)) return str;
-            return null;
-        }
-
-        document.getElementById('btn-test-public').addEventListener('click', () => {
-            initGame('37i9dQZF1DXcBWIGoYBM5M');
-        });
-
-        document.getElementById('btn-start-game').addEventListener('click', async () => {
+        document.getElementById('btn-start-game').addEventListener('click', () => {
             const dropdownVal = document.getElementById('playlist-dropdown').value;
             const customVal = document.getElementById('custom-playlist-input').value;
-            let finalPlaylistId = null;
+            let finalId = null;
 
             if (customVal && customVal.trim() !== '') {
-                finalPlaylistId = parsePlaylistId(customVal);
-                if (!finalPlaylistId) {
-                    showMessage('הקישור שהזנת בתיבת הטקסט אינו תקין.', 'error');
-                    return;
-                }
-            } else if (dropdownVal && dropdownVal.trim() !== '') {
-                finalPlaylistId = dropdownVal.trim();
-            } else {
-                showMessage('אנא בחר פלייליסט מהרשימה או הדבק קישור.', 'error');
-                return;
+                const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]{22})/);
+                finalId = m ? m[1] : (/^[a-zA-Z0-9]{22}$/.test(customVal) ? customVal : null);
+            } else if (dropdownVal) {
+                finalId = dropdownVal;
             }
 
-            initGame(finalPlaylistId);
+            if (!finalId) { showMessage('בחר פלייליסט', 'error'); return; }
+            createRoomAndStart(finalId);
         });
 
         async function fetchPlaylistTracks(playlistId) {
             try {
-                let url = '';
-                // Dynamic Endpoint Selection (Liked Songs vs Playlist)
-                if (playlistId === 'LIKED_SONGS') {
-                    url = `https://api.spotify.com/v1/me/tracks?limit=50`;
-                } else {
-                    url = `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
-                }
+                let url = playlistId === 'LIKED_SONGS' ? `https://api.spotify.com/v1/me/tracks?limit=50` : `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100`;
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+                const data = await res.json();
                 
-                const response = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-
-                if (!response.ok) {
-                    const errorMsg = await getSpotifyErrorMessage(response);
-                    showMessage(`Spotify API Failed: ${errorMsg}`, 'error', 15000);
-                    return false;
-                }
-
-                const data = await response.json();
                 let rawItems = Array.isArray(data.items) ? data.items : (data.tracks?.items || []);
-
-                if (rawItems.length === 0) {
-                    showMessage('המאגר שנבחר ריק או שאין לך הרשאה לקרוא אותו.', 'error');
-                    return false;
-                }
+                if (rawItems.length === 0) { showMessage('המאגר ריק או חסום.', 'error'); return false; }
 
                 tracks = rawItems
-                    .filter(item => {
-                        if (!item || !item.track) return false;
-                        const t = item.track;
-                        if (t.is_local || t.type === 'episode' || !t.uri) return false;
-                        if (!t.album || !t.album.release_date) return false;
-                        return true;
-                    })
-                    .map(item => {
-                        const t = item.track;
-                        return {
-                            uri: t.uri,
-                            title: t.name,
-                            artist: t.artists ? t.artists.map(a => a.name).join(', ') : 'אמן לא ידוע',
-                            year: t.album.release_date.substring(0, 4),
-                            cover: t.album.images?.[0]?.url || ''
-                        };
-                    });
+                    .filter(i => i?.track?.uri && i?.track?.album?.release_date && !i.track.is_local)
+                    .map(i => ({
+                        uri: i.track.uri, title: i.track.name,
+                        artist: i.track.artists ? i.track.artists.map(a => a.name).join(', ') : 'Unknown',
+                        year: i.track.album.release_date.substring(0, 4),
+                        cover: i.track.album.images?.[0]?.url || ''
+                    })).sort(() => Math.random() - 0.5);
 
-                tracks.sort(() => Math.random() - 0.5);
-
-                if (tracks.length === 0) {
-                    showMessage('לא נמצאו שירים תקינים במאגר הזה.', 'error');
-                    return false;
-                }
-
+                if (tracks.length === 0) return false;
                 return true;
-            } catch (err) {
-                showMessage(`תקלת תקשורת: ${err.message}`, 'error');
-                return false;
-            }
+            } catch (err) { return false; }
         }
 
+        // --- SPOTIFY PLAYBACK (HOST ONLY) ---
         async function startDeviceRadar() {
-            const overlay = document.getElementById('loading-overlay');
-            const title = document.getElementById('loading-title');
-            const text = document.getElementById('loading-text');
-            const wakeBox = document.getElementById('wake-spotify-box');
-            
-            title.textContent = 'מחפש את ספוטיפיי...';
-            text.textContent = 'בודק חיבור למכשיר...';
-            
-            const checkDevice = async () => {
+            const check = async () => {
                 try {
-                    const res = await fetch('https://api.spotify.com/v1/me/player/devices', {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-
-                    if (!res.ok) {
-                        const errorMsg = await getSpotifyErrorMessage(res);
-                        if (radarInterval) clearInterval(radarInterval);
-                        switchScreen('setup-screen');
-                        showMessage(`שגיאת מכשירים: ${errorMsg}`, 'error', 10000);
-                        return true; 
-                    }
-
+                    const res = await fetch('https://api.spotify.com/v1/me/player/devices', { headers: { 'Authorization': `Bearer ${accessToken}` } });
                     const data = await res.json();
-                    if (data.devices && data.devices.length > 0) {
-                        const active = data.devices.find(d => d.is_active);
-                        activeDeviceId = active ? active.id : data.devices[0].id;
-                        
-                        clearInterval(radarInterval);
-                        overlay.classList.add('hidden');
-                        loadNextTrack();
-                        showMessage('התחברנו בהצלחה! 🟢', 'success', 3000);
+                    if (data.devices?.length > 0) {
+                        activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
+                        showMessage('ספוטיפיי מחובר ומוכן! 🟢', 'success', 3000);
                         return true;
                     }
                     return false;
-                } catch(e) {
-                    return false;
-                }
+                } catch(e) { return false; }
             };
-
-            const found = await checkDevice();
-            if (!found) {
-                title.textContent = 'ממתין לספוטיפיי...';
-                text.textContent = 'האפליקציה בטלפון שלך רדומה.';
-                wakeBox.classList.remove('hidden');
-                
-                radarInterval = setInterval(async () => {
-                    await checkDevice();
-                }, 2000);
+            if (!(await check())) {
+                showMessage("פתח את ספוטיפיי בטלפון שלך ברקע!", "error", 10000);
+                setInterval(check, 3000);
             }
-        }
-
-        async function initGame(playlistId) {
-            switchScreen('game-screen');
-            const overlay = document.getElementById('loading-overlay');
-            const wakeBox = document.getElementById('wake-spotify-box');
-            
-            overlay.classList.remove('hidden');
-            wakeBox.classList.add('hidden');
-            document.getElementById('loading-title').textContent = 'שואב שירים...';
-            document.getElementById('loading-text').textContent = 'מוריד נתונים...';
-            
-            const tracksLoaded = await fetchPlaylistTracks(playlistId);
-            if (!tracksLoaded) {
-                switchScreen('setup-screen');
-                return;
-            }
-
-            startDeviceRadar();
-        }
-
-        function loadNextTrack() {
-            if (tracks.length === 0) {
-                showMessage('סיימתם את כל השירים במאגר הזה! 🎉', 'success');
-                return;
-            }
-
-            document.getElementById('music-card').classList.remove('card-flipped');
-            isPlaying = false;
-            document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
-
-            currentTrack = tracks.pop();
-            document.getElementById('track-year').textContent = currentTrack.year;
-            document.getElementById('track-title').textContent = currentTrack.title;
-            document.getElementById('track-artist').textContent = currentTrack.artist;
-            document.getElementById('album-cover').style.backgroundImage = `url('${currentTrack.cover}')`;
         }
 
         async function playTrack(uri) {
-            if (!activeDeviceId) return;
+            if (!activeDeviceId || !isHost) return;
             try {
-                const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ uris: [uri] }),
+                await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`, {
+                    method: 'PUT', body: JSON.stringify({ uris: [uri] }),
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
                 });
-                
-                if (!res.ok) {
-                    const errorMsg = await getSpotifyErrorMessage(res);
-                    showMessage(`שגיאת נגינה: ${errorMsg}`, 'error');
-                    return;
-                }
-
                 isPlaying = true;
                 document.getElementById('play-icon').className = 'fa-solid fa-pause ml-0';
             } catch(e) {}
         }
 
         async function pauseTrack() {
-            if (!activeDeviceId) return;
+            if (!activeDeviceId || !isHost) return;
             try {
-                await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
+                await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
                 isPlaying = false;
                 document.getElementById('play-icon').className = 'fa-solid fa-play ml-2';
             } catch(e) {}
         }
 
-        // --- Event Listeners ---
-        document.getElementById('play-pause-btn').addEventListener('click', (e) => {
+        document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!currentTrack) return;
-            isPlaying ? pauseTrack() : playTrack(currentTrack.uri);
+            // Fetch current track from Firebase to play
+            const roomRef = window.fbDoc(window.fbDb, 'artifacts', window.appId, 'public', 'data', 'rooms', currentRoomCode);
+            const snap = await window.fbGetDoc(roomRef);
+            const trk = snap.data()?.currentTrack;
+            if (trk) isPlaying ? pauseTrack() : playTrack(trk.uri);
         });
 
-        document.getElementById('reveal-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.getElementById('music-card').classList.add('card-flipped');
-        });
-
-        document.getElementById('next-track-btn').addEventListener('click', () => { pauseTrack(); loadNextTrack(); });
-        document.getElementById('btn-correct').addEventListener('click', () => { score++; document.getElementById('score-count').textContent = score; pauseTrack(); loadNextTrack(); });
-        document.getElementById('btn-wrong').addEventListener('click', () => { pauseTrack(); loadNextTrack(); });
-
-        document.getElementById('btn-change-playlist').addEventListener('click', () => {
-            pauseTrack();
-            if (radarInterval) clearInterval(radarInterval);
-            switchScreen('setup-screen');
-        });
     </script>
 </body>
 </html>
