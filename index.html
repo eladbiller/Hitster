@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v17.0.0</title>
+    <title>Hitster - QR Scanner v17.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -85,30 +85,32 @@
             <button onclick="switchScreen('role-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">Back</button>
         </section>
 
-        <!-- 3. HOST: SETUP SCREEN (MINIMAL) -->
+        <!-- 3. HOST: SETUP SCREEN (MINIMALIST) -->
         <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
-            <h2 class="text-2xl font-bold text-green-400 pt-2">Choose Music Source</h2>
+            <h2 class="text-2xl font-bold text-green-400">Choose Music Source</h2>
 
-            <div class="space-y-4 w-full pt-2">
+            <div class="space-y-5 w-full pt-2">
                 
-                <!-- OPTION 1: GLOBAL PARTY MIX -->
-                <button onclick="startMode('global_mix')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-6 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-purple-400/50">
-                    <span class="flex items-center gap-3 text-lg"><i class="fa-solid fa-earth-americas text-2xl drop-shadow"></i> Global Party Mix</span>
-                    <span class="text-xs text-purple-200 font-normal">Fair Game: 50 Random Pop/Rock/Dance Hits</span>
-                </button>
+                <!-- OPTION 1: CLASSIC HITSTER MIX -->
+                <div class="relative">
+                    <button onclick="startMode('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-6 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-purple-400/50">
+                        <span class="flex items-center gap-3 text-lg"><i class="fa-solid fa-compact-disc text-2xl drop-shadow"></i> Classic Hitster Mix</span>
+                        <span class="text-xs text-purple-200 font-normal">50 Hits bridging 1960 to 2024 (Equal Chance)</span>
+                    </button>
+                </div>
 
                 <div class="relative flex py-2 items-center">
                     <div class="flex-grow border-t border-slate-700"></div>
-                    <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR YOUR MUSIC</span>
+                    <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR</span>
                     <div class="flex-grow border-t border-slate-700"></div>
                 </div>
 
-                <!-- OPTION 2: MY LIKED SONGS -->
+                <!-- OPTION 2: LIKED SONGS -->
                 <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base">
                     <i class="fa-solid fa-heart text-2xl text-red-400"></i> My Liked Songs
                 </button>
@@ -193,7 +195,7 @@
                     </span>
                 </div>
 
-                <!-- TOKENS WITH PLUS / MINUS CONTROLS -->
+                <!-- TOKENS WITH PLUS / MINUS CONTROLS (STARTS AT 2) -->
                 <div class="flex items-center gap-2">
                     <div class="flex items-center bg-yellow-500/10 border border-yellow-500/30 rounded-lg overflow-hidden shadow-sm">
                         <button onclick="adjustTokens(-1)" class="bg-yellow-500/20 hover:bg-yellow-500/40 active:bg-yellow-500/50 text-yellow-400 px-2.5 py-1 text-xs font-bold transition">
@@ -290,7 +292,8 @@
             }
         }
 
-        // --- SAFE URL-ENCODING FOR QR CODES (Solves Hebrew/Emoji Crash) ---
+        // --- SAFE URL-ENCODING FOR QR CODES ---
+        // Guaranteed to prevent qrcode.js from throwing white boxes on Hebrew / Non-Latin strings
         function encodeForQR(obj) {
             return encodeURIComponent(JSON.stringify(obj));
         }
@@ -341,7 +344,7 @@
             try {
                 res = await fetch(url, options);
             } catch (err) {
-                throw new Error("Network request failed. Check your connection.");
+                throw new Error("Network request failed. Check your internet connection.");
             }
 
             if (res.status === 401) {
@@ -352,14 +355,7 @@
             }
 
             if (!res.ok) {
-                let errorMsg = `Spotify Error (${res.status})`;
-                try {
-                    const errJson = await res.json();
-                    if (errJson.error && errJson.error.message) {
-                        errorMsg += `: ${errJson.error.message}`;
-                    }
-                } catch(e) {}
-                throw new Error(errorMsg);
+                throw new Error(`Spotify Error (${res.status})`);
             }
 
             const text = await res.text();
@@ -446,22 +442,42 @@
                 let rawItems = [];
 
                 if (modeType === 'liked') {
-                    // Safe offset cap for Liked Songs to prevent 400 Invalid Limit
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
                     let offset = 0;
-                    if (total > 50) {
-                        offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
-                    }
+                    if (total > 50) offset = Math.floor(Math.random() * (total - 50));
                     
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     rawItems = data.items || [];
                 }
-                else if (modeType === 'global_mix') {
-                    // Uses Spotify Recommendations API - Immune to offset 400 limits and 403 blocks.
-                    // Fetches 50 high-popularity, completely fair and random party tracks.
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/recommendations?limit=50&seed_genres=pop,dance,rock,hip-hop&min_popularity=50`);
-                    rawItems = data.tracks ? data.tracks.map(t => ({ track: t })) : [];
+                else if (modeType === 'hitster_classic') {
+                    // Safe logic: Picks 5 distinct random years from different decades and requests them directly
+                    // This perfectly avoids the 400 Bad Request error caused by searching unencoded ranges.
+                    const decades = [
+                        { min: 1960, max: 1979 }, // 60s & 70s
+                        { min: 1980, max: 1989 }, // 80s
+                        { min: 1990, max: 1999 }, // 90s
+                        { min: 2000, max: 2009 }, // 00s
+                        { min: 2010, max: 2024 }  // 10s & 20s
+                    ];
+
+                    const fetchPromises = decades.map(decade => {
+                        // Pick ONE random year from the decade
+                        const randomYear = Math.floor(Math.random() * (decade.max - decade.min + 1)) + decade.min;
+                        const offset = Math.floor(Math.random() * 40); // Safe low offset
+                        // Perfectly URL encoded specific year query (e.g. year:1984)
+                        const safeQuery = encodeURIComponent(`year:${randomYear}`);
+                        
+                        return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${safeQuery}&type=track&limit=10&offset=${offset}`);
+                    });
+
+                    const results = await Promise.all(fetchPromises);
+                    
+                    results.forEach(res => {
+                        if (res.tracks && res.tracks.items) {
+                            rawItems.push(...res.tracks.items.map(t => ({ track: t })));
+                        }
+                    });
                 }
 
                 if (!rawItems || rawItems.length === 0) {
@@ -472,8 +488,8 @@
                     .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
                     .map(i => ({
                         u: i.track.uri,
-                        t: i.track.name.substring(0, 32),
-                        a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
+                        t: i.track.name,
+                        a: i.track.artists ? i.track.artists[0].name : 'Unknown',
                         y: parseInt(i.track.album.release_date.substring(0, 4)),
                         c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                     }));
@@ -579,7 +595,7 @@
                 coverEl.classList.add('hidden');
             }
 
-            // Trim data heavily to keep QR code density very low (chunkier squares) for easy scanning
+            // Heavily trimmed content so the QR stays extremely simple and readable.
             const safeTitle = currentHostTrack.t.length > 20 ? currentHostTrack.t.substring(0, 20) + '...' : currentHostTrack.t;
             const safeArtist = currentHostTrack.a.length > 20 ? currentHostTrack.a.substring(0, 20) + '...' : currentHostTrack.a;
 
@@ -587,7 +603,7 @@
                 y: currentHostTrack.y,
                 t: safeTitle,
                 a: safeArtist,
-                c: currentHostTrack.c
+                c: currentHostTrack.c // Note: this is just the ID to save space, not the full URL.
             });
 
             const qrContainer = document.getElementById("qrcode");
@@ -598,7 +614,7 @@
                 height: 240, 
                 colorDark : "#0f172a", 
                 colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.L // Forces low density
+                correctLevel : QRCode.CorrectLevel.L // Low density for easy scanning
             });
 
             playHostTrack(currentHostTrack.u);
