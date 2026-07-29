@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v16.0.0</title>
+    <title>Hitster - QR Scanner v17.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v16.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v17.0</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -85,62 +85,36 @@
             <button onclick="switchScreen('role-screen')" class="text-xs text-slate-400 hover:text-white underline mt-4 block mx-auto">Back</button>
         </section>
 
-        <!-- 3. HOST: SETUP SCREEN -->
-        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-5">
+        <!-- 3. HOST: SETUP SCREEN (MINIMAL) -->
+        <section id="host-setup-screen" class="w-full max-w-md hidden bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
-            <h2 class="text-xl font-bold text-green-400">Choose Music Source</h2>
+            <h2 class="text-2xl font-bold text-green-400 pt-2">Choose Music Source</h2>
 
-            <!-- MY PERSONAL MUSIC -->
-            <div class="space-y-3">
-                <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-3 text-sm">
-                    <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
+            <div class="space-y-4 w-full pt-2">
+                
+                <!-- OPTION 1: GLOBAL PARTY MIX -->
+                <button onclick="startMode('global_mix')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-6 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-2 border border-purple-400/50">
+                    <span class="flex items-center gap-3 text-lg"><i class="fa-solid fa-earth-americas text-2xl drop-shadow"></i> Global Party Mix</span>
+                    <span class="text-xs text-purple-200 font-normal">Fair Game: 50 Random Pop/Rock/Dance Hits</span>
                 </button>
-                <button onclick="startMode('top')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-3 text-sm">
-                    <i class="fa-solid fa-star text-yellow-200"></i> My Top Songs (All Time)
-                </button>
-            </div>
 
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR FAIR PARTY MIX</span>
-                <div class="flex-grow border-t border-slate-700"></div>
-            </div>
-
-            <!-- GLOBAL PARTY MIX (FAIR CHANCE) -->
-            <button onclick="startMode('global_mix')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base border border-purple-400/50">
-                <i class="fa-solid fa-earth-americas text-2xl drop-shadow"></i> Global Party Mix (Fair Game)
-            </button>
-            <p class="text-[10px] text-slate-400 px-2 mt-[-10px]">A random generated mix of popular Pop, Rock, Dance & Hip-Hop. Great for giving everyone an equal chance!</p>
-
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR BY PLAYLIST</span>
-                <div class="flex-grow border-t border-slate-700"></div>
-            </div>
-
-            <!-- PLAYLISTS -->
-            <div class="space-y-3 w-full">
-                <!-- Spotify Featured Playlists -->
-                <select id="featured-playlist-dropdown" class="w-full bg-slate-900 border border-indigo-500/50 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-400 appearance-none text-white">
-                    <option value="">Spotify Featured Playlists...</option>
-                </select>
-
-                <!-- User Personal Playlists -->
-                <select id="user-playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none focus:border-green-500 appearance-none text-white">
-                    <option value="">Your Personal Playlists...</option>
-                </select>
-
-                <div class="flex gap-2">
-                    <input type="text" id="custom-playlist-input" placeholder="Or Paste a Playlist Link..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs focus:outline-none focus:border-green-500 text-center font-mono text-white">
-                    <button onclick="startMode('playlist')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl shadow transition text-xs">Play</button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR YOUR MUSIC</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
                 </div>
+
+                <!-- OPTION 2: MY LIKED SONGS -->
+                <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base">
+                    <i class="fa-solid fa-heart text-2xl text-red-400"></i> My Liked Songs
+                </button>
             </div>
 
-            <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-4 block mx-auto">Logout & Switch Account</button>
+            <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-6 block mx-auto">Logout & Switch Account</button>
         </section>
 
         <!-- 4. HOST: GAME SCREEN -->
@@ -219,7 +193,7 @@
                     </span>
                 </div>
 
-                <!-- TOKENS WITH PLUS / MINUS CONTROLS (STARTS AT 2) -->
+                <!-- TOKENS WITH PLUS / MINUS CONTROLS -->
                 <div class="flex items-center gap-2">
                     <div class="flex items-center bg-yellow-500/10 border border-yellow-500/30 rounded-lg overflow-hidden shadow-sm">
                         <button onclick="adjustTokens(-1)" class="bg-yellow-500/20 hover:bg-yellow-500/40 active:bg-yellow-500/50 text-yellow-400 px-2.5 py-1 text-xs font-bold transition">
@@ -316,14 +290,17 @@
             }
         }
 
-        // --- SAFE URL-ENCODING FOR QR CODES ---
+        // --- SAFE URL-ENCODING FOR QR CODES (Solves Hebrew/Emoji Crash) ---
         function encodeForQR(obj) {
             return encodeURIComponent(JSON.stringify(obj));
         }
 
         function decodeFromQR(str) {
-            try { return JSON.parse(decodeURIComponent(str)); } 
-            catch(e) { return JSON.parse(str); }
+            try {
+                return JSON.parse(decodeURIComponent(str));
+            } catch(e) {
+                return JSON.parse(str);
+            }
         }
 
         // --- GLOBAL CONFIG & STATE ---
@@ -364,7 +341,7 @@
             try {
                 res = await fetch(url, options);
             } catch (err) {
-                throw new Error("Network request failed. Check your internet connection.");
+                throw new Error("Network request failed. Check your connection.");
             }
 
             if (res.status === 401) {
@@ -375,7 +352,14 @@
             }
 
             if (!res.ok) {
-                throw new Error(`Spotify Error (${res.status})`);
+                let errorMsg = `Spotify Error (${res.status})`;
+                try {
+                    const errJson = await res.json();
+                    if (errJson.error && errJson.error.message) {
+                        errorMsg += `: ${errJson.error.message}`;
+                    }
+                } catch(e) {}
+                throw new Error(errorMsg);
             }
 
             const text = await res.text();
@@ -424,7 +408,7 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             
-            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
+            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read';
             const params = new URLSearchParams({ 
                 response_type: 'code', 
                 client_id: CLIENT_ID, 
@@ -447,36 +431,8 @@
         async function loadHostSetupScreen() {
             switchScreen('host-setup-screen');
             try {
-                // 1. Fetch User Data
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
                 document.getElementById('host-email-display').textContent = userData.email || 'Connected';
-
-                // 2. Fetch User Personal Playlists
-                try {
-                    const plData = await safeSpotifyFetch('https://api.spotify.com/v1/me/playlists?limit=50');
-                    const dropdown = document.getElementById('user-playlist-dropdown');
-                    dropdown.innerHTML = '<option value="">Your Personal Playlists...</option>';
-                    if (plData.items) {
-                        plData.items.forEach(pl => {
-                            if (!pl) return;
-                            dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0})</option>`;
-                        });
-                    }
-                } catch(e) { console.log("Personal playlists failed to load"); }
-
-                // 3. Fetch Spotify Featured Playlists (Guaranteed to work globally)
-                try {
-                    const featuredData = await safeSpotifyFetch('https://api.spotify.com/v1/browse/featured-playlists?limit=20');
-                    const fDropdown = document.getElementById('featured-playlist-dropdown');
-                    fDropdown.innerHTML = '<option value="">Spotify Featured Playlists...</option>';
-                    if (featuredData.playlists && featuredData.playlists.items) {
-                        featuredData.playlists.items.forEach(pl => {
-                            if (!pl) return;
-                            fDropdown.innerHTML += `<option value="${pl.id}">${pl.name}</option>`;
-                        });
-                    }
-                } catch(e) { console.log("Featured playlists failed to load"); }
-
             } catch (err) {}
         }
 
@@ -490,48 +446,22 @@
                 let rawItems = [];
 
                 if (modeType === 'liked') {
+                    // Safe offset cap for Liked Songs to prevent 400 Invalid Limit
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
                     let offset = 0;
-                    if (total > 50) offset = Math.floor(Math.random() * (total - 50));
+                    if (total > 50) {
+                        offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
+                    }
                     
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     rawItems = data.items || [];
                 }
-                else if (modeType === 'top') {
-                    const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term');
-                    rawItems = data.items ? data.items.map(t => ({ track: t })) : [];
-                }
                 else if (modeType === 'global_mix') {
-                    // Uses Recommendations API - Extremely reliable and provides high quality random hits
+                    // Uses Spotify Recommendations API - Immune to offset 400 limits and 403 blocks.
+                    // Fetches 50 high-popularity, completely fair and random party tracks.
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/recommendations?limit=50&seed_genres=pop,dance,rock,hip-hop&min_popularity=50`);
                     rawItems = data.tracks ? data.tracks.map(t => ({ track: t })) : [];
-                }
-                else if (modeType === 'playlist') {
-                    const customVal = document.getElementById('custom-playlist-input').value.trim();
-                    const userVal = document.getElementById('user-playlist-dropdown').value;
-                    const featuredVal = document.getElementById('featured-playlist-dropdown').value;
-                    let targetId = null;
-
-                    if (customVal !== '') {
-                        const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
-                        targetId = m ? m[1] : customVal;
-                    } else if (userVal) {
-                        targetId = userVal;
-                    } else if (featuredVal) {
-                        targetId = featuredVal;
-                    }
-
-                    if (!targetId) throw new Error("Please select or paste a playlist link.");
-
-                    const cleanId = targetId.split('?')[0];
-                    try {
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100&market=from_token`);
-                        rawItems = data.items || [];
-                    } catch(e) {
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}`);
-                        rawItems = data.tracks?.items || [];
-                    }
                 }
 
                 if (!rawItems || rawItems.length === 0) {
@@ -649,10 +579,14 @@
                 coverEl.classList.add('hidden');
             }
 
+            // Trim data heavily to keep QR code density very low (chunkier squares) for easy scanning
+            const safeTitle = currentHostTrack.t.length > 20 ? currentHostTrack.t.substring(0, 20) + '...' : currentHostTrack.t;
+            const safeArtist = currentHostTrack.a.length > 20 ? currentHostTrack.a.substring(0, 20) + '...' : currentHostTrack.a;
+
             const qrPayload = encodeForQR({
                 y: currentHostTrack.y,
-                t: currentHostTrack.t.substring(0, 20),
-                a: currentHostTrack.a.substring(0, 20),
+                t: safeTitle,
+                a: safeArtist,
                 c: currentHostTrack.c
             });
 
@@ -664,7 +598,7 @@
                 height: 240, 
                 colorDark : "#0f172a", 
                 colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.L // Low density chunky squares
+                correctLevel : QRCode.CorrectLevel.L // Forces low density
             });
 
             playHostTrack(currentHostTrack.u);
@@ -677,6 +611,7 @@
             document.getElementById('reveal-area').classList.remove('hidden');
             document.getElementById('reveal-btn').classList.add('hidden');
         });
+
 
         // ==========================================
         //         PLAYER LOGIC & TOKENS
