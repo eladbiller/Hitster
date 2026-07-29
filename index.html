@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v15.2</title>
+    <title>Hitster - QR Scanner v16.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v15.2</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v16.0</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -94,72 +94,49 @@
 
             <h2 class="text-xl font-bold text-green-400">Choose Music Source</h2>
 
-            <!-- MY MUSIC -->
-            <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base">
-                <i class="fa-solid fa-heart text-2xl"></i> ❤️ My Liked Songs
+            <!-- MY PERSONAL MUSIC -->
+            <div class="space-y-3">
+                <button onclick="startMode('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-3 text-sm">
+                    <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
+                </button>
+                <button onclick="startMode('top')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-3 text-sm">
+                    <i class="fa-solid fa-star text-yellow-200"></i> My Top Songs (All Time)
+                </button>
+            </div>
+
+            <div class="relative flex py-1 items-center">
+                <div class="flex-grow border-t border-slate-700"></div>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR FAIR PARTY MIX</span>
+                <div class="flex-grow border-t border-slate-700"></div>
+            </div>
+
+            <!-- GLOBAL PARTY MIX (FAIR CHANCE) -->
+            <button onclick="startMode('global_mix')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base border border-purple-400/50">
+                <i class="fa-solid fa-earth-americas text-2xl drop-shadow"></i> Global Party Mix (Fair Game)
             </button>
+            <p class="text-[10px] text-slate-400 px-2 mt-[-10px]">A random generated mix of popular Pop, Rock, Dance & Hip-Hop. Great for giving everyone an equal chance!</p>
 
             <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR FAIR PARTY MIXES</span>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR BY PLAYLIST</span>
                 <div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <!-- TRUE HITSTER MIX (EQUAL CHANCE) -->
-            <div class="w-full bg-slate-900 border-2 border-purple-500/50 rounded-xl p-4 shadow-[0_0_15px_rgba(168,85,247,0.2)] mb-2">
-                <button onclick="startMode('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base mb-3 border border-purple-400/50">
-                    <i class="fa-solid fa-compact-disc text-2xl drop-shadow"></i> Classic Hitster (1960–2024)
-                </button>
-                <button onclick="startMode('hitster_modern')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 px-4 rounded-xl transition flex items-center justify-center gap-3 text-sm border border-slate-600">
-                    <i class="fa-solid fa-bolt text-yellow-400"></i> Modern Hits Only (2000–2024)
-                </button>
-            </div>
+            <!-- PLAYLISTS -->
+            <div class="space-y-3 w-full">
+                <!-- Spotify Featured Playlists -->
+                <select id="featured-playlist-dropdown" class="w-full bg-slate-900 border border-indigo-500/50 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-400 appearance-none text-white">
+                    <option value="">Spotify Featured Playlists...</option>
+                </select>
 
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR BY DECADE</span>
-                <div class="flex-grow border-t border-slate-700"></div>
-            </div>
+                <!-- User Personal Playlists -->
+                <select id="user-playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none focus:border-green-500 appearance-none text-white">
+                    <option value="">Your Personal Playlists...</option>
+                </select>
 
-            <!-- DECADE BUTTONS ("THE PLAYLISTS") -->
-            <div class="grid grid-cols-2 gap-3 w-full">
-                <button onclick="startMode('decade', 'year:2010-2019')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-3 rounded-xl shadow transition text-sm">
-                    🕺 2010s Hits
-                </button>
-                <button onclick="startMode('decade', 'year:2000-2009')" class="bg-teal-600 hover:bg-teal-500 text-white font-bold py-3.5 px-3 rounded-xl shadow transition text-sm">
-                    💿 2000s Pop
-                </button>
-                <button onclick="startMode('decade', 'year:1990-1999')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 px-3 rounded-xl shadow transition text-sm">
-                    🎸 90s Classics
-                </button>
-                <button onclick="startMode('decade', 'year:1980-1989')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 px-3 rounded-xl shadow transition text-sm">
-                    🪩 80s Throwbacks
-                </button>
-            </div>
-            
-            <button onclick="startMode('random')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-3 text-sm mt-2 border border-slate-600">
-                <i class="fa-solid fa-dice"></i> Random Year Generator
-            </button>
-
-            <div class="relative flex py-1 items-center">
-                <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">OR BY ARTIST</span>
-                <div class="flex-grow border-t border-slate-700"></div>
-            </div>
-
-            <!-- ARTIST SEARCH -->
-            <div class="space-y-2">
                 <div class="flex gap-2">
-                    <input type="text" id="artist-search-input" placeholder="Type any artist (e.g. Queen)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-white">
-                    <button onclick="startMode('artist')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl shadow transition text-sm">
-                        Play
-                    </button>
-                </div>
-                <div class="flex flex-wrap gap-1.5 justify-center pt-1">
-                    <button onclick="setArtistAndPlay('Queen')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Queen</button>
-                    <button onclick="setArtistAndPlay('Coldplay')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Coldplay</button>
-                    <button onclick="setArtistAndPlay('Omer Adam')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Omer Adam</button>
-                    <button onclick="setArtistAndPlay('Michael Jackson')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">MJ</button>
+                    <input type="text" id="custom-playlist-input" placeholder="Or Paste a Playlist Link..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs focus:outline-none focus:border-green-500 text-center font-mono text-white">
+                    <button onclick="startMode('playlist')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl shadow transition text-xs">Play</button>
                 </div>
             </div>
 
@@ -339,17 +316,14 @@
             }
         }
 
-        // --- SAFE URL-ENCODING FOR QR CODES (Solves Hebrew/Emoji Crash) ---
+        // --- SAFE URL-ENCODING FOR QR CODES ---
         function encodeForQR(obj) {
             return encodeURIComponent(JSON.stringify(obj));
         }
 
         function decodeFromQR(str) {
-            try {
-                return JSON.parse(decodeURIComponent(str));
-            } catch(e) {
-                return JSON.parse(str);
-            }
+            try { return JSON.parse(decodeURIComponent(str)); } 
+            catch(e) { return JSON.parse(str); }
         }
 
         // --- GLOBAL CONFIG & STATE ---
@@ -390,7 +364,7 @@
             try {
                 res = await fetch(url, options);
             } catch (err) {
-                throw new Error("Network request failed. Check your connection.");
+                throw new Error("Network request failed. Check your internet connection.");
             }
 
             if (res.status === 401) {
@@ -450,7 +424,7 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             
-            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read';
+            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
             const params = new URLSearchParams({ 
                 response_type: 'code', 
                 client_id: CLIENT_ID, 
@@ -473,17 +447,40 @@
         async function loadHostSetupScreen() {
             switchScreen('host-setup-screen');
             try {
+                // 1. Fetch User Data
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
                 document.getElementById('host-email-display').textContent = userData.email || 'Connected';
+
+                // 2. Fetch User Personal Playlists
+                try {
+                    const plData = await safeSpotifyFetch('https://api.spotify.com/v1/me/playlists?limit=50');
+                    const dropdown = document.getElementById('user-playlist-dropdown');
+                    dropdown.innerHTML = '<option value="">Your Personal Playlists...</option>';
+                    if (plData.items) {
+                        plData.items.forEach(pl => {
+                            if (!pl) return;
+                            dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0})</option>`;
+                        });
+                    }
+                } catch(e) { console.log("Personal playlists failed to load"); }
+
+                // 3. Fetch Spotify Featured Playlists (Guaranteed to work globally)
+                try {
+                    const featuredData = await safeSpotifyFetch('https://api.spotify.com/v1/browse/featured-playlists?limit=20');
+                    const fDropdown = document.getElementById('featured-playlist-dropdown');
+                    fDropdown.innerHTML = '<option value="">Spotify Featured Playlists...</option>';
+                    if (featuredData.playlists && featuredData.playlists.items) {
+                        featuredData.playlists.items.forEach(pl => {
+                            if (!pl) return;
+                            fDropdown.innerHTML += `<option value="${pl.id}">${pl.name}</option>`;
+                        });
+                    }
+                } catch(e) { console.log("Featured playlists failed to load"); }
+
             } catch (err) {}
         }
 
-        function setArtistAndPlay(artistName) {
-            document.getElementById('artist-search-input').value = artistName;
-            startMode('artist');
-        }
-
-        async function startMode(modeType, queryValue = '') {
+        async function startMode(modeType) {
             switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
@@ -501,45 +498,40 @@
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     rawItems = data.items || [];
                 }
-                else if (modeType === 'hitster_classic' || modeType === 'hitster_modern') {
-                    let eras = [];
-                    if (modeType === 'hitster_classic') {
-                        eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    } else {
-                        eras = ['2000-2005', '2006-2010', '2011-2015', '2016-2020', '2021-2024'];
+                else if (modeType === 'top') {
+                    const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term');
+                    rawItems = data.items ? data.items.map(t => ({ track: t })) : [];
+                }
+                else if (modeType === 'global_mix') {
+                    // Uses Recommendations API - Extremely reliable and provides high quality random hits
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/recommendations?limit=50&seed_genres=pop,dance,rock,hip-hop&min_popularity=50`);
+                    rawItems = data.tracks ? data.tracks.map(t => ({ track: t })) : [];
+                }
+                else if (modeType === 'playlist') {
+                    const customVal = document.getElementById('custom-playlist-input').value.trim();
+                    const userVal = document.getElementById('user-playlist-dropdown').value;
+                    const featuredVal = document.getElementById('featured-playlist-dropdown').value;
+                    let targetId = null;
+
+                    if (customVal !== '') {
+                        const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
+                        targetId = m ? m[1] : customVal;
+                    } else if (userVal) {
+                        targetId = userVal;
+                    } else if (featuredVal) {
+                        targetId = featuredVal;
                     }
 
-                    const fetchPromises = eras.map(era => {
-                        const offset = Math.floor(Math.random() * 50);
-                        return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${offset}`);
-                    });
+                    if (!targetId) throw new Error("Please select or paste a playlist link.");
 
-                    const results = await Promise.all(fetchPromises);
-                    
-                    results.forEach(res => {
-                        if (res.tracks && res.tracks.items) {
-                            rawItems.push(...res.tracks.items.map(t => ({ track: t })));
-                        }
-                    });
-                }
-                else if (modeType === 'artist') {
-                    const artistName = document.getElementById('artist-search-input').value.trim();
-                    if (!artistName) throw new Error("Please enter an artist name.");
-                    
-                    const offset = Math.floor(Math.random() * 20); 
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(artistName)}&type=track&limit=50&offset=${offset}`);
-                    rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
-                }
-                else if (modeType === 'decade') {
-                    const offset = Math.floor(Math.random() * 200); 
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(queryValue)}&type=track&limit=50&offset=${offset}`);
-                    rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
-                }
-                else if (modeType === 'random') {
-                    const randYear = Math.floor(Math.random() * (2023 - 1960 + 1)) + 1960;
-                    const offset = Math.floor(Math.random() * 100);
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${randYear}&type=track&limit=50&offset=${offset}`);
-                    rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
+                    const cleanId = targetId.split('?')[0];
+                    try {
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100&market=from_token`);
+                        rawItems = data.items || [];
+                    } catch(e) {
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}`);
+                        rawItems = data.tracks?.items || [];
+                    }
                 }
 
                 if (!rawItems || rawItems.length === 0) {
@@ -558,7 +550,7 @@
 
                 if (tracks.length === 0) throw new Error("No tracks with valid release dates found.");
 
-                tracks.sort(() => Math.random() - 0.5); 
+                tracks.sort(() => Math.random() - 0.5); // Shuffle
                 startDeviceRadar();
 
             } catch (err) {
@@ -668,8 +660,8 @@
             qrContainer.innerHTML = "";
             new QRCode(qrContainer, {
                 text: qrPayload,
-                width: 220, 
-                height: 220, 
+                width: 240, 
+                height: 240, 
                 colorDark : "#0f172a", 
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.L // Low density chunky squares
@@ -685,7 +677,6 @@
             document.getElementById('reveal-area').classList.remove('hidden');
             document.getElementById('reveal-btn').classList.add('hidden');
         });
-
 
         // ==========================================
         //         PLAYER LOGIC & TOKENS
@@ -781,9 +772,9 @@
                 html5QrCodeInstance = new Html5Qrcode("reader");
                 await html5QrCodeInstance.start(
                     { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    { fps: 10, qrbox: { width: 200, height: 200 } },
                     onScanSuccess,
-                    () => {} // Ignore scan frame failures to prevent console spam
+                    () => {}
                 );
             } catch(err) {
                 showMessage("Camera access error. Please allow camera permissions in browser settings.", "error", 5000);
