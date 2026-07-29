@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v12.1.0</title>
+    <title>Hitster - QR Scanner v15.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v12.1.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v15.0</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -144,7 +144,7 @@
                 <h3 class="text-white font-bold mb-4 text-lg"><i class="fa-solid fa-qrcode mr-2 text-indigo-400"></i>Players: Scan this Code!</h3>
                 
                 <!-- QR Code Box -->
-                <div id="qrcode" class="bg-white p-2 rounded-xl shadow-inner mb-6 min-w-[200px] min-h-[200px] flex items-center justify-center"></div>
+                <div id="qrcode" class="bg-white p-2 rounded-xl shadow-inner mb-6 min-w-[220px] min-h-[220px] flex items-center justify-center"></div>
                 
                 <!-- Big Play/Pause Button -->
                 <button id="play-pause-btn" class="w-full bg-green-500 hover:bg-green-400 text-slate-900 font-black py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.4)] transition text-xl flex items-center justify-center gap-3 mb-4">
@@ -281,25 +281,17 @@
             }
         }
 
-        // --- UTF-8 BASE64 ENCODING / DECODING FOR QR CODES ---
-        function encodeToASCII(obj) {
-            const jsonStr = JSON.stringify(obj);
-            const bytes = new TextEncoder().encode(jsonStr);
-            let binString = "";
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binString += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binString);
+        // --- LOW DENSITY QR ENCODING ---
+        // Avoid Base64 so the string stays short and the QR code doesn't become impossible to scan
+        function encodeToSafeQR(obj) {
+            return unescape(encodeURIComponent(JSON.stringify(obj)));
         }
 
-        function decodeFromASCII(asciiStr) {
+        function decodeFromSafeQR(str) {
             try {
-                const binString = atob(asciiStr);
-                const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
-                const jsonStr = new TextDecoder().decode(bytes);
-                return JSON.parse(jsonStr);
+                return JSON.parse(decodeURIComponent(escape(str)));
             } catch(e) {
-                return JSON.parse(asciiStr);
+                return JSON.parse(str);
             }
         }
 
@@ -429,7 +421,6 @@
         }
 
         // --- THE TRUE RANDOM MULTI-FETCH ---
-        // Fetches 10 random songs from 5 different decades simultaneously and shuffles them into a 50-card deck
         async function startMode(modeType) {
             switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
@@ -592,10 +583,11 @@
                 coverEl.classList.add('hidden');
             }
 
-            const qrPayload = encodeToASCII({
+            // CRITICAL FIX: Keeping payload incredibly small and safe for QR generation
+            const qrPayload = encodeToSafeQR({
                 y: currentHostTrack.y,
-                t: currentHostTrack.t,
-                a: currentHostTrack.a,
+                t: currentHostTrack.t.substring(0, 20), // Trimmed to keep QR low-density
+                a: currentHostTrack.a.substring(0, 20), // Trimmed to keep QR low-density
                 c: currentHostTrack.c
             });
 
@@ -603,10 +595,11 @@
             qrContainer.innerHTML = "";
             new QRCode(qrContainer, {
                 text: qrPayload,
-                width: 200, 
-                height: 200, 
+                width: 240, // Larger size for better scanning
+                height: 240, 
                 colorDark : "#0f172a", 
-                colorLight : "#ffffff"
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L // CRITICAL FIX: Forces low density dots (chunky squares)
             });
 
             playHostTrack(currentHostTrack.u);
@@ -684,8 +677,8 @@
             const modal = document.getElementById('scanner-modal');
             modal.classList.remove('hidden');
             
-            // Allow DOM to settle before initializing camera
-            await new Promise(r => setTimeout(r, 200));
+            // Allow DOM to settle before initializing camera (Critical for mobile)
+            await new Promise(r => setTimeout(r, 300));
 
             try {
                 if (html5QrCodeInstance) {
@@ -698,9 +691,9 @@
                 html5QrCodeInstance = new Html5Qrcode("reader");
                 await html5QrCodeInstance.start(
                     { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 200, height: 200 } },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
                     onScanSuccess,
-                    () => {}
+                    () => {} // Ignore scan frame failures to prevent console spam
                 );
             } catch(err) {
                 showMessage("Camera access error. Please allow camera permissions in browser settings.", "error", 5000);
@@ -721,7 +714,7 @@
         function onScanSuccess(decodedText) {
             closeScanner();
             try {
-                const trackData = decodeFromASCII(decodedText);
+                const trackData = decodeFromSafeQR(decodedText);
                 if (!trackData || !trackData.y) throw new Error("Invalid format");
                 evaluateGuess(trackData);
             } catch(e) { 
