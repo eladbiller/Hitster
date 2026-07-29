@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v11.0.0</title>
+    <title>Hitster - QR Scanner v13.0.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v11.0.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v13.0</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -99,13 +99,18 @@
                 <i class="fa-solid fa-heart text-2xl"></i> ❤️ My Liked Songs
             </button>
 
+            <!-- MODE 2: TOP TRACKS -->
+            <button onclick="startMode('top')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-3 text-base">
+                <i class="fa-solid fa-star text-2xl"></i> ⭐ My Top Songs (All Time)
+            </button>
+
             <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-slate-700"></div>
                 <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR BY ARTIST</span>
                 <div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <!-- MODE 2: SEARCH ARTIST TOP TRACKS -->
+            <!-- MODE 3: SEARCH ARTIST DIRECTLY -->
             <div class="space-y-2">
                 <div class="flex gap-2">
                     <input type="text" id="artist-search-input" placeholder="Type artist name (e.g. Queen)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-green-500 text-white">
@@ -116,32 +121,26 @@
                 <div class="flex flex-wrap gap-1.5 justify-center pt-1">
                     <button onclick="setArtistAndPlay('Queen')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Queen</button>
                     <button onclick="setArtistAndPlay('Coldplay')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Coldplay</button>
-                    <button onclick="setArtistAndPlay('ABBA')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">ABBA</button>
+                    <button onclick="setArtistAndPlay('Omer Adam')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Omer Adam</button>
                     <button onclick="setArtistAndPlay('Michael Jackson')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">MJ</button>
-                    <button onclick="setArtistAndPlay('Taylor Swift')" class="text-[11px] bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg">Taylor Swift</button>
                 </div>
             </div>
 
             <div class="relative flex py-1 items-center">
                 <div class="flex-grow border-t border-slate-700"></div>
-                <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR BY DECADE / GENRE</span>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">OR BY PLAYLIST</span>
                 <div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <!-- MODE 3: GENRE & DECADE SEARCH -->
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="startMode('genre', '80s pop')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
-                    🕺 80s Pop Hits
-                </button>
-                <button onclick="startMode('genre', '90s rock')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
-                    🎸 90s Rock Classics
-                </button>
-                <button onclick="startMode('genre', '2000s hits')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-3 rounded-xl border border-slate-600 text-xs transition">
-                    💿 2000s Hits
-                </button>
-                <button onclick="startMode('genre', 'greatest hits')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-3 rounded-xl text-xs transition">
-                    🎲 Random Mix
-                </button>
+            <!-- MODE 4: PLAYLISTS -->
+            <div class="space-y-2 w-full">
+                <select id="playlist-dropdown" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none focus:border-green-500 appearance-none text-white">
+                    <option value="">Your Playlists...</option>
+                </select>
+                <div class="flex gap-2">
+                    <input type="text" id="custom-playlist-input" placeholder="Paste Spotify Playlist Link..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs focus:outline-none focus:border-green-500 text-center font-mono text-white">
+                    <button onclick="startMode('playlist')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl shadow transition text-xs">Play</button>
+                </div>
             </div>
 
             <button onclick="logoutAndReset()" class="text-xs text-red-400 hover:text-red-300 underline font-bold pt-4 block mx-auto">Logout & Switch Account</button>
@@ -195,7 +194,7 @@
                         <p class="text-xs text-slate-400 mb-1">Open Spotify, play a song for 1 second, then return here.</p>
                     </div>
                     <button id="btn-skip-radar" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-slate-600 transition text-sm">
-                        Skip Radar & Start Game
+                        Skip Radar & Play
                     </button>
                 </div>
             </div>
@@ -229,7 +228,7 @@
             <!-- Horizontal Scrollable Timeline -->
             <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
                 <div id="timeline-container" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-2 px-6 py-4 hide-scrollbar scroll-smooth snap-x">
-                    <!-- Javascript generates [+] and cards here -->
+                    <!-- Cards and [+] buttons generated here -->
                 </div>
             </div>
 
@@ -271,7 +270,7 @@
             }
         }
 
-        function showMessage(msg, type = 'error', duration = 4000) {
+        function showMessage(msg, type = 'error', duration = 5000) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500';
@@ -283,10 +282,15 @@
         }
 
         function switchScreen(id) {
-            ['role-screen', 'login-screen', 'host-setup-screen', 'host-game-screen', 'player-game-screen', 'winner-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            ['role-screen', 'login-screen', 'host-setup-screen', 'host-game-screen', 'player-game-screen', 'winner-screen'].forEach(s => {
+                const el = document.getElementById(s);
+                if (el) el.classList.add('hidden');
+            });
             const target = document.getElementById(id);
-            target.classList.remove('hidden');
-            if (id === 'host-game-screen' || id === 'player-game-screen') target.classList.add('flex');
+            if (target) {
+                target.classList.remove('hidden');
+                if (id === 'host-game-screen' || id === 'player-game-screen') target.classList.add('flex');
+            }
             
             if (id === 'player-game-screen') {
                 document.body.classList.add('landscape-only-mode');
@@ -297,16 +301,25 @@
             }
         }
 
-        // --- UNICODE SAFE QR ENCODING / DECODING ---
-        // Converts strings to URL-encoded format so multi-byte UTF-8 (Hebrew, emojis, accents) never break qrcode.js
-        function encodeQRData(obj) {
-            return encodeURIComponent(JSON.stringify(obj));
+        // --- UTF-8 ASCII ENCODING FOR QR CODES (Solves Hebrew/Emoji Crash) ---
+        function encodeToASCII(obj) {
+            const jsonStr = JSON.stringify(obj);
+            const bytes = new TextEncoder().encode(jsonStr);
+            let binString = "";
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binString += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binString);
         }
-        function decodeQRData(str) {
+
+        function decodeFromASCII(asciiStr) {
             try {
-                return JSON.parse(decodeURIComponent(str));
+                const binString = atob(asciiStr);
+                const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
+                const jsonStr = new TextDecoder().decode(bytes);
+                return JSON.parse(jsonStr);
             } catch(e) {
-                return JSON.parse(str);
+                return JSON.parse(asciiStr);
             }
         }
 
@@ -314,13 +327,14 @@
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
 
-        let accessToken = localStorage.getItem('spotify_token') || null;
+        // RENAMED storage key to force browser to dump the ghost token and re-login
+        let accessToken = localStorage.getItem('spotify_token_final') || null;
         let userMode = localStorage.getItem('hitster_mode') || null;
         
         let tracks = [], isPlaying = false, activeDeviceId = null, radarInterval = null, currentHostTrack = null;
         let playerTimeline = []; 
         let activeInsertIndex = null;
-        let html5QrCode = null;
+        let html5QrCodeInstance = null;
 
         function setRole(mode) {
             userMode = mode;
@@ -331,6 +345,54 @@
             } else if (mode === 'PLAYER') {
                 loadPlayerState();
                 initPlayerScreen();
+            }
+        }
+
+        // --- SAFE SPOTIFY FETCH ---
+        async function safeSpotifyFetch(url, options = {}) {
+            if (!accessToken) {
+                logoutAndReset();
+                throw new Error("Not logged in to Spotify. Please log in.");
+            }
+            
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
+
+            let res;
+            try {
+                res = await fetch(url, options);
+            } catch (err) {
+                throw new Error("Network request failed. Check your connection.");
+            }
+
+            if (res.status === 401) {
+                localStorage.removeItem('spotify_token_final');
+                accessToken = null;
+                switchScreen('login-screen');
+                throw new Error("Spotify session expired. Please log in again.");
+            }
+
+            if (res.status === 403) {
+                throw new Error("HTTP 403 Forbidden: Spotify is blocking access to this content.");
+            }
+
+            if (!res.ok) {
+                let errorMsg = `Spotify Error (${res.status})`;
+                try {
+                    const errJson = await res.json();
+                    if (errJson.error && errJson.error.message) {
+                        errorMsg += `: ${errJson.error.message}`;
+                    }
+                } catch(e) {}
+                throw new Error(errorMsg);
+            }
+
+            const text = await res.text();
+            if (!text || text.trim() === '') return {};
+
+            try {
+                return JSON.parse(text);
+            } catch(e) {
+                throw new Error("Invalid response received from Spotify.");
             }
         }
 
@@ -358,7 +420,7 @@
                     const data = await res.json();
                     if (data.access_token) {
                         accessToken = data.access_token;
-                        localStorage.setItem('spotify_token', accessToken);
+                        localStorage.setItem('spotify_token_final', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         switchScreen('role-screen');
                     } else switchScreen('role-screen');
@@ -369,14 +431,13 @@
         });
 
         document.getElementById('btn-login-spotify').addEventListener('click', async () => {
-            localStorage.clear();
+            localStorage.removeItem('spotify_token_final');
             const verifier = generateRandomString(64);
             localStorage.setItem('code_verifier', verifier);
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             
-            // Scope user-library-read is required for Liked Songs
-            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read user-top-read';
+            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read user-top-read playlist-read-private playlist-read-collaborative';
             const params = new URLSearchParams({ 
                 response_type: 'code', 
                 client_id: CLIENT_ID, 
@@ -390,7 +451,7 @@
         });
 
         function logoutAndReset() { 
-            localStorage.removeItem('spotify_token'); 
+            localStorage.removeItem('spotify_token_final'); 
             accessToken = null; 
             switchScreen('role-screen'); 
         }
@@ -399,9 +460,18 @@
         async function loadHostSetupScreen() {
             switchScreen('host-setup-screen');
             try {
-                const userRes = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                if (userRes.status === 401) { logoutAndReset(); return; }
-                document.getElementById('host-email-display').textContent = (await userRes.json()).email || 'Connected';
+                const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
+                document.getElementById('host-email-display').textContent = userData.email || 'Connected';
+
+                const plData = await safeSpotifyFetch('https://api.spotify.com/v1/me/playlists?limit=50');
+                const dropdown = document.getElementById('playlist-dropdown');
+                dropdown.innerHTML = '<option value="">Your Playlists...</option>';
+                if (plData.items) {
+                    plData.items.forEach(pl => {
+                        if (!pl) return;
+                        dropdown.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.tracks?.total||0})</option>`;
+                    });
+                }
             } catch (err) {}
         }
 
@@ -410,7 +480,7 @@
             startMode('artist');
         }
 
-        async function startMode(modeType, extraQuery = '') {
+        async function startMode(modeType) {
             switchScreen('host-game-screen');
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
@@ -420,53 +490,53 @@
                 let rawItems = [];
 
                 if (modeType === 'liked') {
-                    // Proven Liked Songs endpoint
-                    const res = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    if (res.status === 401) { logoutAndReset(); return; }
-                    if (!res.ok) throw new Error(`Liked Songs HTTP ${res.status}`);
-                    const data = await res.json();
+                    // Pull random offset so you aren't always hearing the same 50 liked songs
+                    let totalSaved = 50;
+                    try {
+                        const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
+                        totalSaved = initData.total || 50;
+                    } catch(e) {}
+                    
+                    let offset = 0;
+                    if (totalSaved > 50) offset = Math.floor(Math.random() * (totalSaved - 50));
+                    
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     rawItems = data.items || [];
                 }
                 else if (modeType === 'top') {
-                    // Top User Tracks
-                    const res = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term', {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    if (res.status === 401) { logoutAndReset(); return; }
-                    if (!res.ok) throw new Error(`Top Tracks HTTP ${res.status}`);
-                    const data = await res.json();
+                    const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=long_term');
                     rawItems = data.items ? data.items.map(t => ({ track: t })) : [];
                 }
                 else if (modeType === 'artist') {
                     const query = document.getElementById('artist-search-input').value.trim();
-                    if (!query) throw new Error("Please type an artist name.");
+                    if (!query) throw new Error("Please enter an artist name.");
                     
-                    // Search artist
-                    const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=1`, {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    const searchData = await searchRes.json();
-                    const artist = searchData.artists?.items?.[0];
-                    if (!artist) throw new Error("Artist not found.");
-
-                    // Fetch top tracks for that artist
-                    const topRes = await fetch(`https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=from_token`, {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    const topData = await topRes.json();
-                    rawItems = topData.tracks ? topData.tracks.map(t => ({ track: t })) : [];
-                }
-                else if (modeType === 'genre') {
-                    const offset = Math.floor(Math.random() * 20);
-                    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(extraQuery)}&type=track&limit=50&offset=${offset}`, {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                    if (res.status === 401) { logoutAndReset(); return; }
-                    if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
-                    const data = await res.json();
+                    // Directly search for the artist's tracks (Bypasses the strict top-tracks endpoint)
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(query)}&type=track&limit=50`);
                     rawItems = data.tracks?.items ? data.tracks.items.map(t => ({ track: t })) : [];
+                }
+                else if (modeType === 'playlist') {
+                    const customVal = document.getElementById('custom-playlist-input').value.trim();
+                    const dropdownVal = document.getElementById('playlist-dropdown').value;
+                    let targetId = null;
+
+                    if (customVal !== '') {
+                        const m = customVal.match(/(?:playlist\/|playlist:)([a-zA-Z0-9]+)/);
+                        targetId = m ? m[1] : customVal;
+                    } else if (dropdownVal) {
+                        targetId = dropdownVal;
+                    }
+
+                    if (!targetId) throw new Error("Please select or paste a playlist link.");
+                    const cleanId = targetId.split('?')[0];
+                    
+                    try {
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100`);
+                        rawItems = data.items || [];
+                    } catch(e) {
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}`);
+                        rawItems = data.tracks?.items || [];
+                    }
                 }
 
                 if (!rawItems || rawItems.length === 0) {
@@ -483,7 +553,7 @@
                         c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                     }));
 
-                if (tracks.length === 0) throw new Error("No valid release years found.");
+                if (tracks.length === 0) throw new Error("No tracks with valid release dates found.");
 
                 tracks.sort(() => Math.random() - 0.5); // Shuffle
                 startDeviceRadar();
@@ -500,8 +570,7 @@
             
             const check = async () => {
                 try {
-                    const res = await fetch('https://api.spotify.com/v1/me/player/devices', { headers: { 'Authorization': `Bearer ${accessToken}` } });
-                    const data = await res.json();
+                    const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/player/devices');
                     if (data.devices?.length > 0) {
                         activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
                         clearInterval(radarInterval); 
@@ -585,8 +654,8 @@
                 coverEl.classList.add('hidden');
             }
 
-            // Generate Unicode-Safe QR Code Payload
-            const qrPayload = encodeQRData({
+            // UTF-8 Base64 ASCII Encoding (Guarantees zero QR rendering crashes)
+            const qrPayload = encodeToASCII({
                 y: currentHostTrack.y,
                 t: currentHostTrack.t,
                 a: currentHostTrack.a,
@@ -678,34 +747,44 @@
             const modal = document.getElementById('scanner-modal');
             modal.classList.remove('hidden');
             
+            // Allow DOM to settle before initializing camera
+            await new Promise(r => setTimeout(r, 200));
+
             try {
-                if (html5QrCode) {
-                    try { await html5QrCode.stop(); } catch(e) {}
+                if (html5QrCodeInstance) {
+                    try {
+                        if (html5QrCodeInstance.isScanning) await html5QrCodeInstance.stop();
+                        html5QrCodeInstance.clear();
+                    } catch(e) {}
                 }
-                html5QrCode = new Html5Qrcode("reader");
-                await html5QrCode.start(
+
+                html5QrCodeInstance = new Html5Qrcode("reader");
+                await html5QrCodeInstance.start(
                     { facingMode: "environment" },
                     { fps: 10, qrbox: { width: 200, height: 200 } },
                     onScanSuccess,
                     () => {}
                 );
             } catch(err) {
-                showMessage("Camera access error. Please allow camera permissions in browser.", "error", 5000);
+                showMessage("Camera access error. Please allow camera permissions in browser settings.", "error", 5000);
                 closeScanner();
             }
         }
 
         async function closeScanner() {
             document.getElementById('scanner-modal').classList.add('hidden');
-            if (html5QrCode) {
-                try { await html5QrCode.stop(); } catch(e) {}
+            if (html5QrCodeInstance) {
+                try {
+                    if (html5QrCodeInstance.isScanning) await html5QrCodeInstance.stop();
+                    html5QrCodeInstance.clear();
+                } catch(e) {}
             }
         }
 
         function onScanSuccess(decodedText) {
             closeScanner();
             try {
-                const trackData = decodeQRData(decodedText);
+                const trackData = decodeFromASCII(decodedText);
                 if (!trackData || !trackData.y) throw new Error("Invalid format");
                 evaluateGuess(trackData);
             } catch(e) { 
