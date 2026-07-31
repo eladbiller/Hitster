@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v17.0</title>
+    <title>Hitster - QR Scanner v17.1</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v17.0</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v17.1</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -92,9 +92,9 @@
                 <span id="host-email-display" class="font-mono text-green-300 font-bold truncate max-w-[180px]">Loading...</span>
             </div>
 
-            <h2 class="text-2xl font-bold text-green-400">Choose Music Source</h2>
+            <h2 class="text-2xl font-bold text-green-400 pt-2">Choose Music Source</h2>
 
-            <div class="space-y-5 w-full pt-2">
+            <div class="space-y-4 w-full pt-2">
                 
                 <!-- OPTION 1: CLASSIC HITSTER MIX -->
                 <div class="relative">
@@ -223,10 +223,34 @@
                 </div>
             </div>
 
-            <!-- Scanner Modal -->
+            <!-- Scanner Modal with Manual Entry Tab -->
             <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[300] hidden flex flex-col items-center justify-center p-4">
-                <h3 class="text-white font-bold text-xl mb-4 text-center">Scan the DJ's QR Code</h3>
-                <div id="reader" style="width: 280px; height: 280px;" class="rounded-2xl overflow-hidden border-4 border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.5)] bg-black flex items-center justify-center"></div>
+                <h3 class="text-white font-bold text-xl mb-4 text-center">Add to Timeline</h3>
+                
+                <!-- Camera / Manual Tabs -->
+                <div class="flex bg-slate-800 rounded-lg mb-6 overflow-hidden border border-slate-700">
+                    <button id="tab-btn-cam" onclick="setScannerMode('cam')" class="px-6 py-2.5 bg-indigo-600 text-white font-bold text-sm transition">Use Camera</button>
+                    <button id="tab-btn-man" onclick="setScannerMode('man')" class="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-sm transition">Type Manually</button>
+                </div>
+
+                <!-- Camera View -->
+                <div id="cam-view" class="flex flex-col items-center w-full max-w-[280px]">
+                    <div id="reader" style="width: 280px; height: 280px;" class="rounded-2xl overflow-hidden border-4 border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.5)] bg-black flex items-center justify-center"></div>
+                </div>
+
+                <!-- Manual Entry View (Fallback) -->
+                <div id="man-view" class="hidden flex-col items-center w-full max-w-[280px] space-y-3">
+                    <p class="text-xs text-slate-400 text-center mb-1">If the camera fails, ask the DJ to reveal the answer and type it here.</p>
+                    
+                    <input type="number" id="man-year" placeholder="Release Year (e.g. 1984)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-green-400 font-black text-xl focus:outline-none focus:border-green-500 placeholder-slate-600">
+                    <input type="text" id="man-title" placeholder="Song Name (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600">
+                    <input type="text" id="man-artist" placeholder="Artist (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600">
+                    
+                    <button onclick="submitManualCard()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl mt-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] transition">
+                        Evaluate & Add to Timeline
+                    </button>
+                </div>
+
                 <button onclick="closeScanner()" class="mt-8 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-10 rounded-xl shadow-lg text-lg transition">Cancel</button>
             </div>
         </section>
@@ -293,17 +317,13 @@
         }
 
         // --- SAFE URL-ENCODING FOR QR CODES ---
-        // Guaranteed to prevent qrcode.js from throwing white boxes on Hebrew / Non-Latin strings
         function encodeForQR(obj) {
             return encodeURIComponent(JSON.stringify(obj));
         }
 
         function decodeFromQR(str) {
-            try {
-                return JSON.parse(decodeURIComponent(str));
-            } catch(e) {
-                return JSON.parse(str);
-            }
+            try { return JSON.parse(decodeURIComponent(str)); } 
+            catch(e) { return JSON.parse(str); }
         }
 
         // --- GLOBAL CONFIG & STATE ---
@@ -344,7 +364,7 @@
             try {
                 res = await fetch(url, options);
             } catch (err) {
-                throw new Error("Network request failed. Check your internet connection.");
+                throw new Error("Network request failed. Check your connection.");
             }
 
             if (res.status === 401) {
@@ -442,33 +462,36 @@
                 let rawItems = [];
 
                 if (modeType === 'liked') {
+                    // Safe offset cap for Liked Songs to prevent 400 Invalid Limit
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
                     let offset = 0;
-                    if (total > 50) offset = Math.floor(Math.random() * (total - 50));
+                    if (total > 50) {
+                        offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
+                    }
                     
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     rawItems = data.items || [];
                 }
                 else if (modeType === 'hitster_classic') {
-                    // Safe logic: Picks 5 distinct random years from different decades and requests them directly
-                    // This perfectly avoids the 400 Bad Request error caused by searching unencoded ranges.
+                    // 5 specific random years to ensure massive variance across the timeline
+                    // Offset capped strictly at 30 to completely prevent the 400 Invalid Limit bug
                     const decades = [
-                        { min: 1960, max: 1979 }, // 60s & 70s
-                        { min: 1980, max: 1989 }, // 80s
-                        { min: 1990, max: 1999 }, // 90s
-                        { min: 2000, max: 2009 }, // 00s
-                        { min: 2010, max: 2024 }  // 10s & 20s
+                        { min: 1960, max: 1979 },
+                        { min: 1980, max: 1989 },
+                        { min: 1990, max: 1999 },
+                        { min: 2000, max: 2009 },
+                        { min: 2010, max: 2024 }
                     ];
 
                     const fetchPromises = decades.map(decade => {
-                        // Pick ONE random year from the decade
                         const randomYear = Math.floor(Math.random() * (decade.max - decade.min + 1)) + decade.min;
-                        const offset = Math.floor(Math.random() * 40); // Safe low offset
-                        // Perfectly URL encoded specific year query (e.g. year:1984)
+                        const offset = Math.floor(Math.random() * 30); // Very safe offset limit
+                        // Properly URL Encode the query to prevent Bad Requests
                         const safeQuery = encodeURIComponent(`year:${randomYear}`);
                         
-                        return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${safeQuery}&type=track&limit=10&offset=${offset}`);
+                        // Overfetching (limit 30) because we will be filtering out "Remastered" songs
+                        return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${safeQuery}&type=track&limit=30&offset=${offset}`);
                     });
 
                     const results = await Promise.all(fetchPromises);
@@ -484,19 +507,33 @@
                     throw new Error("No tracks found for this selection.");
                 }
 
+                // Filtering: REMOVING REMASTERS & LIVE VERSIONS
                 tracks = rawItems
-                    .filter(i => i && i.track && i.track.uri && i.track.album?.release_date && !i.track.is_local)
+                    .filter(i => {
+                        if (!i || !i.track || !i.track.uri || !i.track.album?.release_date || i.track.is_local) return false;
+                        
+                        const trackName = i.track.name.toLowerCase();
+                        const albumName = (i.track.album.name || "").toLowerCase();
+                        
+                        // If it says "remaster", "live", "remix", or "edit", exclude it
+                        if (trackName.includes('remaster') || trackName.includes('live') || trackName.includes('remix') || trackName.includes('edit') ||
+                            albumName.includes('remaster') || albumName.includes('live')) {
+                            return false; 
+                        }
+                        
+                        return true;
+                    })
                     .map(i => ({
                         u: i.track.uri,
-                        t: i.track.name,
-                        a: i.track.artists ? i.track.artists[0].name : 'Unknown',
+                        t: i.track.name.substring(0, 32),
+                        a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
                         y: parseInt(i.track.album.release_date.substring(0, 4)),
                         c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                     }));
 
-                if (tracks.length === 0) throw new Error("No tracks with valid release dates found.");
+                if (tracks.length === 0) throw new Error("No tracks with valid release dates found after removing Remasters.");
 
-                tracks.sort(() => Math.random() - 0.5); // Shuffle
+                tracks.sort(() => Math.random() - 0.5); // Shuffle final deck
                 startDeviceRadar();
 
             } catch (err) {
@@ -595,7 +632,7 @@
                 coverEl.classList.add('hidden');
             }
 
-            // Heavily trimmed content so the QR stays extremely simple and readable.
+            // Kept short to ensure chunky, easy-to-read QR codes
             const safeTitle = currentHostTrack.t.length > 20 ? currentHostTrack.t.substring(0, 20) + '...' : currentHostTrack.t;
             const safeArtist = currentHostTrack.a.length > 20 ? currentHostTrack.a.substring(0, 20) + '...' : currentHostTrack.a;
 
@@ -603,7 +640,7 @@
                 y: currentHostTrack.y,
                 t: safeTitle,
                 a: safeArtist,
-                c: currentHostTrack.c // Note: this is just the ID to save space, not the full URL.
+                c: currentHostTrack.c
             });
 
             const qrContainer = document.getElementById("qrcode");
@@ -614,7 +651,7 @@
                 height: 240, 
                 colorDark : "#0f172a", 
                 colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.L // Low density for easy scanning
+                correctLevel : QRCode.CorrectLevel.L
             });
 
             playHostTrack(currentHostTrack.u);
@@ -627,7 +664,6 @@
             document.getElementById('reveal-area').classList.remove('hidden');
             document.getElementById('reveal-btn').classList.add('hidden');
         });
-
 
         // ==========================================
         //         PLAYER LOGIC & TOKENS
@@ -704,37 +740,106 @@
             }
         }
 
+        // ==========================================
+        //      SCANNER & MANUAL ENTRY FALLBACK
+        // ==========================================
         async function openScanner(insertIndex) {
             activeInsertIndex = insertIndex;
             const modal = document.getElementById('scanner-modal');
             modal.classList.remove('hidden');
             
-            // Allow DOM to settle before initializing camera
-            await new Promise(r => setTimeout(r, 200));
+            // Default to camera view
+            setScannerMode('cam');
+        }
 
-            try {
+        async function setScannerMode(mode) {
+            const camView = document.getElementById('cam-view');
+            const manView = document.getElementById('man-view');
+            const btnCam = document.getElementById('tab-btn-cam');
+            const btnMan = document.getElementById('tab-btn-man');
+
+            if (mode === 'man') {
+                // Stop camera
+                if (html5QrCodeInstance && html5QrCodeInstance.isScanning) {
+                    try { await html5QrCodeInstance.stop(); } catch(e) {}
+                }
+                
+                // Switch UI
+                camView.classList.add('hidden');
+                manView.classList.remove('hidden');
+                manView.classList.add('flex');
+                
+                btnCam.className = "px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-sm transition";
+                btnMan.className = "px-6 py-2.5 bg-indigo-600 text-white font-bold text-sm transition";
+                
+            } else {
+                // Switch UI back to Cam
+                manView.classList.add('hidden');
+                manView.classList.remove('flex');
+                camView.classList.remove('hidden');
+                
+                btnMan.className = "px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-sm transition";
+                btnCam.className = "px-6 py-2.5 bg-indigo-600 text-white font-bold text-sm transition";
+
+                // Start Camera with iOS fixes
+                await new Promise(r => setTimeout(r, 200));
+
                 if (html5QrCodeInstance) {
-                    try {
-                        if (html5QrCodeInstance.isScanning) await html5QrCodeInstance.stop();
-                        html5QrCodeInstance.clear();
-                    } catch(e) {}
+                    try { html5QrCodeInstance.clear(); } catch(e) {}
                 }
 
                 html5QrCodeInstance = new Html5Qrcode("reader");
-                await html5QrCodeInstance.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 200, height: 200 } },
-                    onScanSuccess,
-                    () => {}
-                );
-            } catch(err) {
-                showMessage("Camera access error. Please allow camera permissions in browser settings.", "error", 5000);
-                closeScanner();
+                const qrConfig = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+                try {
+                    await html5QrCodeInstance.start({ facingMode: "environment" }, qrConfig, onScanSuccess, () => {});
+                } catch (err) {
+                    // IOS Fallback: Request back camera directly if 'environment' fails
+                    try {
+                        const devices = await Html5Qrcode.getCameras();
+                        if (devices && devices.length > 0) {
+                            const backCam = devices.length > 1 ? devices[devices.length - 1].id : devices[0].id;
+                            await html5QrCodeInstance.start(backCam, qrConfig, onScanSuccess, () => {});
+                        } else {
+                            throw new Error("No cameras found");
+                        }
+                    } catch(fallbackErr) {
+                        showMessage("Camera access failed. Please use 'Type Manually'.", "error", 5000);
+                        setScannerMode('man'); // Force manual if everything fails
+                    }
+                }
             }
+        }
+
+        function submitManualCard() {
+            const y = parseInt(document.getElementById('man-year').value);
+            const t = document.getElementById('man-title').value.trim();
+            const a = document.getElementById('man-artist').value.trim();
+
+            if (isNaN(y) || y < 1000 || y > 2100) {
+                showMessage("Please enter a valid Release Year.", "error");
+                return;
+            }
+
+            const trackData = { 
+                y: y, 
+                t: t || 'Unknown Song', 
+                a: a || 'Unknown Artist', 
+                c: '' 
+            };
+
+            closeScanner();
+            evaluateGuess(trackData);
         }
 
         async function closeScanner() {
             document.getElementById('scanner-modal').classList.add('hidden');
+            
+            // Clear manual inputs
+            document.getElementById('man-year').value = '';
+            document.getElementById('man-title').value = '';
+            document.getElementById('man-artist').value = '';
+
             if (html5QrCodeInstance) {
                 try {
                     if (html5QrCodeInstance.isScanning) await html5QrCodeInstance.stop();
