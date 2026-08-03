@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hitster - QR Scanner v19.4.0</title>
+    <title>Hitster - QR Scanner v19.5.0</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -48,7 +48,7 @@
         <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200">
             <i class="fa-solid fa-qrcode text-green-400 mr-1"></i> HITSTER SCAN
         </h1>
-        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v19.4</span>
+        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v19.5</span>
         
         <button onclick="toggleFullScreen()" class="absolute right-4 text-slate-400 hover:text-white transition w-10 h-10 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow" title="Full Screen">
             <i class="fa-solid fa-expand text-lg" id="fullscreen-icon"></i>
@@ -162,7 +162,7 @@
                         <p class="text-xs text-slate-400 mb-1">Open Spotify, play a song for 1 second, then return here.</p>
                     </div>
                     <button id="btn-skip-radar" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border border-slate-600 transition text-sm">
-                        Skip Radar & Play
+                        Hide Radar
                     </button>
                 </div>
             </div>
@@ -456,10 +456,7 @@
 
             try {
                 switchScreen('host-game-screen');
-                const overlay = document.getElementById('loading-overlay');
-                const wakeBox = document.getElementById('wake-spotify-box');
-                overlay.classList.remove('hidden'); wakeBox.classList.add('hidden');
-
+                
                 if (modeType === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
@@ -507,10 +504,16 @@
             }
         }
 
+        // Radar ensures we actually connect to an active Spotify device. 
+        // Handles cold starts where phone screen turned off.
         async function startDeviceRadar() {
             const overlay = document.getElementById('loading-overlay');
             const wakeBox = document.getElementById('wake-spotify-box');
             
+            overlay.classList.remove('hidden');
+            wakeBox.classList.remove('hidden'); 
+            
+            clearInterval(radarInterval);
             const check = async () => {
                 try {
                     const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/player/devices');
@@ -518,22 +521,25 @@
                         activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
                         clearInterval(radarInterval); 
                         overlay.classList.add('hidden');
-                        loadNextHostTrack();
+                        if (!currentHostTrack) loadNextHostTrack();
                         return true;
                     }
                     return false;
                 } catch(e) { return false; }
             };
-            if (!(await check())) { wakeBox.classList.remove('hidden'); radarInterval = setInterval(check, 2500); }
+            
+            if (!(await check())) { 
+                radarInterval = setInterval(check, 2500); 
+            }
         }
 
         document.getElementById('btn-skip-radar').addEventListener('click', () => {
             clearInterval(radarInterval); 
             document.getElementById('loading-overlay').classList.add('hidden');
-            loadNextHostTrack();
+            if (!currentHostTrack) loadNextHostTrack();
         });
 
-        // --- PLAYBACK CONTROLS ---
+        // --- ROBUST PLAYBACK CONTROLS ---
         function togglePlayIcon(isPlayingNow) {
             const icon = document.getElementById('play-icon');
             const text = document.getElementById('play-text');
@@ -550,13 +556,57 @@
             }
         }
 
+        // Updated playHostTrack catches "Device Slept" issues (404/403) and self-heals
         async function playHostTrack(uri) {
             try {
+                // Failsafe: if we don't have an active device ID, fetch one before trying to play.
+                if (!activeDeviceId) {
+                    const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/player/devices');
+                    if (data.devices?.length > 0) {
+                        activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
+                    }
+                }
+
                 let url = 'https://api.spotify.com/v1/me/player/play' + (activeDeviceId ? `?device_id=${activeDeviceId}` : '');
-                await fetch(url, { method: 'PUT', body: JSON.stringify({ uris: [uri] }), headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } });
+                let res = await fetch(url, { 
+                    method: 'PUT', 
+                    body: JSON.stringify({ uris: [uri] }), 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } 
+                });
+                
+                // If Spotify returns an error (404 Not Found is common for sleeping device)
+                if (!res.ok) {
+                    throw new Error("DeviceSleep");
+                }
+                
                 isPlaying = true; 
                 togglePlayIcon(true);
-            } catch(e) {}
+                
+            } catch(e) {
+                isPlaying = false; 
+                togglePlayIcon(false);
+                
+                // Device went to sleep or wasn't found -> Trigger the radar
+                const overlay = document.getElementById('loading-overlay');
+                const wakeBox = document.getElementById('wake-spotify-box');
+                overlay.classList.remove('hidden');
+                wakeBox.classList.remove('hidden');
+                
+                clearInterval(radarInterval);
+                radarInterval = setInterval(async () => {
+                    try {
+                        const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/player/devices');
+                        if (data.devices?.length > 0) {
+                            activeDeviceId = (data.devices.find(d => d.is_active) || data.devices[0]).id;
+                            clearInterval(radarInterval); 
+                            overlay.classList.add('hidden');
+                            
+                            // Retry playing once device is active again
+                            playHostTrack(uri); 
+                        }
+                    } catch(err) {}
+                }, 2500);
+            }
         }
 
         async function pauseHostTrack() {
@@ -565,7 +615,11 @@
                 await fetch(url, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
                 isPlaying = false; 
                 togglePlayIcon(false);
-            } catch(e) {}
+            } catch(e) {
+                // Failsafe UI update even if pause errors out
+                isPlaying = false; 
+                togglePlayIcon(false);
+            }
         }
 
         document.getElementById('play-pause-btn').addEventListener('click', async (e) => {
@@ -631,7 +685,6 @@
         //         PLAYER LOGIC & TOKENS
         // ==========================================
         
-        // List of random robust, highly recognizable hits to start a player's timeline
         const STARTER_SONGS = [
             { y: 1969, t: "Come Together", a: "The Beatles", c: "" },
             { y: 1977, t: "Stayin' Alive", a: "Bee Gees", c: "" },
@@ -654,7 +707,6 @@
             
             playerTimeline = tlStr ? JSON.parse(tlStr) : [getRandomStarter()];
             
-            // Safety measure to ensure we never have an empty timeline
             if (!playerTimeline || playerTimeline.length === 0) {
                 playerTimeline = [getRandomStarter()];
             }
@@ -689,7 +741,6 @@
         }
 
         function renderTimeline() {
-            // Player score is Total Cards minus the Starting Card
             document.getElementById('player-score-display').textContent = Math.max(0, playerTimeline.length - 1);
             document.getElementById('player-token-display').textContent = playerTokens;
 
@@ -715,7 +766,6 @@
                     const card = document.createElement('div');
                     card.className = "w-36 h-48 bg-slate-900 border-2 border-green-500 rounded-xl p-3 flex flex-col items-center shadow-[0_0_15px_rgba(34,197,94,0.3)] shrink-0 relative overflow-hidden snap-center";
                     
-                    // Support both Spotify image IDs and full iTunes image URLs
                     let imgUrl = '';
                     if (t.c) imgUrl = t.c.startsWith('http') ? t.c : `https://i.scdn.co/image/${t.c}`;
 
@@ -758,7 +808,6 @@
                 btnCam.className = "px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold text-sm transition";
                 btnMan.className = "px-6 py-2.5 bg-indigo-600 text-white font-bold text-sm transition";
                 
-                // Clear previous search results when opening tab
                 document.getElementById('player-search-input').value = '';
                 document.getElementById('player-search-results').innerHTML = '';
             } else {
@@ -797,7 +846,6 @@
             }
         }
 
-        // Search iTunes API for track metadata (No login required)
         async function searchPlayerSong() {
             const query = document.getElementById('player-search-input').value.trim();
             if (!query) {
@@ -831,7 +879,7 @@
                             y: releaseYear,
                             t: track.trackName.substring(0, 30),
                             a: track.artistName.substring(0, 20),
-                            c: track.artworkUrl100 // We save the full URL for the image
+                            c: track.artworkUrl100 
                         });
                     };
 
