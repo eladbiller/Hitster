@@ -1,1 +1,347 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hitster Party (Multiplayer)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PeerJS for WebRTC Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
+        body { 
+            font-family: 'Rubik', sans-serif; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); 
+            color: #f8fafc; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+        .spotify-green { background-color: #1DB954; }
+        
+        /* Hide arrows on number inputs */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen p-4 items-center justify-center">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+    <div id="setup-container" class="w-full max-w-md bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6 relative overflow-hidden">
+        
+        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-2">
+            <i class="fa-solid fa-users text-green-400 mr-2"></i> Hitster Party
+        </h1>
+        <p class="text-slate-400 text-sm mb-6">Live multiplayer via local hotspot.</p>
+        
+        <!-- View 1: Role Selection -->
+        <div id="view-roles" class="space-y-4">
+            <button onclick="initHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-crown text-yellow-400"></i> Create Room (Host)
+            </button>
+            <button onclick="showPlayerJoin()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-slate-600">
+                <i class="fa-solid fa-mobile-screen text-green-400"></i> Join Room (Player)
+            </button>
+        </div>
+
+        <!-- View 2: Host Lobby -->
+        <div id="view-host" class="hidden flex-col items-center space-y-4">
+            <h2 class="text-lg font-bold text-white">Your Room PIN:</h2>
+            <div id="room-pin-display" class="text-5xl font-black text-indigo-400 tracking-widest bg-slate-900 py-3 px-6 rounded-xl border border-indigo-500 shadow-inner">----</div>
+            <div id="host-status" class="text-sm text-slate-400 animate-pulse">Initializing network...</div>
+            
+            <div class="w-full bg-slate-900 rounded-lg p-3 min-h-[120px] border border-slate-700 text-left mt-4 flex flex-col">
+                <div class="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">Players Joined:</h3>
+                    <!-- HOST TEST BUTTON -->
+                    <button onclick="pingAllPlayers()" class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded shadow transition">
+                        <i class="fa-solid fa-satellite-dish"></i> Ping All
+                    </button>
+                </div>
+                <ul id="host-player-list" class="text-sm text-green-400 space-y-2 font-bold pl-2 flex-grow">
+                    <li class="text-slate-500 italic font-normal text-xs" id="waiting-text">Waiting for players...</li>
+                </ul>
+            </div>
+            
+            <!-- Future Step: Spotify Start Button goes here -->
+            
+            <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-4">Close Room & Disconnect</button>
+        </div>
+
+        <!-- View 3: Player Join Form -->
+        <div id="view-player" class="hidden flex-col items-center space-y-4">
+            <input type="number" id="join-pin" placeholder="4-Digit PIN" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-center text-indigo-400 font-black text-3xl focus:outline-none focus:border-indigo-500 tracking-widest">
+            <input type="text" id="join-name" placeholder="Your Name" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-base focus:outline-none focus:border-indigo-500" maxlength="12">
+            
+            <button id="btn-connect" onclick="joinRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-2">
+                <i class="fa-solid fa-right-to-bracket"></i> Connect
+            </button>
+            <div id="player-status" class="text-sm text-slate-400 hidden animate-pulse">Connecting to network...</div>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Cancel</button>
+        </div>
+        
+        <!-- View 4: Player Waiting Room -->
+        <div id="view-player-lobby" class="hidden flex-col items-center space-y-4 py-4">
+            <div class="text-green-400 text-6xl mb-2 drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]"><i class="fa-solid fa-circle-check"></i></div>
+            <h2 class="text-2xl font-bold text-white">Connected!</h2>
+            <p class="text-slate-400 text-sm">Waiting for the DJ to start the game.</p>
+            
+            <!-- PLAYER TEST BUTTON -->
+            <button onclick="pingHost()" class="mt-6 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm border border-blue-500">
+                <i class="fa-solid fa-satellite-dish"></i> Test Connection
+            </button>
+            
+            <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-8">Leave Room</button>
+        </div>
+    </div>
+
+    <script>
+        // --- UTILS ---
+        function showMessage(msg, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : (type === 'info' ? 'bg-blue-600 border-blue-500' : 'bg-emerald-600 border-emerald-500');
+            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : (type === 'info' ? 'fa-bell' : 'fa-circle-check')} text-xl mt-0.5"></i> <div class="flex-1" style="line-height: 1.4;">${msg}</div>`;
+            container.appendChild(toast);
+            
+            // Animation for smooth entry/exit
+            toast.style.transform = 'translateY(-20px)';
+            toast.style.opacity = '0';
+            requestAnimationFrame(() => { 
+                toast.style.transform = 'translateY(0)';
+                toast.style.opacity = '1';
+            });
+            setTimeout(() => { 
+                toast.style.transform = 'translateY(-20px)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300); 
+            }, 3000);
+        }
+
+        function switchView(viewId) {
+            ['view-roles', 'view-host', 'view-player', 'view-player-lobby'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            });
+            const target = document.getElementById(viewId);
+            if(target) {
+                target.classList.remove('hidden');
+                target.classList.add('flex');
+            }
+        }
+
+        function resetApp() {
+            if (myPeer) {
+                myPeer.destroy();
+                myPeer = null;
+            }
+            hostConnections = {};
+            hostConnection = null;
+            document.getElementById('btn-connect').classList.remove('hidden');
+            document.getElementById('player-status').classList.add('hidden');
+            switchView('view-roles');
+        }
+
+        // --- MULTIPLAYER STATE ---
+        // Using a custom prefix ensures our 4-digit PINs don't collide with other random apps using PeerJS
+        const PEER_PREFIX = 'hitster-party-v1-'; 
+        let myPeer = null; 
+        
+        // Host Data
+        let hostRoomPin = null;
+        let hostConnections = {}; // Dictionary to store connected players: { peerId: { name, connection } }
+
+        // Player Data
+        let hostConnection = null; 
+        let myPlayerName = "";
+
+        // ==========================================
+        //               HOST LOGIC
+        // ==========================================
+        function initHost() {
+            switchView('view-host');
+            
+            // Generate a random 4-digit PIN
+            hostRoomPin = Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('room-pin-display').innerText = hostRoomPin;
+            
+            const fullPeerId = PEER_PREFIX + hostRoomPin;
+            
+            // Initialize PeerJS. We use the default free cloud server.
+            myPeer = new Peer(fullPeerId, {
+                debug: 2
+            });
+
+            myPeer.on('open', (id) => {
+                document.getElementById('host-status').innerHTML = '<i class="fa-solid fa-wifi text-green-400"></i> Room open on network.';
+                document.getElementById('host-status').classList.remove('animate-pulse');
+            });
+
+            // Triggered when a Player phone successfully connects
+            myPeer.on('connection', (conn) => {
+                conn.on('open', () => {
+                    const playerName = conn.metadata.playerName || "Unknown";
+                    
+                    // Save connection
+                    hostConnections[conn.peer] = {
+                        name: playerName,
+                        conn: conn
+                    };
+                    
+                    updateHostPlayerList();
+                    showMessage(`${playerName} joined the party!`, 'success');
+
+                    // Listen for incoming data packets from this player
+                    conn.on('data', (data) => {
+                        console.log("Host received:", data);
+                        
+                        // Handle the Ping Test
+                        if (data.type === 'TEST_PING') {
+                            showMessage(`${playerName} says: Ping! 📡`, 'info');
+                        }
+                    });
+                });
+
+                // Triggered if the Player closes their tab or loses internet
+                conn.on('close', () => {
+                    const name = hostConnections[conn.peer]?.name || "A player";
+                    delete hostConnections[conn.peer];
+                    updateHostPlayerList();
+                    showMessage(`${name} disconnected.`, 'error');
+                });
+            });
+
+            myPeer.on('error', (err) => {
+                console.error(err);
+                if (err.type === 'unavailable-id') {
+                    showMessage("Wow, rare PIN conflict. Generating a new one...", 'error');
+                    resetApp();
+                    setTimeout(initHost, 500); // Try again
+                } else {
+                    showMessage("Network Error: " + err.type, 'error');
+                }
+            });
+        }
+
+        function updateHostPlayerList() {
+            const listEl = document.getElementById('host-player-list');
+            const players = Object.values(hostConnections);
+            
+            listEl.innerHTML = '';
+            
+            if (players.length === 0) {
+                listEl.innerHTML = '<li class="text-slate-500 italic font-normal text-xs" id="waiting-text">Waiting for players...</li>';
+                return;
+            }
+
+            players.forEach(p => {
+                const li = document.createElement('li');
+                li.className = "flex items-center bg-slate-800 rounded p-2";
+                li.innerHTML = `<i class="fa-solid fa-user text-indigo-400 mr-3"></i> ${p.name}`;
+                listEl.appendChild(li);
+            });
+        }
+
+        function pingAllPlayers() {
+            const players = Object.values(hostConnections);
+            if (players.length === 0) {
+                showMessage("No players connected yet!", "error");
+                return;
+            }
+            
+            players.forEach(p => {
+                p.conn.send({ type: 'TEST_PING', msg: 'Hello from the DJ!' });
+            });
+            showMessage("Ping sent to all players!", "success");
+        }
+
+        // ==========================================
+        //               PLAYER LOGIC
+        // ==========================================
+        function showPlayerJoin() {
+            switchView('view-player');
+        }
+
+        function joinRoom() {
+            const pinInput = document.getElementById('join-pin').value.trim();
+            myPlayerName = document.getElementById('join-name').value.trim();
+
+            if (pinInput.length !== 4) { showMessage("Enter a 4-digit PIN."); return; }
+            if (!myPlayerName) { showMessage("Enter your name."); return; }
+
+            document.getElementById('btn-connect').classList.add('hidden');
+            document.getElementById('player-status').classList.remove('hidden');
+
+            // Initialize Player Peer (Leaves ID blank so PeerJS assigns a random one)
+            myPeer = new Peer({ debug: 2 });
+
+            myPeer.on('open', (myId) => {
+                document.getElementById('player-status').innerText = "Locating Host...";
+                
+                const targetHostId = PEER_PREFIX + pinInput;
+                
+                // Connect to Host, passing the Name in metadata so Host knows who it is
+                hostConnection = myPeer.connect(targetHostId, {
+                    metadata: { playerName: myPlayerName },
+                    reliable: true
+                });
+
+                hostConnection.on('open', () => {
+                    // Success!
+                    switchView('view-player-lobby');
+                });
+
+                hostConnection.on('data', (data) => {
+                    console.log("Player received:", data);
+                    
+                    // Handle Ping from Host
+                    if (data.type === 'TEST_PING') {
+                        showMessage(`DJ says: ${data.msg} 📡`, 'info');
+                    }
+                });
+
+                hostConnection.on('close', () => {
+                    showMessage("Lost connection to Host.", 'error');
+                    resetApp();
+                });
+            });
+
+            myPeer.on('error', (err) => {
+                console.error(err);
+                document.getElementById('btn-connect').classList.remove('hidden');
+                document.getElementById('player-status').classList.add('hidden');
+                
+                if (err.type === 'peer-unavailable') {
+                    showMessage("Room PIN not found! Is the host ready?", 'error');
+                } else {
+                    showMessage("Connection error.", 'error');
+                }
+            });
+        }
+
+        function pingHost() {
+            if (hostConnection && hostConnection.open) {
+                hostConnection.send({ type: 'TEST_PING' });
+                showMessage("Ping sent to Host!", "success");
+            } else {
+                showMessage("Not connected to host.", "error");
+            }
+        }
+    </script>
+</body>
+</html>
+
+
 
