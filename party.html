@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.13.0">
+    <meta name="app-version" content="1.14.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -67,6 +67,27 @@
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+    <!-- HOST DISCONNECT MODAL -->
+    <div id="host-disconnect-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
+        <div class="bg-slate-900 border-2 border-red-500/80 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+            <div class="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-3xl mx-auto">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <h3 class="text-xl font-black text-white">Player Disconnected</h3>
+            <p id="disconnect-modal-text" class="text-xs text-slate-300 leading-relaxed">
+                <span id="disconnect-player-name" class="font-bold text-red-400">Player</span> has disconnected from the room.
+            </p>
+            <div class="flex flex-col gap-2 pt-2">
+                <button onclick="pauseGameForDisconnect()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-pause"></i> Pause & Wait for Reconnect
+                </button>
+                <button onclick="kickDisconnectedPlayer()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-minus"></i> Kick Player & Continue Game
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
     <div id="portrait-blocker" class="fixed inset-0 bg-slate-900/95 z-[900] flex-col items-center justify-center p-6 text-center space-y-4">
@@ -156,7 +177,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.13.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.14.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -179,10 +200,15 @@
             </div>
 
             <div id="host-active-info" class="hidden flex-col items-center w-full py-1 space-y-2">
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
-                <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
-                <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lobby Status</div>
+                <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">In Lobby</div>
+                <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYERS TO JOIN</div>
                 
+                <!-- Start Game Button (In Lobby) -->
+                <button id="host-start-game-btn" onclick="hostStartGameFromLobby()" class="mt-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-slate-950 font-black py-3 px-8 rounded-xl shadow-lg text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-play"></i> Start Game (Pick Random Starter)
+                </button>
+
                 <!-- Direct Play Button for Host when it's their turn -->
                 <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
                     <i class="fa-solid fa-play mr-1"></i> Start Song
@@ -458,13 +484,15 @@
         let players = {}; 
         let turnOrder = [];
         let turnIndex = 0;
-        let gameState = 'IDLE';
+        let gameState = 'IDLE'; // IDLE (Lobby), READY_TO_PLAY, PLAYING, STEALING, REVEAL, PAUSED_DISCONNECT, GAME_OVER
+        let previousStateBeforePause = 'READY_TO_PLAY';
+        let pendingDisconnectPlayerId = null;
+        
         let currentGuesses = {}; 
         let stealDecisions = {}; 
         let stealEndTime = 0; 
         let isHostInPlayerView = false; 
         
-        // Bonus Token State
         let currentWinnerId = null;
         let bonusTokenClaimed = false;
 
@@ -576,7 +604,8 @@
                 tokens: 2, score: 0,
                 timeline: [getRandomStarter()]
             };
-            turnOrder.push(HOST_PLAYER_ID);
+            turnOrder = [HOST_PLAYER_ID];
+            gameState = 'IDLE'; // LOBBY MODE
 
             myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
@@ -595,8 +624,8 @@
                     broadcastSync(); 
                 }, 1000);
 
-                turnIndex = 0;
-                loadTurn();
+                updateHostPlayerList();
+                broadcastSync();
             });
 
             myPeer.on('connection', (conn) => {
@@ -608,6 +637,13 @@
                         players[stableId].conn = conn;
                         players[stableId].online = true;
                         showMessage(`${pName} reconnected!`, 'success');
+                        
+                        // If we were paused waiting for this specific player, resume automatically!
+                        if (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId === stableId) {
+                            closeDisconnectModal();
+                            gameState = previousStateBeforePause;
+                            pendingDisconnectPlayerId = null;
+                        }
                     } else {
                         players[stableId] = {
                             id: stableId, name: pName, conn: conn, online: true,
@@ -632,16 +668,80 @@
                         players[stableId].online = false;
                         players[stableId].conn = null;
                         showMessage(`${pName} disconnected.`, 'error');
+                        
+                        // Handle disconnect prompt for host if game has started
+                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                            triggerDisconnectPrompt(stableId, pName);
+                        }
                     }
                     updateHostPlayerList();
-                    
-                    if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
-                        evaluateAndScoreRound();
-                    } else {
-                        broadcastSync();
-                    }
+                    broadcastSync();
                 });
             });
+        }
+
+        function hostStartGameFromLobby() {
+            if (turnOrder.length === 0) return showMessage("No players in room!", "error");
+            
+            // Randomly select starting player!
+            turnIndex = Math.floor(Math.random() * turnOrder.length);
+            loadTurn();
+        }
+
+        function triggerDisconnectPrompt(pId, pName) {
+            pendingDisconnectPlayerId = pId;
+            document.getElementById('disconnect-player-name').innerText = pName;
+            document.getElementById('host-disconnect-modal').classList.remove('hidden');
+            document.getElementById('host-disconnect-modal').classList.add('flex');
+        }
+
+        function closeDisconnectModal() {
+            document.getElementById('host-disconnect-modal').classList.add('hidden');
+            document.getElementById('host-disconnect-modal').classList.remove('flex');
+        }
+
+        function pauseGameForDisconnect() {
+            closeDisconnectModal();
+            previousStateBeforePause = gameState;
+            gameState = 'PAUSED_DISCONNECT';
+            broadcastSync();
+        }
+
+        function kickDisconnectedPlayer() {
+            closeDisconnectModal();
+            const kId = pendingDisconnectPlayerId;
+            pendingDisconnectPlayerId = null;
+            
+            if (!kId || !players[kId]) return;
+
+            const wasActivePlayer = (turnOrder[turnIndex] === kId);
+            
+            // Remove player
+            delete players[kId];
+            turnOrder = turnOrder.filter(id => id !== kId);
+
+            if (turnOrder.length === 0) {
+                resetApp();
+                return;
+            }
+
+            // Restore state if was paused
+            if (gameState === 'PAUSED_DISCONNECT') {
+                gameState = previousStateBeforePause;
+            }
+
+            // Adjust turn if kicked player was active
+            if (wasActivePlayer) {
+                turnIndex = turnIndex % turnOrder.length;
+                loadTurn();
+            } else {
+                if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
+                    evaluateAndScoreRound();
+                } else {
+                    broadcastSync();
+                }
+            }
+            updateHostPlayerList();
         }
 
         function updateHostPlayerList() {
@@ -650,7 +750,7 @@
             const pArr = Object.values(players);
             pArr.forEach((p, idx) => {
                 const turnIdxOfP = turnOrder.indexOf(p.id);
-                const isTurn = turnIdxOfP === turnIndex;
+                const isTurn = (gameState !== 'IDLE' && turnIdxOfP === turnIndex);
                 const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
                 
                 ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
@@ -679,13 +779,17 @@
         function nextTurn() {
             if (turnOrder.length === 0) return;
             
+            // STRICT ROUND ROBIN TURNS (0 -> 1 -> 2 -> 0)
+            turnIndex = (turnIndex + 1) % turnOrder.length;
+            
+            // If the next player in order happens to be offline, skip them gracefully
             let attempts = 0;
-            do {
+            while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
                 turnIndex = (turnIndex + 1) % turnOrder.length;
                 attempts++;
-            } while (!players[turnOrder[turnIndex]].online && attempts <= turnOrder.length);
-            
-            if (attempts > turnOrder.length) return showMessage("Everyone is offline!", "error");
+            }
+
+            if (attempts >= turnOrder.length) return showMessage("Everyone is offline!", "error");
 
             loadTurn();
         }
@@ -698,9 +802,9 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore ghost drops
+                if (!p || !p.online) return true; // Ignore offline players
                 if (p.tokens <= 0) return true; // Ignore broke players
-                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if host is sitting on DJ Speaker screen
+                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if sitting on DJ Speaker screen
                 return stealDecisions[id] !== undefined; 
             });
         }
@@ -714,7 +818,6 @@
             }
 
             if (data.action === 'CLAIM_BONUS_TOKEN' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
-                // Only the active player can claim a bonus, and only if they won the guess!
                 if (pId === activePlayerId && pId === currentWinnerId && !bonusTokenClaimed) {
                     players[pId].tokens++;
                     bonusTokenClaimed = true;
@@ -735,7 +838,7 @@
                     p.tokens = 2;
                     p.timeline = [getRandomStarter()];
                 });
-                turnIndex = 0;
+                turnIndex = Math.floor(Math.random() * turnOrder.length);
                 loadTurn();
                 return;
             }
@@ -828,7 +931,6 @@
             if (winnerId && players[winnerId]) {
                 const winnerTimeline = players[winnerId].timeline;
                 
-                // Find correct chronological index to insert in the WINNER'S timeline
                 let insertIdx = 0;
                 while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
                     insertIdx++;
@@ -890,11 +992,11 @@
                 trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
                 artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
                 
-                // Bonus & Win tracking
                 isWinner: p ? (p.id === currentWinnerId) : false,
                 bonusTokenClaimed: bonusTokenClaimed,
                 overallWinnerName: (gameState === 'GAME_OVER' && currentWinnerId) ? players[currentWinnerId].name : null,
-                winnerName: currentWinnerId ? players[currentWinnerId].name : null
+                winnerName: currentWinnerId ? players[currentWinnerId].name : null,
+                pausedPlayerName: (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId && players[pendingDisconnectPlayerId]) ? players[pendingDisconnectPlayerId].name : 'a player'
             };
 
             return syncObj;
@@ -904,7 +1006,8 @@
             const p = players[pId];
             if (!p) return;
             if (gameState === 'IDLE') {
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', myScore: p.score, myTokens: p.tokens });
+                const lobbyPlayers = Object.values(players).map(pl => pl.name);
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens });
                 return;
             }
             const syncObj = buildSyncObj(pId);
@@ -917,43 +1020,50 @@
         }
 
         function broadcastSync() {
-            if (gameState !== 'IDLE' && turnOrder.length > 0) {
-                const activePlayerId = turnOrder[turnIndex];
-                const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
-                const badge = document.getElementById('host-status-badge');
-                
-                const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
+            const activePlayerId = turnOrder[turnIndex];
+            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "In Lobby";
+            const badge = document.getElementById('host-status-badge');
+            
+            const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
 
-                document.getElementById('host-turn-player-name').innerText = activePlayerName;
+            document.getElementById('host-turn-player-name').innerText = activePlayerName;
+            
+            if (gameState === 'IDLE') {
+                badge.innerText = "LOBBY: WAITING FOR PLAYERS TO JOIN";
+                document.getElementById('host-start-game-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('host-start-game-btn').classList.add('hidden');
                 if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
                 else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
                 else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${remainingTime}s)`;
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+                else if (gameState === 'PAUSED_DISCONNECT') badge.innerText = "GAME PAUSED (PLAYER DISCONNECTED)";
                 else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
-
-                // Direct Play Button for Host Background UI
-                const djPlayBtn = document.getElementById('dj-direct-play-btn');
-                if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
-                    djPlayBtn.classList.remove('hidden');
-                    if (isPlaying) {
-                        djPlayBtn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause Song`;
-                        djPlayBtn.className = "mt-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
-                    } else {
-                        djPlayBtn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Start Song`;
-                        djPlayBtn.className = "mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
-                    }
-                } else if (djPlayBtn) {
-                    djPlayBtn.classList.add('hidden');
-                }
-
-                // Direct Pass Steal Button for Host on DJ screen
-                const djPassBtn = document.getElementById('dj-direct-pass-btn');
-                if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
-                    djPassBtn.classList.remove('hidden');
-                } else if (djPassBtn) {
-                    djPassBtn.classList.add('hidden');
-                }
             }
+
+            // Direct Play Button for Host Background UI
+            const djPlayBtn = document.getElementById('dj-direct-play-btn');
+            if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
+                djPlayBtn.classList.remove('hidden');
+                if (isPlaying) {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause Song`;
+                    djPlayBtn.className = "mt-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                } else {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Start Song`;
+                    djPlayBtn.className = "mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                }
+            } else if (djPlayBtn) {
+                djPlayBtn.classList.add('hidden');
+            }
+
+            // Direct Pass Steal Button for Host on DJ screen
+            const djPassBtn = document.getElementById('dj-direct-pass-btn');
+            if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
+                djPassBtn.classList.remove('hidden');
+            } else if (djPassBtn) {
+                djPassBtn.classList.add('hidden');
+            }
+
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
         }
 
@@ -1055,9 +1165,19 @@
                 if (musicBox) musicBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
-                setPlayerHeader('bg-slate-800 border-slate-600', 'Connected! 🟢', 'Waiting for DJ to start the game...', 'text-green-400');
+                
+                const playersListStr = data.lobbyPlayers ? data.lobbyPlayers.join(', ') : '';
+                setPlayerHeader('bg-slate-800 border-slate-600', 'In Room Lobby 🟢', `Players: ${playersListStr}. Waiting for Host to start...`, 'text-green-400');
                 const container = document.getElementById('p-ui-timeline');
                 if (container) container.innerHTML = '';
+                return;
+            }
+
+            if (data.state === 'PAUSED_DISCONNECT') {
+                if (musicBox) musicBox.classList.add('hidden');
+                if (passStealBox) passStealBox.classList.add('hidden');
+                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
+                setPlayerHeader('bg-red-950 border-red-500', 'Game Paused ⏸️', `Waiting for ${data.pausedPlayerName || 'player'} to reconnect or Host decision...`, 'text-red-400');
                 return;
             }
 
@@ -1240,5 +1360,4 @@
     </script>
 </body>
 </html>
-
 
