@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.6.0">
+    <meta name="app-version" content="1.8.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -63,18 +63,18 @@
     </div>
 
     <!-- MAIN SETUP CONTAINER -->
-    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-6 relative overflow-hidden">
+    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] my-auto">
         
-        <div class="w-full flex flex-col items-center justify-center text-center">
+        <div class="w-full flex flex-col items-center justify-center text-center shrink-0">
             <i class="fa-solid fa-users text-green-400 text-4xl mb-2 block"></i>
             <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight">
                 Hitster Party
             </h1>
-            <p class="text-slate-400 text-xs mt-1">Live multiplayer music timeline game.</p>
+            <p class="text-slate-400 text-xs mt-0.5">Live multiplayer music timeline game.</p>
         </div>
         
         <!-- View 1: Role Selection -->
-        <div id="view-roles" class="flex flex-col gap-3 w-full items-center">
+        <div id="view-roles" class="flex flex-col gap-3 w-full items-center shrink-0">
             <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
                 <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
                 <div class="text-left flex-1">
@@ -92,8 +92,8 @@
         </div>
 
         <!-- View 2: Spotify Login (Host Only) -->
-        <div id="view-spotify-login" class="hidden flex-col items-center w-full gap-4">
-            <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-2">
+        <div id="view-spotify-login" class="hidden flex-col items-center w-full gap-4 shrink-0">
+            <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-1">
                 <i class="fa-brands fa-spotify"></i>
             </div>
             <div class="text-center">
@@ -108,7 +108,7 @@
         </div>
 
         <!-- View 3: Host Setup -->
-        <div id="view-host-setup" class="hidden flex-col items-center w-full gap-4">
+        <div id="view-host-setup" class="hidden flex-col items-center w-full gap-3 shrink-0">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 w-full text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> DJ Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold">Ready</span>
@@ -116,15 +116,15 @@
             
             <input type="text" id="host-player-name" placeholder="Host Name (e.g. Host DJ)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500" maxlength="12" value="Host DJ">
 
-            <h2 class="text-sm font-bold text-white pt-1">Choose Music Source</h2>
+            <h2 class="text-xs font-bold text-white pt-1">Choose Music Source</h2>
             
             <div class="w-full flex flex-col gap-2">
-                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
+                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
                     <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
                     <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
                 </button>
 
-                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
                     <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
                 </button>
             </div>
@@ -132,18 +132,18 @@
         </div>
 
         <!-- View 4: Player Join Form -->
-        <div id="view-player-join" class="hidden flex-col items-center w-full gap-4">
+        <div id="view-player-join" class="hidden flex-col items-center w-full gap-3 shrink-0">
             <input type="number" id="join-pin" placeholder="PIN" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-center text-indigo-400 font-black text-3xl focus:outline-none focus:border-indigo-500 tracking-widest">
             <input type="text" id="join-name" placeholder="Your Name" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-base focus:outline-none focus:border-indigo-500" maxlength="12">
             
-            <button id="btn-connect" onclick="joinRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-2">
+            <button id="btn-connect" onclick="joinRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-1">
                 <i class="fa-solid fa-right-to-bracket"></i> Connect
             </button>
             <div id="player-status" class="text-sm text-slate-400 hidden animate-pulse">Connecting to network...</div>
-            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Cancel</button>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono absolute bottom-2 right-3">v1.6.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.8.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -179,7 +179,7 @@
         <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
 
-    <!-- PLAYER REMOTE UI (Sideways / Full Screen Landscape View) -->
+    <!-- PLAYER REMOTE UI -->
     <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
         <!-- Top Bar -->
         <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
@@ -280,6 +280,11 @@
         window.addEventListener('load', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
+            
+            // Prefill local name if exists
+            const savedName = localStorage.getItem('party_player_name');
+            if (savedName) document.getElementById('join-name').value = savedName;
+
             if (code) {
                 try {
                     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -397,8 +402,8 @@
         let turnOrder = [];
         let turnIndex = 0;
         let gameState = 'IDLE';
-        let currentGuesses = {}; // { peerId: slotIndex }
-        let stealDecisions = {}; // { peerId: 'STEAL' | 'PASS' }
+        let currentGuesses = {}; 
+        let stealDecisions = {}; 
         
         let tracks = [];
         let currentHostTrack = null;
@@ -495,8 +500,9 @@
             myId = HOST_PLAYER_ID;
             myPlayerName = hostName;
 
+            // Host is always online
             players[HOST_PLAYER_ID] = {
-                id: HOST_PLAYER_ID, name: hostName, conn: null,
+                id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
                 tokens: 2, score: 0,
                 timeline: [getRandomStarter()]
             };
@@ -515,28 +521,42 @@
 
             myPeer.on('connection', (conn) => {
                 conn.on('open', () => {
-                    const pId = conn.peer;
                     const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase(); // Use name as stable identifier
                     
-                    players[pId] = {
-                        id: pId, name: pName, conn: conn,
-                        tokens: 2, score: 0,
-                        timeline: [getRandomStarter()]
-                    };
+                    if (players[stableId]) {
+                        // Reconnection
+                        players[stableId].conn = conn;
+                        players[stableId].online = true;
+                        showMessage(`${pName} reconnected!`, 'success');
+                    } else {
+                        // New Player
+                        players[stableId] = {
+                            id: stableId, name: pName, conn: conn, online: true,
+                            tokens: 2, score: 0,
+                            timeline: [getRandomStarter()]
+                        };
+                        if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
+                        showMessage(`${pName} joined!`, 'success');
+                    }
                     
-                    if (!turnOrder.includes(pId)) turnOrder.push(pId);
                     updateHostPlayerList();
-                    showMessage(`${pName} joined!`, 'success');
+                    broadcastSync();
 
-                    conn.on('data', (data) => handlePlayerAction(pId, data));
+                    conn.on('data', (data) => handlePlayerAction(stableId, data));
                 });
 
                 conn.on('close', () => {
-                    const pId = conn.peer;
-                    delete players[pId];
-                    turnOrder = turnOrder.filter(id => id !== pId);
+                    const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase();
+                    
+                    if (players[stableId]) {
+                        players[stableId].online = false;
+                        players[stableId].conn = null;
+                        showMessage(`${pName} disconnected.`, 'error');
+                    }
                     updateHostPlayerList();
-                    if (turnOrder.length > 0) broadcastSync();
+                    // Do NOT remove from turnOrder. Offline players will be skipped.
                 });
             });
         }
@@ -546,9 +566,12 @@
             ul.innerHTML = '';
             const pArr = Object.values(players);
             pArr.forEach((p, idx) => {
-                const isTurn = idx === turnIndex;
-                ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}</span>
+                const turnIdxOfP = turnOrder.indexOf(p.id);
+                const isTurn = turnIdxOfP === turnIndex;
+                const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
+                
+                ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon}</span>
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
@@ -569,7 +592,16 @@
 
         function nextTurn() {
             if (turnOrder.length === 0) return;
-            turnIndex = (turnIndex + 1) % turnOrder.length;
+            
+            // Find next ONLINE player to prevent game halting
+            let attempts = 0;
+            do {
+                turnIndex = (turnIndex + 1) % turnOrder.length;
+                attempts++;
+            } while (!players[turnOrder[turnIndex]].online && attempts <= turnOrder.length);
+            
+            if (attempts > turnOrder.length) return showMessage("Everyone is offline!", "error");
+
             loadTurn();
         }
 
@@ -577,18 +609,23 @@
             const activePlayerId = turnOrder[turnIndex];
             const otherPlayers = turnOrder.filter(id => id !== activePlayerId && players[id]);
             
-            if (otherPlayers.length === 0) return true; // Only 1 player playing
+            if (otherPlayers.length === 0) return true; 
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p) return true;
-                if (p.tokens <= 0) return true; // Auto-done if no tokens
+                if (!p || !p.online) return true; // Ignore offline players
+                if (p.tokens <= 0) return true; 
                 return stealDecisions[id] !== undefined;
             });
         }
 
         function handlePlayerAction(pId, data) {
             const activePlayerId = turnOrder[turnIndex];
+
+            if (data.action === 'REQUEST_SYNC') {
+                broadcastSync();
+                return;
+            }
             
             if (data.action === 'ADD_TOKEN') {
                 if (players[pId]) {
@@ -617,7 +654,7 @@
             else if (data.action === 'GUESS' && pId === activePlayerId) {
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
-                stealDecisions = {}; // Reset steal decisions for non-active players
+                stealDecisions = {}; 
                 if (spotifyPlayer) spotifyPlayer.pause();
                 broadcastSync();
             }
@@ -625,7 +662,7 @@
                 if (pId === activePlayerId) return;
                 const player = players[pId];
                 if (!player || player.tokens <= 0) return;
-                if (Object.values(currentGuesses).includes(data.index)) return; // Slot taken
+                if (Object.values(currentGuesses).includes(data.index)) return; 
                 
                 player.tokens--;
                 currentGuesses[pId] = data.index;
@@ -639,7 +676,6 @@
                 broadcastSync();
             }
             else if (data.action === 'EVALUATE_ROUND') {
-                // Only allow evaluate if all steal decisions are submitted (or if forced by host/active)
                 if (checkAllStealsSubmitted()) {
                     evaluateAndScoreRound();
                 } else {
@@ -651,7 +687,7 @@
         function evaluateAndScoreRound() {
             gameState = 'REVEAL';
             const activePlayerId = turnOrder[turnIndex];
-            const activeTimeline = players[activePlayerId].timeline;
+            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
             const targetYear = currentHostTrack.y;
             
             let winnerId = null;
@@ -676,7 +712,7 @@
                 }
             }
 
-            if (winnerId) {
+            if (winnerId && players[winnerId]) {
                 players[winnerId].timeline.splice(winningSlot, 0, currentHostTrack);
                 players[winnerId].score++;
             }
@@ -690,15 +726,17 @@
                     artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
                     winningSlot: winningSlot, myScore: p.score, myTokens: p.tokens
                 };
-                if (p.conn) p.conn.send(payload);
+                if (p.conn && p.online) p.conn.send(payload);
             });
 
-            // Local Host UI sync
-            handlePlayerSync({
-                state: 'REVEAL', correctYear: targetYear, trackTitle: currentHostTrack.t,
-                artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
-                winningSlot: winningSlot, myScore: players[HOST_PLAYER_ID].score, myTokens: players[HOST_PLAYER_ID].tokens
-            });
+            const hostP = players[HOST_PLAYER_ID];
+            if (hostP) {
+                handlePlayerSync({
+                    state: 'REVEAL', correctYear: targetYear, trackTitle: currentHostTrack.t,
+                    artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
+                    winningSlot: winningSlot, myScore: hostP.score, myTokens: hostP.tokens
+                });
+            }
 
             setTimeout(() => { if (gameState === 'REVEAL') nextTurn(); }, 5000);
         }
@@ -717,11 +755,12 @@
             else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
 
             const guessNameMap = {};
-            for (const [pId, slot] of Object.entries(currentGuesses)) { guessNameMap[slot] = players[pId].name; }
+            for (const [pId, slot] of Object.entries(currentGuesses)) { 
+                if (players[pId]) guessNameMap[slot] = players[pId].name; 
+            }
 
             const allStealsDone = checkAllStealsSubmitted();
 
-            // Sync all remote players
             Object.values(players).forEach(p => {
                 const syncObj = {
                     type: 'SYNC', state: gameState, isPlaying: isPlaying,
@@ -734,10 +773,9 @@
                     allStealsDone: allStealsDone,
                     myScore: p.score, myTokens: p.tokens
                 };
-                if (p.conn) p.conn.send(syncObj);
+                if (p.conn && p.online) p.conn.send(syncObj);
             });
 
-            // Local sync for Host Player UI
             const hostP = players[HOST_PLAYER_ID];
             if (hostP) {
                 handlePlayerSync({
@@ -788,6 +826,8 @@
             if (pinInput.length !== 4) return showMessage("Enter a 4-digit PIN.");
             if (!myPlayerName) return showMessage("Enter your name.");
 
+            localStorage.setItem('party_player_name', myPlayerName);
+
             document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
 
@@ -796,9 +836,12 @@
                 myId = id;
                 hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
                 
-                hostConnection.on('open', () => { switchContainer('player-game-ui'); });
+                hostConnection.on('open', () => { 
+                    switchContainer('player-game-ui'); 
+                    hostConnection.send({ action: 'REQUEST_SYNC' });
+                });
                 hostConnection.on('data', (data) => { if (data.type === 'SYNC') handlePlayerSync(data); });
-                hostConnection.on('close', () => { showMessage("Host ended the session.", 'error'); resetApp(); });
+                hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
             });
             myPeer.on('error', (err) => {
                 document.getElementById('btn-connect').classList.remove('hidden');
@@ -815,10 +858,17 @@
         }
 
         function handlePlayerSync(data) {
+            if (!data) return;
             cachedSyncData = data;
-            document.getElementById('p-ui-name').innerText = myPlayerName;
-            document.getElementById('p-ui-score').innerText = data.myScore;
-            document.getElementById('p-ui-tokens').innerText = data.myTokens;
+            
+            const pNameEl = document.getElementById('p-ui-name');
+            const pScoreEl = document.getElementById('p-ui-score');
+            const pTokensEl = document.getElementById('p-ui-tokens');
+            
+            if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
+            if (pScoreEl) pScoreEl.innerText = data.myScore !== undefined ? data.myScore : 0;
+            if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
+            
             document.getElementById('p-ui-overlay').classList.add('hidden');
 
             const musicBox = document.getElementById('p-music-controls');
@@ -826,7 +876,6 @@
             const playBtn = document.getElementById('p-btn-play');
             const viewToggleBtn = document.getElementById('p-btn-toggle-view');
 
-            // Show/Hide View Toggle Button if not active player
             if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
                 viewToggleBtn.classList.remove('hidden');
                 if (viewingOwnTimeline) {
@@ -897,15 +946,16 @@
 
         function renderPlayerTimeline(data) {
             const container = document.getElementById('p-ui-timeline');
+            if (!container) return;
             container.innerHTML = '';
             
-            const timeline = (viewingOwnTimeline && data.ownTimeline) ? data.ownTimeline : data.timeline;
+            const timeline = (viewingOwnTimeline && data.ownTimeline) ? data.ownTimeline : (data.timeline || []);
             
             for (let i = 0; i <= timeline.length; i++) {
                 const gap = document.createElement('div');
                 gap.className = "flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
                 
-                const guesserName = data.guesses[i];
+                const guesserName = data.guesses ? data.guesses[i] : null;
                 
                 if (!viewingOwnTimeline && guesserName) {
                     gap.innerHTML = `<div class="bg-indigo-600 border border-indigo-400 text-white text-[9px] font-bold py-1.5 px-1 rounded-lg text-center w-full shadow-[0_0_10px_rgba(79,70,229,0.5)] break-words leading-tight animate-pulse"><i class="fa-solid fa-crosshairs mb-0.5"></i><br>${guesserName}</div>`;
@@ -978,4 +1028,5 @@
     </script>
 </body>
 </html>
+
 
