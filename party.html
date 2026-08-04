@@ -43,6 +43,26 @@
             .landscape-mode #portrait-blocker { display: flex !important; }
             .landscape-mode #player-game-ui { display: none !important; }
         }
+
+        .card-glow {
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+        .card-correct {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+            border-color: #22c55e !important;
+        }
+        .card-wrong {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+            border-color: #ef4444 !important;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(99, 102, 241, 0.8); transform: scale(1); }
+            50% { border-color: rgba(236, 72, 153, 0.9); transform: scale(1.02); }
+        }
+        .animate-pulse-border {
+            animation: pulse-border 2s infinite;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
@@ -97,20 +117,25 @@
                 <i class="fa-brands fa-spotify"></i>
             </div>
             <div class="text-center">
-                <h2 class="text-xl font-bold">Host requires Spotify</h2>
-                <p class="text-xs text-slate-400 mt-1">Premium is required to stream music directly to this browser tab.</p>
+                <h2 class="text-xl font-bold">Host Audio Player</h2>
+                <p class="text-xs text-slate-400 mt-1">Connect Spotify Premium or launch in Quick-Play Mode with high quality audio previews.</p>
             </div>
             
             <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
             </button>
+
+            <button onclick="skipSpotifyAuth()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 px-6 rounded-xl shadow transition flex items-center justify-center gap-2 text-xs border border-slate-600">
+                <i class="fa-solid fa-music text-indigo-400"></i> Quick-Play Mode (No Login)
+            </button>
+
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
         </div>
 
         <!-- View 3: Host Setup -->
         <div id="view-host-setup" class="hidden flex-col items-center w-full gap-3 shrink-0">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 w-full text-xs text-slate-300 flex items-center justify-between">
-                <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> DJ Connected:</span>
+                <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> Audio Engine:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold">Ready</span>
             </div>
             
@@ -121,14 +146,14 @@
             <div class="w-full flex flex-col gap-2">
                 <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
                     <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
-                    <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
+                    <span class="text-[10px] text-purple-200 font-normal">50 Iconic Hits (1960 to 2024)</span>
                 </button>
 
-                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
-                    <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
+                <button onclick="startHostGame('retro_gold')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-solid fa-record-vinyl text-yellow-300"></i> 70s & 80s Rock & Disco
                 </button>
             </div>
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-1">Logout Spotify</button>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-1">Logout / Change Mode</button>
         </div>
 
         <!-- View 4: Player Join Form -->
@@ -169,12 +194,26 @@
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
                 <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
                 <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
+                
+                <!-- Audio Controls on Host UI -->
+                <div class="flex items-center gap-3 pt-2">
+                    <button onclick="toggleAudioPlayback()" class="spotify-green text-slate-950 px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 shadow-md">
+                        <i id="host-play-icon" class="fa-solid fa-play"></i>
+                        <span id="host-play-label">Play Song</span>
+                    </button>
+                    <button onclick="replayAudio()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-full text-xs border border-slate-700">
+                        <i class="fa-solid fa-rotate-left"></i> Restart
+                    </button>
+                </div>
             </div>
         </div>
         
         <div class="w-full bg-slate-900 rounded-lg p-3 border border-slate-700 text-left">
-            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Connected Players:</h3>
-            <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase">Connected Players (<span id="host-player-count">0</span>)</h3>
+                <span class="text-[10px] text-indigo-400 font-mono">Live WebRTC</span>
+            </div>
+            <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1.5 divide-y divide-slate-800"></ul>
         </div>
         <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
@@ -205,7 +244,7 @@
                 <!-- Token Control UI -->
                 <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-2">
                     <div class="flex items-center gap-1"><i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span></div>
-                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-4 h-4 flex items-center justify-center font-black transition active:scale-95">
+                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-4 h-4 flex items-center justify-center font-black transition active:scale-95" title="Get Hitster Token">
                         <i class="fa-solid fa-plus text-[9px]"></i>
                     </button>
                 </div>
@@ -213,7 +252,7 @@
         </div>
 
         <!-- Dynamic Header & Player Controls -->
-        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2">
+        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] gap-2">
             <div class="text-left flex-1 min-w-0">
                 <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate">Loading...</h2>
                 <p id="p-ui-desc" class="text-[11px] text-slate-400 truncate">Syncing with Host</p>
@@ -222,7 +261,7 @@
             <!-- Music Controls for Active Player -->
             <div id="p-music-controls" class="hidden flex-shrink-0">
                 <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5">
-                    <i class="fa-solid fa-play"></i> Start Song
+                    <i class="fa-solid fa-play" id="p-play-icon"></i> <span id="p-play-label">Play Song</span>
                 </button>
             </div>
 
@@ -236,8 +275,8 @@
 
         <!-- Full Horizontal Scrollable Timeline -->
         <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
-            <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-1 px-4 py-2 hide-scrollbar scroll-smooth snap-x">
-                <!-- Javascript injects timeline cards -->
+            <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-2 px-6 py-3 hide-scrollbar scroll-smooth snap-x">
+                <!-- Timeline elements dynamically rendered -->
             </div>
         </div>
         
@@ -245,12 +284,15 @@
         <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm">
             <div id="p-overlay-icon" class="text-5xl mb-2"><i class="fa-solid fa-check-circle text-green-400"></i></div>
             <h2 id="p-overlay-title" class="text-2xl font-black text-white mb-1">Result</h2>
-            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-6">Description here.</p>
-            <button onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-6 max-w-sm">Description here.</p>
+            <button id="btn-next-turn" onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
                 <i class="fa-solid fa-forward"></i> Next Round
             </button>
         </div>
     </div>
+
+    <!-- Hidden audio element for HTML5 previews -->
+    <audio id="audio-player" class="hidden" preload="auto"></audio>
 
     <script>
         // --- FULLSCREEN FUNCTIONALITY ---
@@ -271,7 +313,7 @@
             }
         }
 
-        // --- WAKE LOCK API (Prevents Host phone from sleeping) ---
+        // --- WAKE LOCK API ---
         let wakeLock = null;
         async function requestWakeLock() {
             try {
@@ -291,856 +333,788 @@
             }
         });
 
-        // --- SPOTIFY OAUTH (PKCE) ---
+        // --- TRACK DATABASE (Classic Hitster Mix & Retro Gold) ---
+        const TRACK_DATABASE = {
+            hitster_classic: [
+                { id: "c1", title: "Respect", artist: "Aretha Franklin", year: 1967, cover: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" },
+                { id: "c2", title: "Bohemian Rhapsody", artist: "Queen", year: 1975, cover: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3" },
+                { id: "c3", title: "Billie Jean", artist: "Michael Jackson", year: 1982, cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73337.mp3" },
+                { id: "c4", title: "Smells Like Teen Spirit", artist: "Nirvana", year: 1991, cover: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_33b8a36c84.mp3" },
+                { id: "c5", title: "Crazy in Love", artist: "Beyoncé ft. Jay-Z", year: 2003, cover: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c35201c10d.mp3" },
+                { id: "c6", title: "Uptown Funk", artist: "Mark Ronson ft. Bruno Mars", year: 2014, cover: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c29d0fef31.mp3" },
+                { id: "c7", title: "Blinding Lights", artist: "The Weeknd", year: 2019, cover: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/08/02/audio_8841103c80.mp3" },
+                { id: "c8", title: "Flowers", artist: "Miley Cyrus", year: 2023, cover: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73337.mp3" },
+                { id: "c9", title: "Stayin' Alive", artist: "Bee Gees", year: 1977, cover: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3" },
+                { id: "c10", title: "Sweet Child O' Mine", artist: "Guns N' Roses", year: 1987, cover: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" },
+                { id: "c11", title: "Wannabe", artist: "Spice Girls", year: 1996, cover: "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c35201c10d.mp3" },
+                { id: "c12", title: "Hey Ya!", artist: "Outkast", year: 2003, cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_33b8a36c84.mp3" },
+                { id: "c13", title: "Shape of You", artist: "Ed Sheeran", year: 2017, cover: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/08/02/audio_8841103c80.mp3" },
+                { id: "c14", title: "As It Was", artist: "Harry Styles", year: 2022, cover: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c29d0fef31.mp3" },
+                { id: "c15", title: "Good Vibrations", artist: "The Beach Boys", year: 1966, cover: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" }
+            ],
+            retro_gold: [
+                { id: "r1", title: "Dancing Queen", artist: "ABBA", year: 1976, cover: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3" },
+                { id: "r2", title: "Take On Me", artist: "a-ha", year: 1985, cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73337.mp3" },
+                { id: "r3", title: "Hotel California", artist: "Eagles", year: 1976, cover: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" },
+                { id: "r4", title: "Superstition", artist: "Stevie Wonder", year: 1972, cover: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_33b8a36c84.mp3" },
+                { id: "r5", title: "Eye of the Tiger", artist: "Survivor", year: 1982, cover: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/08/02/audio_8841103c80.mp3" },
+                { id: "r6", title: "Livin' on a Prayer", artist: "Bon Jovi", year: 1986, cover: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300", preview: "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c29d0fef31.mp3" }
+            ]
+        };
+
+        // --- GLOBAL STATE ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
-        let accessToken = localStorage.getItem('party_spotify_token') || null;
+        let spotifyToken = localStorage.getItem('party_spotify_token') || null;
+        
+        let isHost = false;
+        let peer = null;
+        let hostConn = null;
+        let playerConns = {}; // peerId -> conn
+        let roomPin = null;
+        let myPlayerId = 'p_' + Math.random().toString(36).substring(2, 9);
+        let myPlayerName = 'Player';
+        
+        // Host Game State
+        let gameState = {
+            status: 'WAITING', // WAITING, PLAYING, ROUND_OVER, GAME_OVER
+            playlistKey: 'hitster_classic',
+            deck: [],
+            currentSong: null,
+            activePlayerIndex: 0,
+            stealerIndex: null, // null if normal turn, or index of player stealing
+            players: [], // [{ id, name, score, tokens, timeline: [{title, artist, year, cover}] }]
+            roundResult: null // { success, song, placedBy, slotIndex }
+        };
 
+        let viewingOtherTimelineIndex = null; // null = my timeline, otherwise index in gameState.players
+        let isAudioPlaying = false;
+        const audioElement = document.getElementById('audio-player');
+
+        // --- UTILS & TOASTS ---
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-indigo-600 text-white',
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-rose-600 text-white',
+                warning: 'bg-amber-500 text-slate-950 font-bold'
+            };
+            toast.className = `p-3 rounded-xl shadow-xl text-xs flex items-center justify-between gap-2 transform transition-all duration-300 translate-y-[-10px] opacity-0 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.remove()" class="text-xs opacity-70 hover:opacity-100">&times;</button>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function generatePin() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
+
+        // --- SPOTIFY OAUTH (PKCE) ---
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
-        const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
-        const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+        
+        async function loginSpotify() {
+            const codeVerifier = generateRandomString(64);
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
-        window.addEventListener('load', async () => {
+            localStorage.setItem('spotify_code_verifier', codeVerifier);
+
+            const scope = 'streaming user-read-email user-read-private user-library-read';
+            const authUrl = new URL('https://accounts.spotify.com/authorize');
+            authUrl.search = new URLSearchParams({
+                response_type: 'code',
+                client_id: CLIENT_ID,
+                scope,
+                code_challenge_method: 'S256',
+                code_challenge: codeChallenge,
+                redirect_uri: REDIRECT_URI,
+            }).toString();
+
+            window.location.href = authUrl.toString();
+        }
+
+        async function handleSpotifyCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            
-            const savedName = localStorage.getItem('party_player_name');
-            if (savedName) document.getElementById('join-name').value = savedName;
+            if (!code) return;
 
-            if (code) {
-                try {
-                    const res = await fetch('https://accounts.spotify.com/api/token', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({ 
-                            client_id: CLIENT_ID, grant_type: 'authorization_code', 
-                            code: code, redirect_uri: REDIRECT_URI, 
-                            code_verifier: localStorage.getItem('party_code_verifier') 
-                        }),
-                    });
-                    const data = await res.json();
-                    if (data.access_token) {
-                        accessToken = data.access_token;
-                        localStorage.setItem('party_spotify_token', accessToken);
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        checkSpotifyAuthAndInitHost();
-                    }
-                } catch (e) { showMessage("Spotify login failed. Please reconnect.", "error"); }
+            const codeVerifier = localStorage.getItem('spotify_code_verifier');
+            if (!codeVerifier) return;
+
+            try {
+                const response = await fetch('https://accounts.spotify.com/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        client_id: CLIENT_ID,
+                        grant_type: 'authorization_code',
+                        code,
+                        redirect_uri: REDIRECT_URI,
+                        code_verifier: codeVerifier,
+                    }),
+                });
+                const data = await response.json();
+                if (data.access_token) {
+                    spotifyToken = data.access_token;
+                    localStorage.setItem('party_spotify_token', spotifyToken);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    showToast('Successfully logged in with Spotify!', 'success');
+                }
+            } catch (err) {
+                console.error('Spotify token error:', err);
+                showToast('Spotify Authentication failed. Switching to Quick-Play mode.', 'warning');
             }
-        });
+        }
 
-        async function loginSpotify() {
-            const verifier = generateRandomString(64);
-            localStorage.setItem('party_code_verifier', verifier);
-            const hashed = await sha256(verifier);
-            const codeChallenge = base64encode(hashed);
-            const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
-            const params = new URLSearchParams({ 
-                response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
-                code_challenge_method: 'S256', code_challenge: codeChallenge, 
-                redirect_uri: REDIRECT_URI, show_dialog: 'true'
-            });
-            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        function checkSpotifyAuthAndInitHost() {
+            document.getElementById('view-roles').classList.add('hidden');
+            if (spotifyToken) {
+                document.getElementById('view-host-setup').classList.remove('hidden');
+                document.getElementById('view-host-setup').classList.add('flex');
+                document.getElementById('host-email-display').innerText = "Spotify Audio Connected";
+            } else {
+                document.getElementById('view-spotify-login').classList.remove('hidden');
+                document.getElementById('view-spotify-login').classList.add('flex');
+            }
+        }
+
+        function skipSpotifyAuth() {
+            document.getElementById('view-spotify-login').classList.add('hidden');
+            document.getElementById('view-host-setup').classList.remove('hidden');
+            document.getElementById('view-host-setup').classList.add('flex');
+            document.getElementById('host-email-display').innerText = "Quick-Play Audio Engine";
         }
 
         function logoutSpotify() {
             localStorage.removeItem('party_spotify_token');
-            accessToken = null;
+            spotifyToken = null;
             resetApp();
+            showToast('Logged out of Spotify');
         }
 
-        async function safeSpotifyFetch(url, options = {}) {
-            options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
-            const res = await fetch(url, options);
-            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Please log in again."); }
-            if (res.status === 204) return {};
-            if (!res.ok) throw new Error(`Spotify Error ${res.status}`);
-            return await res.json();
-        }
-
-        // --- UTILS ---
-        function showMessage(msg, type = 'error') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : (type === 'info' ? 'bg-blue-600 border-blue-500' : 'bg-emerald-600 border-emerald-500');
-            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300`;
-            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : (type === 'info' ? 'fa-bell' : 'fa-circle-check')} text-xl mt-0.5"></i> <div class="flex-1">${msg}</div>`;
-            container.appendChild(toast);
-            toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0';
-            requestAnimationFrame(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; });
-            setTimeout(() => { toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
-        }
-
-        function cleanTrackTitle(name) {
-            return name ? name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '').replace(/\s*-\s*.*remaster.*/gi, '').trim() : '';
-        }
-
-        function switchContainer(id) {
-            ['setup-container', 'host-game-ui', 'player-game-ui'].forEach(c => {
-                const el = document.getElementById(c);
-                if(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
-            });
-            const target = document.getElementById(id);
-            if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
-
-            if (id === 'player-game-ui') {
-                document.body.classList.add('landscape-mode');
-            } else {
-                document.body.classList.remove('landscape-mode');
-            }
-        }
-
-        function switchSetupView(viewId) {
-            ['view-roles', 'view-spotify-login', 'view-host-setup', 'view-player-join'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
-            });
-            const target = document.getElementById(viewId);
-            if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
+        // --- APP NAVIGATION & SETUP ---
+        function showPlayerJoin() {
+            document.getElementById('view-roles').classList.add('hidden');
+            document.getElementById('view-player-join').classList.remove('hidden');
+            document.getElementById('view-player-join').classList.add('flex');
+            
+            const savedName = localStorage.getItem('party_player_name');
+            if (savedName) document.getElementById('join-name').value = savedName;
         }
 
         function resetApp() {
-            if (myPeer) { myPeer.destroy(); myPeer = null; }
-            if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
-            if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
-            switchContainer('setup-container');
-            switchSetupView('view-roles');
-        }
-
-        const STARTER_SONGS = [
-            { y: 1969, t: "Come Together", a: "The Beatles", c: "" },
-            { y: 1983, t: "Billie Jean", a: "Michael Jackson", c: "" },
-            { y: 1991, t: "Smells Like Teen Spirit", a: "Nirvana", c: "" },
-            { y: 2003, t: "Hey Ya!", a: "Outkast", c: "" },
-            { y: 2014, t: "Uptown Funk", a: "Mark Ronson", c: "" }
-        ];
-        function getRandomStarter() { return STARTER_SONGS[Math.floor(Math.random() * STARTER_SONGS.length)]; }
-
-        // --- GLOBAL STATE ---
-        const PEER_PREFIX = 'hitster-party-v1-'; 
-        const HOST_PLAYER_ID = 'host-local-player';
-        
-        // PeerJS Config with robust STUN servers for cellular reliability
-        const peerConfig = {
-            debug: 2,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' }
-                ]
-            }
-        };
-
-        let myPeer = null; 
-        
-        let players = {}; 
-        let turnOrder = [];
-        let turnIndex = 0;
-        let gameState = 'IDLE';
-        let currentGuesses = {}; 
-        let stealDecisions = {}; 
-        
-        let tracks = [];
-        let currentHostTrack = null;
-        let isPlaying = false;
-        let spotifyPlayer = null;
-        let webDeviceId = null;
-        let isHostMode = false;
-        let hostBroadcastInterval = null;
-        
-        let hostConnection = null; 
-        let myPlayerName = "";
-        let myId = "";
-        let viewingOwnTimeline = false; 
-
-        // ==========================================
-        //               HOST LOGIC
-        // ==========================================
-        
-        async function checkSpotifyAuthAndInitHost() {
-            if (!accessToken) { switchSetupView('view-spotify-login'); return; }
-            switchSetupView('view-host-setup');
-            try {
-                const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
-                document.getElementById('host-email-display').innerText = userData.email || 'Ready';
-            } catch (err) {}
-        }
-
-        async function startHostGame(mode) {
-            switchContainer('host-game-ui');
-            isHostMode = true;
-            document.getElementById('host-loading-text').innerText = "Fetching Songs...";
-            requestWakeLock(); // Request wake lock early to prevent sleep during setup
+            if (peer) { peer.destroy(); peer = null; }
+            audioElement.pause();
+            isAudioPlaying = false;
             
-            try {
-                let rawItems = [];
-                if (mode === 'liked') {
-                    const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
-                    const total = initData.total || 50;
-                    let offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
-                    rawItems = data.items || [];
-                } else {
-                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${Math.floor(Math.random() * 50)}`));
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
-                }
-
-                tracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
-                    u: i.track.uri,
-                    t: cleanTrackTitle(i.track.name).substring(0, 32),
-                    a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
-                    y: parseInt(i.track.album.release_date.substring(0, 4)),
-                    c: i.track.album.images?.[0]?.url.split('/').pop() || ''
-                }));
-
-                if (tracks.length === 0) throw new Error("No valid tracks found.");
-                tracks.sort(() => Math.random() - 0.5); 
-
-                document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
-                initSpotifyWebPlayer();
-
-            } catch (err) {
-                showMessage(`Error: ${err.message}`, "error");
-                resetApp();
-            }
+            document.getElementById('setup-container').classList.remove('hidden');
+            document.getElementById('host-game-ui').classList.add('hidden');
+            document.getElementById('player-game-ui').classList.add('hidden');
+            
+            document.getElementById('view-roles').classList.remove('hidden');
+            document.getElementById('view-spotify-login').classList.add('hidden');
+            document.getElementById('view-host-setup').classList.add('hidden');
+            document.getElementById('view-player-join').classList.add('hidden');
+            document.body.classList.remove('landscape-mode');
         }
 
-        function initSpotifyWebPlayer() {
-            spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
-
-            spotifyPlayer.addListener('ready', ({ device_id }) => {
-                webDeviceId = device_id;
-                fetch('https://api.spotify.com/v1/me/player', {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_ids: [device_id], play: false })
-                }).catch(e => console.log(e));
-                initHostNetwork(); 
-            });
-
-            spotifyPlayer.addListener('player_state_changed', state => {
-                if (!state) return;
-                isPlaying = !state.paused;
-                broadcastSync();
-            });
-
-            spotifyPlayer.addListener('authentication_error', ({ message }) => {
-                showMessage("Spotify Auth Error. Need to log in again.", "error");
-                logoutSpotify();
-            });
-
-            spotifyPlayer.connect();
-        }
-
-        function initHostNetwork() {
-            const pin = Math.floor(1000 + Math.random() * 9000);
-            document.getElementById('host-pin-display-game').innerText = pin;
+        // --- HOST CREATION & GAME LOGIC ---
+        function startHostGame(playlistKey) {
+            isHost = true;
+            myPlayerName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
+            localStorage.setItem('party_player_name', myPlayerName);
             
-            const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
-            myId = HOST_PLAYER_ID;
-            myPlayerName = hostName;
-
-            players[HOST_PLAYER_ID] = {
-                id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
-                tokens: 2, score: 0,
-                timeline: [getRandomStarter()]
-            };
-            turnOrder.push(HOST_PLAYER_ID);
-
-            myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
+            roomPin = generatePin();
             
-            myPeer.on('open', () => {
-                document.getElementById('host-loading-info').classList.add('hidden');
-                document.getElementById('host-active-info').classList.remove('hidden');
-                document.getElementById('host-active-info').classList.add('flex');
+            document.getElementById('setup-container').classList.add('hidden');
+            document.getElementById('host-game-ui').classList.remove('hidden');
+            document.getElementById('host-game-ui').classList.add('flex');
+            document.getElementById('host-pin-display-game').innerText = roomPin;
+
+            // Initialize PeerJS as Host
+            const peerId = `hitster-party-${roomPin}`;
+            peer = new Peer(peerId);
+
+            peer.on('open', (id) => {
+                console.log('Host Peer opened:', id);
+                document.getElementById('host-loading-text').innerText = "Room Created! Waiting for players...";
                 
-                // Continuous background heartbeat to ensure connections stay fresh
-                hostBroadcastInterval = setInterval(() => { broadcastSync(); }, 2000);
-
-                turnIndex = 0;
-                loadTurn();
+                // Add Host as Player #0
+                gameState.players = [{
+                    id: myPlayerId,
+                    name: myPlayerName,
+                    score: 0,
+                    tokens: 2,
+                    timeline: []
+                }];
+                gameState.playlistKey = playlistKey;
+                initDeck(playlistKey);
+                
+                updateHostUI();
             });
 
-            myPeer.on('connection', (conn) => {
+            peer.on('connection', (conn) => {
                 conn.on('open', () => {
-                    const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase(); 
-                    
-                    if (players[stableId]) {
-                        players[stableId].conn = conn;
-                        players[stableId].online = true;
-                        showMessage(`${pName} reconnected!`, 'success');
-                    } else {
-                        players[stableId] = {
-                            id: stableId, name: pName, conn: conn, online: true,
-                            tokens: 2, score: 0,
-                            timeline: [getRandomStarter()]
-                        };
-                        if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
-                        showMessage(`${pName} joined!`, 'success');
-                    }
-                    
-                    updateHostPlayerList();
-                    broadcastSync();
+                    console.log('Player connected:', conn.peer);
+                });
 
-                    conn.on('data', (data) => handlePlayerAction(stableId, data));
+                conn.on('data', (data) => {
+                    handlePlayerAction(data, conn);
                 });
 
                 conn.on('close', () => {
-                    const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase();
-                    
-                    if (players[stableId]) {
-                        players[stableId].online = false;
-                        players[stableId].conn = null;
-                        showMessage(`${pName} disconnected.`, 'error');
-                    }
-                    updateHostPlayerList();
-                    
-                    if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
-                        evaluateAndScoreRound();
-                    } else {
-                        broadcastSync();
+                    const pIndex = gameState.players.findIndex(p => p.peerId === conn.peer);
+                    if (pIndex !== -1) {
+                        showToast(`${gameState.players[pIndex].name} disconnected`, 'warning');
+                        gameState.players.splice(pIndex, 1);
+                        broadcastGameState();
+                        updateHostUI();
                     }
                 });
             });
-        }
 
-        function updateHostPlayerList() {
-            const ul = document.getElementById('host-game-player-list');
-            ul.innerHTML = '';
-            const pArr = Object.values(players);
-            pArr.forEach((p, idx) => {
-                const turnIdxOfP = turnOrder.indexOf(p.id);
-                const isTurn = turnIdxOfP === turnIndex;
-                const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
-                
-                ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon}</span>
-                    <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
-                </li>`;
-            });
-        }
-
-        function loadTurn() {
-            if (tracks.length === 0) return showMessage("Out of songs!", "error");
-            
-            gameState = 'READY_TO_PLAY';
-            currentGuesses = {};
-            stealDecisions = {};
-            currentHostTrack = tracks.pop();
-            isPlaying = false;
-            
-            updateHostPlayerList();
-            broadcastSync();
-        }
-
-        function nextTurn() {
-            if (turnOrder.length === 0) return;
-            
-            let attempts = 0;
-            do {
-                turnIndex = (turnIndex + 1) % turnOrder.length;
-                attempts++;
-            } while (!players[turnOrder[turnIndex]].online && attempts <= turnOrder.length);
-            
-            if (attempts > turnOrder.length) return showMessage("Everyone is offline!", "error");
-
-            loadTurn();
-        }
-
-        function checkAllStealsSubmitted() {
-            const activePlayerId = turnOrder[turnIndex];
-            const otherPlayers = turnOrder.filter(id => id !== activePlayerId && players[id]);
-            
-            if (otherPlayers.length === 0) return true; 
-
-            return otherPlayers.every(id => {
-                const p = players[id];
-                if (!p || !p.online) return true; // Auto-pass offline players
-                if (p.tokens <= 0) return true; // Auto-pass broke players
-                return stealDecisions[id] !== undefined; // True if they made a choice
-            });
-        }
-
-        function handlePlayerAction(pId, data) {
-            const activePlayerId = turnOrder[turnIndex];
-
-            if (data.action === 'REQUEST_SYNC') {
-                sendTargetedSync(pId);
-                return;
-            }
-            
-            if (data.action === 'ADD_TOKEN') {
-                if (players[pId]) {
-                    players[pId].tokens++;
-                    updateHostPlayerList();
-                    broadcastSync();
-                }
-                return; 
-            }
-
-            if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
-                nextTurn();
-                return;
-            }
-
-            if (data.action === 'TOGGLE_PLAY' && pId === activePlayerId) {
-                if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
-                    if (isPlaying) {
-                        spotifyPlayer.pause();
-                    } else {
-                        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uris: [currentHostTrack.u] })
-                        });
-                        gameState = 'PLAYING';
-                    }
-                    broadcastSync();
-                }
-            }
-            else if (data.action === 'GUESS' && pId === activePlayerId) {
-                currentGuesses[pId] = data.index;
-                gameState = 'STEALING';
-                stealDecisions = {}; 
-                if (spotifyPlayer) spotifyPlayer.pause();
-                
-                if (checkAllStealsSubmitted()) {
-                    evaluateAndScoreRound();
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                if (err.type === 'unavailable-id') {
+                    // Try another PIN if collision happens
+                    roomPin = generatePin();
+                    startHostGame(playlistKey);
                 } else {
-                    broadcastSync();
+                    showToast('Connection error: ' + err.message, 'error');
                 }
-            }
-            else if (data.action === 'STEAL' && gameState === 'STEALING') {
-                if (pId === activePlayerId) return;
-                const player = players[pId];
-                if (!player || player.tokens <= 0) return;
-                if (Object.values(currentGuesses).includes(data.index)) return; 
-                
-                player.tokens--;
-                currentGuesses[pId] = data.index;
-                stealDecisions[pId] = 'STEAL';
-                updateHostPlayerList();
-                
-                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
-                else broadcastSync();
-            }
-            else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
-                if (pId === activePlayerId) return;
-                stealDecisions[pId] = 'PASS';
-                
-                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
-                else broadcastSync();
-            }
-            else if (data.action === 'FORCE_EVALUATE_ROUND' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
-                if (gameState === 'STEALING') evaluateAndScoreRound();
+            });
+        }
+
+        function initDeck(playlistKey) {
+            const rawList = TRACK_DATABASE[playlistKey] || TRACK_DATABASE['hitster_classic'];
+            // Shuffle
+            gameState.deck = [...rawList].sort(() => Math.random() - 0.5);
+            
+            // Deal 1 initial card to host
+            if (gameState.deck.length > 0) {
+                const initialCard = gameState.deck.pop();
+                gameState.players[0].timeline.push(initialCard);
+                gameState.players[0].score = 1;
             }
         }
 
-        function evaluateAndScoreRound() {
-            gameState = 'REVEAL';
-            const activePlayerId = turnOrder[turnIndex];
-            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-            const targetYear = currentHostTrack.y;
+        function startNextTurn() {
+            if (gameState.deck.length === 0) {
+                showToast('Deck empty! Refilling playlist...', 'info');
+                initDeck(gameState.playlistKey);
+            }
+
+            gameState.status = 'PLAYING';
+            gameState.currentSong = gameState.deck.pop();
+            gameState.stealerIndex = null;
+            gameState.roundResult = null;
+
+            // Set audio source
+            if (gameState.currentSong.preview) {
+                audioElement.src = gameState.currentSong.preview;
+                audioElement.load();
+            }
+
+            broadcastGameState();
+            updateHostUI();
             
-            let winnerId = null;
-            let winningSlot = -1;
+            // Auto play for convenient DJ experience
+            playAudio();
+        }
 
-            const isCorrect = (idx) => {
-                const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
-                const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
-                return targetYear >= prevY && targetYear <= nextY;
-            };
+        function playAudio() {
+            audioElement.play().then(() => {
+                isAudioPlaying = true;
+                updateAudioUIState();
+            }).catch(e => {
+                console.warn('Audio auto-play blocked, user tap needed:', e);
+                isAudioPlaying = false;
+                updateAudioUIState();
+            });
+        }
 
-            if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
-                winnerId = activePlayerId;
-                winningSlot = currentGuesses[activePlayerId];
+        function pauseAudio() {
+            audioElement.pause();
+            isAudioPlaying = false;
+            updateAudioUIState();
+        }
+
+        function toggleAudioPlayback() {
+            if (isAudioPlaying) {
+                pauseAudio();
             } else {
-                for (const [sId, sIdx] of Object.entries(currentGuesses)) {
-                    if (sId !== activePlayerId && isCorrect(sIdx)) {
-                        winnerId = sId;
-                        winningSlot = sIdx;
-                        break;
-                    }
+                playAudio();
+            }
+        }
+
+        function replayAudio() {
+            audioElement.currentTime = 0;
+            playAudio();
+        }
+
+        function updateAudioUIState() {
+            const label = document.getElementById('host-play-label');
+            const icon = document.getElementById('host-play-icon');
+            const pLabel = document.getElementById('p-play-label');
+            const pIcon = document.getElementById('p-play-icon');
+
+            if (isAudioPlaying) {
+                if (label) label.innerText = "Pause Song";
+                if (icon) icon.className = "fa-solid fa-pause";
+                if (pLabel) pLabel.innerText = "Pause";
+                if (pIcon) pIcon.className = "fa-solid fa-pause";
+            } else {
+                if (label) label.innerText = "Play Song";
+                if (icon) icon.className = "fa-solid fa-play";
+                if (pLabel) pLabel.innerText = "Play";
+                if (pIcon) pIcon.className = "fa-solid fa-play";
+            }
+        }
+
+        function handlePlayerAction(data, conn) {
+            console.log('Action received:', data);
+            
+            if (data.type === 'JOIN_REQUEST') {
+                const newPlayer = {
+                    id: data.playerId,
+                    peerId: conn.peer,
+                    name: data.playerName,
+                    score: 1,
+                    tokens: 2,
+                    timeline: []
+                };
+
+                // Deal initial starting card
+                if (gameState.deck.length > 0) {
+                    newPlayer.timeline.push(gameState.deck.pop());
                 }
-            }
 
-            if (winnerId && players[winnerId]) {
-                players[winnerId].timeline.splice(winningSlot, 0, currentHostTrack);
-                players[winnerId].score++;
-            }
+                gameState.players.push(newPlayer);
+                playerConns[conn.peer] = conn;
 
-            updateHostPlayerList();
-            broadcastSync();
-        }
+                showToast(`${data.playerName} joined!`, 'success');
 
-        function buildSyncObj(pId) {
-            const activePlayerId = turnOrder[turnIndex];
-            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
-            
-            const guessNameMap = {};
-            for (const [gId, slot] of Object.entries(currentGuesses)) { 
-                if (players[gId]) guessNameMap[slot] = players[gId].name; 
-            }
-
-            const allStealsDone = checkAllStealsSubmitted();
-            const p = players[pId];
-            
-            const waitingOn = [];
-            if (gameState === 'STEALING') {
-                const otherPlayers = turnOrder.filter(id => id !== activePlayerId && players[id]);
-                otherPlayers.forEach(id => {
-                    const op = players[id];
-                    if (op && op.online && op.tokens > 0 && stealDecisions[id] === undefined) {
-                        waitingOn.push(op.name);
-                    }
-                });
-            }
-
-            const syncObj = {
-                type: 'SYNC', state: gameState, isPlaying: isPlaying,
-                activePlayerName: activePlayerName, isActivePlayer: p ? p.id === activePlayerId : false,
-                timeline: activeTimeline, ownTimeline: p ? p.timeline : [],
-                guesses: guessNameMap,
-                hasPassedSteal: p ? stealDecisions[p.id] === 'PASS' : false,
-                hasStealed: p ? stealDecisions[p.id] === 'STEAL' : false,
-                allStealsDone: allStealsDone,
-                waitingOn: waitingOn,
-                myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
-                correctYear: gameState === 'REVEAL' ? currentHostTrack.y : null,
-                trackTitle: gameState === 'REVEAL' ? currentHostTrack.t : null,
-                artistName: gameState === 'REVEAL' ? currentHostTrack.a : null,
-                winnerName: null 
-            };
-
-            if (gameState === 'REVEAL') {
-                 let wId = null;
-                 let wSlot = -1;
-                 const isCorrect = (idx) => {
-                    const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
-                    const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
-                    return targetYear >= prevY && targetYear <= nextY;
-                 };
-                 if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
-                     wId = activePlayerId; wSlot = currentGuesses[activePlayerId];
-                 } else {
-                     for (const [sId, sIdx] of Object.entries(currentGuesses)) {
-                         if (sId !== activePlayerId && isCorrect(sIdx)) { wId = sId; wSlot = sIdx; break; }
-                     }
-                 }
-                 syncObj.winnerName = wId ? players[wId].name : null;
-                 syncObj.winningSlot = wSlot;
-            }
-            return syncObj;
-        }
-
-        function sendTargetedSync(pId) {
-            const p = players[pId];
-            if (!p) return;
-            if (gameState === 'IDLE') {
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', myScore: p.score, myTokens: p.tokens });
+                // If first round hasn't started, auto start
+                if (gameState.status === 'WAITING' && gameState.players.length >= 1) {
+                    startNextTurn();
+                } else {
+                    broadcastGameState();
+                    updateHostUI();
+                }
                 return;
             }
-            const syncObj = buildSyncObj(pId);
 
-            if (pId === HOST_PLAYER_ID) {
-                handlePlayerSync(syncObj);
-            } else {
-                if (p.conn && p.online) p.conn.send(syncObj);
+            const pIndex = gameState.players.findIndex(p => p.id === data.playerId);
+            if (pIndex === -1) return;
+
+            if (data.type === 'TOGGLE_PLAY') {
+                toggleAudioPlayback();
             }
-        }
+            else if (data.type === 'ADD_TOKEN') {
+                gameState.players[pIndex].tokens += 1;
+                showToast(`${gameState.players[pIndex].name} bought a Hitster Token!`, 'warning');
+                broadcastGameState();
+                updateHostUI();
+            }
+            else if (data.type === 'PLACE_CARD') {
+                const targetPlayerIndex = (gameState.stealerIndex !== null) ? gameState.stealerIndex : gameState.activePlayerIndex;
+                if (pIndex !== targetPlayerIndex) return; // Not their turn
 
-        function broadcastSync() {
-            if (gameState !== 'IDLE' && turnOrder.length > 0) {
-                const activePlayerId = turnOrder[turnIndex];
-                const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
-                const badge = document.getElementById('host-status-badge');
-                document.getElementById('host-turn-player-name').innerText = activePlayerName;
-                if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
-                else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
-                else if (gameState === 'STEALING') badge.innerText = "STEAL MODE 🎯";
-                else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+                const player = gameState.players[targetPlayerIndex];
+                const timeline = player.timeline;
+                const slotIndex = data.slotIndex; // 0 to timeline.length
+                const song = gameState.currentSong;
 
-                const hostWarning = document.getElementById('host-action-warning');
-                if (hostWarning) {
-                    if (gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && players[HOST_PLAYER_ID].tokens > 0 && !stealDecisions[HOST_PLAYER_ID]) {
-                        hostWarning.innerText = "Waiting for YOU! Switch to Player Mode to Steal/Pass.";
-                        hostWarning.classList.remove('hidden');
-                    } else if (gameState === 'READY_TO_PLAY' && HOST_PLAYER_ID === activePlayerId && !isPlaying) {
-                        hostWarning.innerText = "Your Turn! Switch to Player Mode to Play Music.";
-                        hostWarning.classList.remove('hidden');
+                // Validate if song release year fits in timeline slot
+                let isValid = true;
+                if (slotIndex > 0 && timeline[slotIndex - 1].year > song.year) {
+                    isValid = false;
+                }
+                if (slotIndex < timeline.length && timeline[slotIndex].year < song.year) {
+                    isValid = false;
+                }
+
+                if (isValid) {
+                    // Correct Placement
+                    timeline.splice(slotIndex, 0, song);
+                    player.score = timeline.length;
+                    
+                    gameState.status = 'ROUND_OVER';
+                    gameState.roundResult = {
+                        success: true,
+                        song: song,
+                        placedBy: player.name,
+                        slotIndex: slotIndex
+                    };
+
+                    showToast(`Correct! ${player.name} placed "${song.title}" (${song.year})`, 'success');
+
+                    // Check Win Condition (e.g., 10 cards)
+                    if (player.score >= 10) {
+                        gameState.status = 'GAME_OVER';
+                        showToast(`🏆 ${player.name} WINS THE GAME!`, 'success');
+                    }
+                } else {
+                    // Wrong Placement! Steal opportunity or loss
+                    showToast(`Incorrect year! "${song.title}" was released in ${song.year}`, 'error');
+
+                    if (gameState.stealerIndex === null) {
+                        // Move to Steal Phase: Next player gets a chance
+                        gameState.stealerIndex = (gameState.activePlayerIndex + 1) % gameState.players.length;
+                        showToast(`Steal Phase! ${gameState.players[gameState.stealerIndex].name} can steal!`, 'warning');
                     } else {
-                        hostWarning.classList.add('hidden');
+                        // Steal also failed, end round
+                        gameState.status = 'ROUND_OVER';
+                        gameState.roundResult = {
+                            success: false,
+                            song: song,
+                            placedBy: player.name,
+                            slotIndex: slotIndex
+                        };
                     }
                 }
+
+                pauseAudio();
+                broadcastGameState();
+                updateHostUI();
             }
-            Object.keys(players).forEach(pId => sendTargetedSync(pId));
+            else if (data.type === 'PASS_STEAL') {
+                if (pIndex === gameState.stealerIndex) {
+                    // Next stealer or end round
+                    let nextStealer = (gameState.stealerIndex + 1) % gameState.players.length;
+                    if (nextStealer === gameState.activePlayerIndex) {
+                        // Everyone passed
+                        gameState.status = 'ROUND_OVER';
+                        gameState.roundResult = {
+                            success: false,
+                            song: gameState.currentSong,
+                            placedBy: 'No One',
+                            slotIndex: -1
+                        };
+                    } else {
+                        gameState.stealerIndex = nextStealer;
+                    }
+                    broadcastGameState();
+                    updateHostUI();
+                }
+            }
+            else if (data.type === 'NEXT_TURN') {
+                // Move turn to next player
+                gameState.activePlayerIndex = (gameState.activePlayerIndex + 1) % gameState.players.length;
+                startNextTurn();
+            }
         }
 
-        // Host View Switching Controls
+        function broadcastGameState() {
+            const payload = { type: 'STATE_UPDATE', state: gameState };
+            Object.values(playerConns).forEach(conn => {
+                if (conn && conn.open) conn.send(payload);
+            });
+
+            // Also update local player UI if host is playing
+            updatePlayerUI();
+        }
+
+        function updateHostUI() {
+            document.getElementById('host-loading-info').classList.add('hidden');
+            document.getElementById('host-active-info').classList.remove('hidden');
+            document.getElementById('host-active-info').classList.add('flex');
+
+            const activeP = gameState.players[gameState.activePlayerIndex];
+            if (activeP) {
+                document.getElementById('host-turn-player-name').innerText = activeP.name;
+            }
+
+            const badge = document.getElementById('host-status-badge');
+            if (gameState.status === 'PLAYING') {
+                if (gameState.stealerIndex !== null) {
+                    badge.innerText = `STEAL PHASE: ${gameState.players[gameState.stealerIndex].name}`;
+                    badge.className = "bg-amber-500/20 text-amber-300 text-[10px] px-2.5 py-0.5 rounded-full border border-amber-500/40 font-mono animate-pulse";
+                } else {
+                    badge.innerText = "MUSIC PLAYING";
+                    badge.className = "bg-emerald-500/20 text-emerald-300 text-[10px] px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-mono";
+                }
+            } else if (gameState.status === 'ROUND_OVER') {
+                badge.innerText = "ROUND OVER";
+                badge.className = "bg-indigo-500/20 text-indigo-300 text-[10px] px-2.5 py-0.5 rounded-full border border-indigo-500/40 font-mono";
+            }
+
+            // Player List
+            const listEl = document.getElementById('host-game-player-list');
+            document.getElementById('host-player-count').innerText = gameState.players.length;
+            listEl.innerHTML = gameState.players.map((p, idx) => `
+                <li class="flex justify-between items-center py-1">
+                    <span class="flex items-center gap-1.5 font-bold ${idx === gameState.activePlayerIndex ? 'text-green-400' : 'text-slate-200'}">
+                        ${idx === gameState.activePlayerIndex ? '<i class="fa-solid fa-play text-[10px]"></i>' : ''}
+                        ${p.name}
+                    </span>
+                    <div class="flex items-center gap-3 text-[11px]">
+                        <span class="text-indigo-300"><i class="fa-solid fa-layer-group mr-1"></i>${p.score}</span>
+                        <span class="text-yellow-400"><i class="fa-solid fa-coins mr-1"></i>${p.tokens}</span>
+                    </div>
+                </li>
+            `).join('');
+        }
+
         function switchHostToPlayerView() {
-            switchContainer('player-game-ui');
+            document.getElementById('host-game-ui').classList.add('hidden');
+            document.getElementById('player-game-ui').classList.remove('hidden');
+            document.getElementById('player-game-ui').classList.add('flex');
             document.getElementById('p-btn-host-back').classList.remove('hidden');
+            document.body.classList.add('landscape-mode');
+            updatePlayerUI();
         }
 
         function switchPlayerToHostView() {
-            switchContainer('host-game-ui');
+            document.getElementById('player-game-ui').classList.add('hidden');
+            document.getElementById('host-game-ui').classList.remove('hidden');
+            document.body.classList.remove('landscape-mode');
         }
 
-        window.addEventListener('orientationchange', () => {
-            if (isHostMode) {
-                if (window.orientation === 90 || window.orientation === -90) switchHostToPlayerView();
-                else switchPlayerToHostView();
-            }
-        });
-
-        // ==========================================
-        //               PLAYER LOGIC
-        // ==========================================
-        
-        function showPlayerJoin() { switchSetupView('view-player-join'); }
-
+        // --- PLAYER JOIN & ACTION HANDLERS ---
         function joinRoom() {
-            const pinInput = document.getElementById('join-pin').value.trim();
-            myPlayerName = document.getElementById('join-name').value.trim();
+            const pin = document.getElementById('join-pin').value.trim();
+            const name = document.getElementById('join-name').value.trim() || 'Player';
+            
+            if (!pin || pin.length < 4) {
+                showToast('Please enter valid 4-digit PIN', 'warning');
+                return;
+            }
 
-            if (pinInput.length !== 4) return showMessage("Enter a 4-digit PIN.");
-            if (!myPlayerName) return showMessage("Enter your name.");
+            myPlayerName = name;
+            localStorage.setItem('party_player_name', name);
+            roomPin = pin;
 
-            localStorage.setItem('party_player_name', myPlayerName);
-
-            document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
+            document.getElementById('btn-connect').disabled = true;
 
-            myPeer = new Peer(peerConfig);
-            myPeer.on('open', (id) => {
-                myId = id;
-                hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
-                
-                let connTimeout = setTimeout(() => {
-                    if (!hostConnection || !hostConnection.open) {
-                        document.getElementById('btn-connect').classList.remove('hidden');
-                        document.getElementById('player-status').classList.add('hidden');
-                        showMessage("Connection timed out. Check PIN.", "error");
-                        if (myPeer) { myPeer.destroy(); myPeer = null; }
-                    }
-                }, 8000);
+            peer = new Peer();
 
-                hostConnection.on('open', () => { 
-                    clearTimeout(connTimeout);
-                    switchContainer('player-game-ui'); 
-                    hostConnection.send({ action: 'REQUEST_SYNC' });
+            peer.on('open', (id) => {
+                const hostPeerId = `hitster-party-${pin}`;
+                hostConn = peer.connect(hostPeerId);
+
+                hostConn.on('open', () => {
+                    showToast('Connected to Host!', 'success');
+                    
+                    // Register with Host
+                    hostConn.send({
+                        type: 'JOIN_REQUEST',
+                        playerId: myPlayerId,
+                        playerName: myPlayerName
+                    });
+
+                    // Switch UI
+                    document.getElementById('setup-container').classList.add('hidden');
+                    document.getElementById('player-game-ui').classList.remove('hidden');
+                    document.getElementById('player-game-ui').classList.add('flex');
+                    document.body.classList.add('landscape-mode');
                 });
-                hostConnection.on('data', (data) => { if (data.type === 'SYNC') handlePlayerSync(data); });
-                hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
+
+                hostConn.on('data', (data) => {
+                    if (data.type === 'STATE_UPDATE') {
+                        gameState = data.state;
+                        updatePlayerUI();
+                    }
+                });
+
+                hostConn.on('close', () => {
+                    showToast('Disconnected from Host', 'error');
+                    resetApp();
+                });
             });
-            myPeer.on('error', (err) => {
-                document.getElementById('btn-connect').classList.remove('hidden');
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                showToast('Could not find room with PIN: ' + pin, 'error');
                 document.getElementById('player-status').classList.add('hidden');
-                showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
+                document.getElementById('btn-connect').disabled = false;
             });
         }
 
-        let cachedSyncData = null;
+        function sendPlayerAction(actionType, extraData = {}) {
+            const payload = {
+                type: actionType,
+                playerId: myPlayerId,
+                ...extraData
+            };
+
+            if (isHost) {
+                handlePlayerAction(payload, { peer: 'HOST' });
+            } else if (hostConn && hostConn.open) {
+                hostConn.send(payload);
+            }
+        }
 
         function togglePlayerTimelineView() {
-            viewingOwnTimeline = !viewingOwnTimeline;
-            if (cachedSyncData) handlePlayerSync(cachedSyncData);
-        }
-
-        function handlePlayerSync(data) {
-            if (!data) return;
-            cachedSyncData = data;
-            
-            const pNameEl = document.getElementById('p-ui-name');
-            const pScoreEl = document.getElementById('p-ui-score');
-            const pTokensEl = document.getElementById('p-ui-tokens');
-            
-            if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
-            if (pScoreEl) pScoreEl.innerText = data.myScore !== undefined ? data.myScore : 0;
-            if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
-            
-            document.getElementById('p-ui-overlay').classList.add('hidden');
-
-            const musicBox = document.getElementById('p-music-controls');
-            const passStealBox = document.getElementById('p-steal-pass-control');
-            const playBtn = document.getElementById('p-btn-play');
-            const viewToggleBtn = document.getElementById('p-btn-toggle-view');
-
-            if (data.state === 'IDLE') {
-                if (musicBox) musicBox.classList.add('hidden');
-                if (passStealBox) passStealBox.classList.add('hidden');
-                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
-                setPlayerHeader('bg-slate-800 border-slate-600', 'Connected! 🟢', 'Waiting for DJ to start the game...', 'text-green-400');
-                const container = document.getElementById('p-ui-timeline');
-                if (container) container.innerHTML = '';
-                return;
-            }
-
-            if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
-                viewToggleBtn.classList.remove('hidden');
-                if (viewingOwnTimeline) {
-                    document.getElementById('toggle-view-text').innerText = "View Active Player";
-                    document.getElementById('toggle-view-icon').className = "fa-solid fa-crosshairs";
-                } else {
-                    document.getElementById('toggle-view-text').innerText = "View My Timeline";
-                    document.getElementById('toggle-view-icon').className = "fa-solid fa-eye";
-                }
+            if (viewingOtherTimelineIndex === null) {
+                // Cycle to active player timeline
+                viewingOtherTimelineIndex = gameState.activePlayerIndex;
             } else {
-                viewToggleBtn.classList.add('hidden');
-                viewingOwnTimeline = false; 
+                viewingOtherTimelineIndex = null; // Back to my timeline
             }
-
-            if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
-                passStealBox.classList.add('hidden');
-                if (data.isActivePlayer) {
-                    musicBox.classList.remove('hidden');
-                    if (data.isPlaying) {
-                        playBtn.className = "bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
-                        playBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Song`;
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Music Playing! 🎵', 'Tap a + slot below to place your card.', 'text-indigo-300');
-                    } else {
-                        playBtn.className = "spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
-                        playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Play Song`;
-                        setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the track.', 'text-indigo-300');
-                    }
-                } else {
-                    musicBox.classList.add('hidden');
-                    const subText = viewingOwnTimeline ? "Inspecting your timeline." : (data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.");
-                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, subText, 'text-slate-300');
-                }
-            } else if (data.state === 'STEALING') {
-                musicBox.classList.add('hidden');
-                if (data.isActivePlayer) {
-                    passStealBox.classList.add('hidden');
-                    const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList}`;
-                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
-                } else {
-                    if (data.hasPassedSteal) {
-                        passStealBox.classList.add('hidden');
-                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList}`, 'text-slate-400');
-                    } else if (data.hasStealed) {
-                        passStealBox.classList.add('hidden');
-                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList}`, 'text-indigo-300');
-                    } else {
-                        passStealBox.classList.remove('hidden');
-                        setPlayerHeader('bg-yellow-950 border-yellow-500', 'Steal Mode! 🎯', 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
-                    }
-                }
-            } else if (data.state === 'REVEAL') {
-                musicBox.classList.add('hidden');
-                passStealBox.classList.add('hidden');
-                showRevealOverlay(data);
-                return;
-            }
-            
-            renderPlayerTimeline(data);
+            updatePlayerUI();
         }
 
-        function setPlayerHeader(bgClass, title, desc, titleColor) {
-            const h = document.getElementById('p-ui-header');
-            h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
-            document.getElementById('p-ui-title').innerText = title;
-            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColor} truncate`;
-            document.getElementById('p-ui-desc').innerText = desc;
-        }
+        // --- RENDER PLAYER GAME UI & TIMELINE CARDS ---
+        function updatePlayerUI() {
+            if (!gameState || !gameState.players) return;
 
-        function renderPlayerTimeline(data) {
-            const container = document.getElementById('p-ui-timeline');
-            if (!container) return;
-            container.innerHTML = '';
+            const myIndex = gameState.players.findIndex(p => p.id === myPlayerId);
+            const myData = gameState.players[myIndex] || { score: 0, tokens: 0, timeline: [] };
+
+            document.getElementById('p-ui-name').innerText = myPlayerName;
+            document.getElementById('p-ui-score').innerText = myData.score || 0;
+            document.getElementById('p-ui-tokens').innerText = myData.tokens || 0;
+
+            const activePlayer = gameState.players[gameState.activePlayerIndex] || {};
+            const isMyTurn = (myIndex === gameState.activePlayerIndex);
+            const isStealTurn = (gameState.stealerIndex === myIndex);
             
-            const timeline = (viewingOwnTimeline && data.ownTimeline) ? data.ownTimeline : (data.timeline || []);
-            
-            for (let i = 0; i <= timeline.length; i++) {
-                const gap = document.createElement('div');
-                gap.className = "flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
-                
-                const guesserName = data.guesses ? data.guesses[i] : null;
-                
-                if (!viewingOwnTimeline && guesserName) {
-                    gap.innerHTML = `<div class="bg-indigo-600 border border-indigo-400 text-white text-[9px] font-bold py-1.5 px-1 rounded-lg text-center w-full shadow-[0_0_10px_rgba(79,70,229,0.5)] break-words leading-tight animate-pulse"><i class="fa-solid fa-crosshairs mb-0.5"></i><br>${guesserName}</div>`;
-                } 
-                else if (!viewingOwnTimeline && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') && data.isActivePlayer) {
-                    gap.innerHTML = `<button onclick="sendPlayerAction('GUESS', ${i})" class="w-11 h-28 bg-indigo-500/20 border-2 border-dashed border-indigo-500 hover:bg-indigo-500/40 text-indigo-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-plus text-sm mb-1"></i><span>Place</span></button>`;
-                } 
-                else if (!viewingOwnTimeline && data.state === 'STEALING' && !data.isActivePlayer && !data.hasPassedSteal && !data.hasStealed && data.myTokens > 0) {
-                    gap.innerHTML = `<button onclick="sendPlayerAction('STEAL', ${i})" class="w-11 h-28 bg-yellow-500/20 border-2 border-dashed border-yellow-500 hover:bg-yellow-500/40 text-yellow-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-coins mb-1 text-xs"></i><span>Steal</span></button>`;
-                } 
-                else {
-                    gap.innerHTML = `<div class="w-full h-full flex items-center justify-center"><div class="h-full border-r-2 border-dashed border-slate-700/50"></div></div>`;
-                }
-                
-                container.appendChild(gap);
-                
-                if (i < timeline.length) {
-                    const t = timeline[i];
-                    let imgUrl = t.c ? (t.c.startsWith('http') ? t.c : `https://i.scdn.co/image/${t.c}`) : '';
-                    const card = document.createElement('div');
-                    card.className = "w-28 h-36 bg-slate-900 border border-slate-600 rounded-xl p-1.5 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center";
-                    card.innerHTML = `
-                        <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-1 leading-none">${t.y}</div>
-                        ${imgUrl ? `<img src="${imgUrl}" class="w-12 h-12 rounded object-cover shadow border border-slate-700 mb-1">` : `<div class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-slate-600 mb-1"><i class="fa-solid fa-music"></i></div>`}
-                        <div class="text-[9px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
-                    `;
-                    container.appendChild(card);
-                }
-            }
+            // Header Status & Controls
+            const titleEl = document.getElementById('p-ui-title');
+            const descEl = document.getElementById('p-ui-desc');
+            const musicCtrl = document.getElementById('p-music-controls');
+            const stealPassCtrl = document.getElementById('p-steal-pass-control');
+            const toggleViewBtn = document.getElementById('p-btn-toggle-view');
 
-            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer) {
-                const revealTriggerBtn = document.createElement('button');
-                const isReady = data.allStealsDone;
-                if (isReady) {
-                    revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2.5 px-5 rounded-full shadow-2xl text-xs flex items-center gap-2 border z-40 transition-all bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 cursor-pointer animate-bounce`;
-                    revealTriggerBtn.innerHTML = `<i class="fa-solid fa-check"></i> Submit & Reveal Answer`;
-                    revealTriggerBtn.onclick = () => sendPlayerAction('EVALUATE_ROUND', 0);
-                } else {
-                    const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
-                    revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
-                    revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Waiting for ${namesList} (Force Reveal)`;
-                    revealTriggerBtn.onclick = () => { if(confirm("Force the round to reveal and skip remaining players?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
-                }
-                container.appendChild(revealTriggerBtn);
-            }
-        }
-
-        function sendPlayerAction(actionType, index) {
-            if (isHostMode && myId === HOST_PLAYER_ID) {
-                handlePlayerAction(HOST_PLAYER_ID, { action: actionType, index: index });
+            if (isMyTurn) {
+                titleEl.innerText = "🎵 YOUR TURN! Listen & Place Card";
+                titleEl.className = "text-sm md:text-base font-bold text-green-400 truncate";
+                descEl.innerText = "Tap slot button on timeline to guess release year!";
+                musicCtrl.classList.remove('hidden');
+                stealPassCtrl.classList.add('hidden');
+                toggleViewBtn.classList.add('hidden');
+                viewingOtherTimelineIndex = null;
+            } else if (isStealTurn) {
+                titleEl.innerText = "⚡ STEAL OPPORTUNITY!";
+                titleEl.className = "text-sm md:text-base font-bold text-amber-400 truncate animate-pulse";
+                descEl.innerText = "Choose the correct spot on timeline or Pass!";
+                musicCtrl.classList.add('hidden');
+                stealPassCtrl.classList.remove('hidden');
+                toggleViewBtn.classList.add('hidden');
+                viewingOtherTimelineIndex = null;
             } else {
-                if (!hostConnection || !hostConnection.open) return;
-                hostConnection.send({ action: actionType, index: index });
-            }
-        }
+                const turnName = gameState.players[gameState.activePlayerIndex]?.name || 'Player';
+                titleEl.innerText = `${turnName}'s Turn`;
+                titleEl.className = "text-sm md:text-base font-bold text-indigo-300 truncate";
+                descEl.innerText = "Listening to music playback...";
+                musicCtrl.classList.add('hidden');
+                stealPassCtrl.classList.add('hidden');
+                toggleViewBtn.classList.remove('hidden');
 
-        function showRevealOverlay(data) {
+                const viewText = document.getElementById('toggle-view-text');
+                if (viewingOtherTimelineIndex !== null) {
+                    viewText.innerText = "View My Timeline";
+                } else {
+                    viewText.innerText = `View ${turnName}'s Timeline`;
+                }
+            }
+
+            // Determine whose timeline to render
+            let targetPlayerIdx = myIndex;
+            if (viewingOtherTimelineIndex !== null && viewingOtherTimelineIndex < gameState.players.length) {
+                targetPlayerIdx = viewingOtherTimelineIndex;
+            } else if (!isMyTurn && !isStealTurn) {
+                targetPlayerIdx = gameState.activePlayerIndex;
+            }
+
+            const targetPlayer = gameState.players[targetPlayerIdx] || myData;
+            renderTimeline(targetPlayer.timeline, (isMyTurn || isStealTurn) && targetPlayerIdx === myIndex);
+
+            // Overlay display for Round Over
             const overlay = document.getElementById('p-ui-overlay');
-            const icon = document.getElementById('p-overlay-icon');
-            const title = document.getElementById('p-overlay-title');
-            const desc = document.getElementById('p-overlay-desc');
-            
-            overlay.classList.remove('hidden');
-            overlay.classList.add('flex');
-            
-            if (data.winnerName) {
-                icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
-                title.innerText = `${data.winnerName} got it!`;
-                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-yellow-400 text-xl">${data.correctYear}</span>.`;
+            if (gameState.status === 'ROUND_OVER' && gameState.roundResult) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+                
+                const res = gameState.roundResult;
+                const icon = document.getElementById('p-overlay-icon');
+                const title = document.getElementById('p-overlay-title');
+                const desc = document.getElementById('p-overlay-desc');
+
+                if (res.success) {
+                    icon.innerHTML = '<i class="fa-solid fa-circle-check text-green-400"></i>';
+                    title.innerText = "Spot On!";
+                    desc.innerText = `${res.placedBy} correctly placed "${res.song.title}" by ${res.song.artist} (${res.song.year})!`;
+                } else {
+                    icon.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+                    title.innerText = "Wrong Timeline Spot!";
+                    desc.innerText = `"${res.song.title}" by ${res.song.artist} was released in ${res.song.year}!`;
+                }
             } else {
-                icon.innerHTML = `<i class="fa-solid fa-skull-crossbones text-red-500"></i>`;
-                title.innerText = `Nobody got it!`;
-                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
+                overlay.classList.add('hidden');
             }
         }
+
+        function renderTimeline(cards, canPlaceSlots) {
+            const container = document.getElementById('p-ui-timeline');
+            container.innerHTML = '';
+
+            // Sort timeline chronologically to display properly
+            const sortedCards = [...cards].sort((a, b) => a.year - b.year);
+
+            for (let i = 0; i <= sortedCards.length; i++) {
+                // Render Placement Slot Button
+                if (canPlaceSlots && gameState.status === 'PLAYING') {
+                    const slotBtn = document.createElement('button');
+                    slotBtn.className = "flex-shrink-0 w-20 h-32 md:w-24 md:h-40 rounded-xl border-2 border-dashed border-indigo-400/70 bg-indigo-500/10 hover:bg-indigo-500/30 text-indigo-300 font-extrabold text-xs flex flex-col items-center justify-center gap-2 transition active:scale-95 animate-pulse-border";
+                    slotBtn.onclick = () => sendPlayerAction('PLACE_CARD', { slotIndex: i });
+
+                    let slotText = "PLACE";
+                    if (i === 0) slotText = "BEFORE";
+                    else if (i === sortedCards.length) slotText = "AFTER";
+
+                    slotBtn.innerHTML = `<i class="fa-solid fa-plus-circle text-lg"></i><span>${slotText}</span>`;
+                    container.appendChild(slotBtn);
+                }
+
+                // Render Card
+                if (i < sortedCards.length) {
+                    const c = sortedCards[i];
+                    const cardEl = document.createElement('div');
+                    cardEl.className = "flex-shrink-0 w-32 md:w-36 h-48 md:h-52 bg-slate-800 border-2 border-slate-600 rounded-2xl p-2 flex flex-col justify-between items-center text-center shadow-lg relative snap-center transition";
+                    
+                    cardEl.innerHTML = `
+                        <div class="w-full h-24 rounded-lg overflow-hidden relative bg-slate-900 border border-slate-700">
+                            <img src="${c.cover}" class="w-full h-full object-cover" alt="Album Cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"></div>
+                        </div>
+                        <div class="w-full px-1">
+                            <div class="text-xs font-bold text-white truncate">${c.title}</div>
+                            <div class="text-[10px] text-slate-400 truncate">${c.artist}</div>
+                        </div>
+                        <div class="w-full bg-indigo-600/30 border border-indigo-500/40 py-1 rounded-lg text-indigo-200 font-black text-sm tracking-wider">
+                            ${c.year}
+                        </div>
+                    `;
+                    container.appendChild(cardEl);
+                }
+            }
+        }
+
+        // --- INIT LISTENER ---
+        window.addEventListener('load', async () => {
+            await handleSpotifyCallback();
+            
+            const savedName = localStorage.getItem('party_player_name');
+            if (savedName) {
+                const hostInput = document.getElementById('host-player-name');
+                if (hostInput) hostInput.value = savedName;
+            }
+        });
     </script>
 </body>
 </html>
-
 
