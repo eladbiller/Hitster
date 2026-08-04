@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.14.0">
+    <meta name="app-version" content="1.15.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -76,14 +76,14 @@
             </div>
             <h3 class="text-xl font-black text-white">Player Disconnected</h3>
             <p id="disconnect-modal-text" class="text-xs text-slate-300 leading-relaxed">
-                <span id="disconnect-player-name" class="font-bold text-red-400">Player</span> has disconnected from the room.
+                <span id="disconnect-player-name" class="font-bold text-red-400">Player</span> dropped offline.
             </p>
             <div class="flex flex-col gap-2 pt-2">
                 <button onclick="pauseGameForDisconnect()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-pause"></i> Pause & Wait for Reconnect
+                    <i class="fa-solid fa-pause"></i> Pause Room & Wait
                 </button>
                 <button onclick="kickDisconnectedPlayer()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-user-minus"></i> Kick Player & Continue Game
+                    <i class="fa-solid fa-user-minus"></i> Kick Player & Continue
                 </button>
             </div>
         </div>
@@ -177,7 +177,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.14.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.15.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -294,7 +294,9 @@
             
             <div id="p-bonus-container" class="hidden flex flex-col items-center mb-4"></div>
 
-            <button id="p-btn-next-round" onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+            <p id="p-reveal-waiting" class="text-xs text-slate-400 mb-4 hidden font-bold animate-pulse"></p>
+
+            <button id="p-btn-next-round" onclick="sendPlayerAction('NEXT_TURN')" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
                 <i class="fa-solid fa-forward"></i> <span id="p-btn-next-text">Next Round</span>
             </button>
         </div>
@@ -484,7 +486,7 @@
         let players = {}; 
         let turnOrder = [];
         let turnIndex = 0;
-        let gameState = 'IDLE'; // IDLE (Lobby), READY_TO_PLAY, PLAYING, STEALING, REVEAL, PAUSED_DISCONNECT, GAME_OVER
+        let gameState = 'IDLE'; // IDLE, READY_TO_PLAY, PLAYING, STEALING, REVEAL, PAUSED_DISCONNECT, GAME_OVER
         let previousStateBeforePause = 'READY_TO_PLAY';
         let pendingDisconnectPlayerId = null;
         
@@ -602,10 +604,11 @@
             players[HOST_PLAYER_ID] = {
                 id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
                 tokens: 2, score: 0,
+                lastPongAt: Date.now(),
                 timeline: [getRandomStarter()]
             };
             turnOrder = [HOST_PLAYER_ID];
-            gameState = 'IDLE'; // LOBBY MODE
+            gameState = 'IDLE'; 
 
             myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
@@ -615,12 +618,32 @@
                 document.getElementById('host-active-info').classList.add('flex');
                 
                 hostBroadcastInterval = setInterval(() => { 
+                    const now = Date.now();
                     if (gameState === 'STEALING') {
-                        const remaining = Math.ceil((stealEndTime - Date.now()) / 1000);
+                        const remaining = Math.ceil((stealEndTime - now) / 1000);
                         if (remaining <= 0) {
                             evaluateAndScoreRound();
                         }
                     }
+                    
+                    // Heartbeat connection tracking
+                    Object.values(players).forEach(p => {
+                        if (p.id !== HOST_PLAYER_ID && p.online) {
+                            if (now - p.lastPongAt > 5000) {
+                                // Lost connection heartbeat
+                                p.online = false;
+                                p.conn = null;
+                                showMessage(`${p.name} dropped offline.`, 'error');
+                                updateHostPlayerList();
+                                if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                                    triggerDisconnectPrompt(p.id, p.name);
+                                }
+                            } else if (p.conn && p.conn.open) {
+                                p.conn.send({ type: 'PING' });
+                            }
+                        }
+                    });
+
                     broadcastSync(); 
                 }, 1000);
 
@@ -636,9 +659,9 @@
                     if (players[stableId]) {
                         players[stableId].conn = conn;
                         players[stableId].online = true;
+                        players[stableId].lastPongAt = Date.now();
                         showMessage(`${pName} reconnected!`, 'success');
                         
-                        // If we were paused waiting for this specific player, resume automatically!
                         if (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId === stableId) {
                             closeDisconnectModal();
                             gameState = previousStateBeforePause;
@@ -648,6 +671,7 @@
                         players[stableId] = {
                             id: stableId, name: pName, conn: conn, online: true,
                             tokens: 2, score: 0,
+                            lastPongAt: Date.now(),
                             timeline: [getRandomStarter()]
                         };
                         if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
@@ -659,31 +683,11 @@
 
                     conn.on('data', (data) => handlePlayerAction(stableId, data));
                 });
-
-                conn.on('close', () => {
-                    const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase();
-                    
-                    if (players[stableId]) {
-                        players[stableId].online = false;
-                        players[stableId].conn = null;
-                        showMessage(`${pName} disconnected.`, 'error');
-                        
-                        // Handle disconnect prompt for host if game has started
-                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
-                            triggerDisconnectPrompt(stableId, pName);
-                        }
-                    }
-                    updateHostPlayerList();
-                    broadcastSync();
-                });
             });
         }
 
         function hostStartGameFromLobby() {
             if (turnOrder.length === 0) return showMessage("No players in room!", "error");
-            
-            // Randomly select starting player!
             turnIndex = Math.floor(Math.random() * turnOrder.length);
             loadTurn();
         }
@@ -693,6 +697,12 @@
             document.getElementById('disconnect-player-name').innerText = pName;
             document.getElementById('host-disconnect-modal').classList.remove('hidden');
             document.getElementById('host-disconnect-modal').classList.add('flex');
+            
+            if (gameState !== 'PAUSED_DISCONNECT') {
+                previousStateBeforePause = gameState;
+                gameState = 'PAUSED_DISCONNECT';
+                broadcastSync();
+            }
         }
 
         function closeDisconnectModal() {
@@ -702,9 +712,7 @@
 
         function pauseGameForDisconnect() {
             closeDisconnectModal();
-            previousStateBeforePause = gameState;
-            gameState = 'PAUSED_DISCONNECT';
-            broadcastSync();
+            // Stays in PAUSED_DISCONNECT state
         }
 
         function kickDisconnectedPlayer() {
@@ -716,7 +724,6 @@
 
             const wasActivePlayer = (turnOrder[turnIndex] === kId);
             
-            // Remove player
             delete players[kId];
             turnOrder = turnOrder.filter(id => id !== kId);
 
@@ -725,13 +732,12 @@
                 return;
             }
 
-            // Restore state if was paused
             if (gameState === 'PAUSED_DISCONNECT') {
                 gameState = previousStateBeforePause;
             }
 
-            // Adjust turn if kicked player was active
             if (wasActivePlayer) {
+                // Skips to next player automatically as the array shrank
                 turnIndex = turnIndex % turnOrder.length;
                 loadTurn();
             } else {
@@ -782,7 +788,6 @@
             // STRICT ROUND ROBIN TURNS (0 -> 1 -> 2 -> 0)
             turnIndex = (turnIndex + 1) % turnOrder.length;
             
-            // If the next player in order happens to be offline, skip them gracefully
             let attempts = 0;
             while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
                 turnIndex = (turnIndex + 1) % turnOrder.length;
@@ -812,6 +817,12 @@
         function handlePlayerAction(pId, data) {
             const activePlayerId = turnOrder[turnIndex];
 
+            // Heartbeat pong response
+            if (data.action === 'PONG') {
+                if (players[pId]) players[pId].lastPongAt = Date.now();
+                return;
+            }
+
             if (data.action === 'REQUEST_SYNC') {
                 sendTargetedSync(pId);
                 return;
@@ -827,8 +838,11 @@
                 return;
             }
 
+            // Only the active player can jump to the next turn
             if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
-                nextTurn();
+                if (pId === activePlayerId || pId === HOST_PLAYER_ID) {
+                    nextTurn();
+                }
                 return;
             }
 
@@ -1125,7 +1139,10 @@
                     switchContainer('player-game-ui'); 
                     hostConnection.send({ action: 'REQUEST_SYNC' });
                 });
-                hostConnection.on('data', (data) => { if (data.type === 'SYNC') handlePlayerSync(data); });
+                hostConnection.on('data', (data) => { 
+                    if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                    if (data.type === 'SYNC') handlePlayerSync(data); 
+                });
                 hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
             });
             myPeer.on('error', (err) => {
@@ -1320,6 +1337,7 @@
             const desc = document.getElementById('p-overlay-desc');
             const bonusContainer = document.getElementById('p-bonus-container');
             const nextBtn = document.getElementById('p-btn-next-round');
+            const waitingText = document.getElementById('p-reveal-waiting');
             const nextText = document.getElementById('p-btn-next-text');
             
             overlay.classList.remove('hidden');
@@ -1330,6 +1348,8 @@
                 title.innerText = `${data.overallWinnerName} WINS!`;
                 desc.innerHTML = `Reached 10 cards!`;
                 nextText.innerText = "Play Again";
+                nextBtn.classList.remove('hidden');
+                waitingText.classList.add('hidden');
                 nextBtn.onclick = () => sendPlayerAction('RESTART_GAME');
                 bonusContainer.classList.add('hidden');
                 return;
@@ -1337,6 +1357,15 @@
 
             nextText.innerText = "Next Round";
             nextBtn.onclick = () => sendPlayerAction('NEXT_TURN');
+
+            if (data.isActivePlayer) {
+                nextBtn.classList.remove('hidden');
+                waitingText.classList.add('hidden');
+            } else {
+                nextBtn.classList.add('hidden');
+                waitingText.innerText = `Waiting for ${data.activePlayerName} to start next round...`;
+                waitingText.classList.remove('hidden');
+            }
 
             if (data.winnerName) {
                 icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
@@ -1348,7 +1377,6 @@
                 desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
             }
 
-            // Bonus Token Logic
             if (data.isActivePlayer && data.isWinner && !data.bonusTokenClaimed) {
                 bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed the Artist & Title! (+1 Token)</button>`;
                 bonusContainer.classList.remove('hidden');
@@ -1360,4 +1388,5 @@
     </script>
 </body>
 </html>
+
 
