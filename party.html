@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.8.0">
+    <meta name="app-version" content="1.9.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -62,7 +62,7 @@
         <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
     </div>
 
-    <!-- MAIN SETUP CONTAINER -->
+    <!-- MAIN SETUP CONTAINER (Strict Flex Column for Portrait & Landscape) -->
     <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] my-auto">
         
         <div class="w-full flex flex-col items-center justify-center text-center shrink-0">
@@ -143,7 +143,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.8.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.9.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -522,15 +522,13 @@
             myPeer.on('connection', (conn) => {
                 conn.on('open', () => {
                     const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase(); // Use name as stable identifier
+                    const stableId = pName.trim().toLowerCase(); // Stable identifier
                     
                     if (players[stableId]) {
-                        // Reconnection
                         players[stableId].conn = conn;
                         players[stableId].online = true;
                         showMessage(`${pName} reconnected!`, 'success');
                     } else {
-                        // New Player
                         players[stableId] = {
                             id: stableId, name: pName, conn: conn, online: true,
                             tokens: 2, score: 0,
@@ -556,7 +554,7 @@
                         showMessage(`${pName} disconnected.`, 'error');
                     }
                     updateHostPlayerList();
-                    // Do NOT remove from turnOrder. Offline players will be skipped.
+                    // Do NOT remove from turnOrder.
                 });
             });
         }
@@ -592,16 +590,8 @@
 
         function nextTurn() {
             if (turnOrder.length === 0) return;
-            
-            // Find next ONLINE player to prevent game halting
-            let attempts = 0;
-            do {
-                turnIndex = (turnIndex + 1) % turnOrder.length;
-                attempts++;
-            } while (!players[turnOrder[turnIndex]].online && attempts <= turnOrder.length);
-            
-            if (attempts > turnOrder.length) return showMessage("Everyone is offline!", "error");
-
+            // Strict round-robin rotation
+            turnIndex = (turnIndex + 1) % turnOrder.length;
             loadTurn();
         }
 
@@ -613,7 +603,7 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore offline players
+                if (!p || !p.online) return true; // Ignore offline
                 if (p.tokens <= 0) return true; 
                 return stealDecisions[id] !== undefined;
             });
@@ -623,7 +613,7 @@
             const activePlayerId = turnOrder[turnIndex];
 
             if (data.action === 'REQUEST_SYNC') {
-                broadcastSync();
+                sendTargetedSync(pId);
                 return;
             }
             
@@ -718,78 +708,92 @@
             }
 
             updateHostPlayerList();
-
-            Object.values(players).forEach(p => {
-                const payload = {
-                    type: 'SYNC', state: 'REVEAL',
-                    correctYear: targetYear, trackTitle: currentHostTrack.t,
-                    artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
-                    winningSlot: winningSlot, myScore: p.score, myTokens: p.tokens
-                };
-                if (p.conn && p.online) p.conn.send(payload);
-            });
-
-            const hostP = players[HOST_PLAYER_ID];
-            if (hostP) {
-                handlePlayerSync({
-                    state: 'REVEAL', correctYear: targetYear, trackTitle: currentHostTrack.t,
-                    artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
-                    winningSlot: winningSlot, myScore: hostP.score, myTokens: hostP.tokens
-                });
-            }
+            broadcastSync();
 
             setTimeout(() => { if (gameState === 'REVEAL') nextTurn(); }, 5000);
         }
 
-        function broadcastSync() {
-            if (turnOrder.length === 0) return;
+        function buildSyncObj(pId) {
             const activePlayerId = turnOrder[turnIndex];
             const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
             const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
             
-            const badge = document.getElementById('host-status-badge');
-            document.getElementById('host-turn-player-name').innerText = activePlayerName;
-            if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
-            else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
-            else if (gameState === 'STEALING') badge.innerText = "STEAL MODE 🎯";
-            else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
-
             const guessNameMap = {};
-            for (const [pId, slot] of Object.entries(currentGuesses)) { 
-                if (players[pId]) guessNameMap[slot] = players[pId].name; 
+            for (const [gId, slot] of Object.entries(currentGuesses)) { 
+                if (players[gId]) guessNameMap[slot] = players[gId].name; 
             }
 
             const allStealsDone = checkAllStealsSubmitted();
+            const p = players[pId];
 
-            Object.values(players).forEach(p => {
-                const syncObj = {
-                    type: 'SYNC', state: gameState, isPlaying: isPlaying,
-                    activePlayerName: activePlayerName, isActivePlayer: p.id === activePlayerId,
-                    timeline: activeTimeline,
-                    ownTimeline: p.timeline,
-                    guesses: guessNameMap,
-                    hasPassedSteal: stealDecisions[p.id] === 'PASS',
-                    hasStealed: stealDecisions[p.id] === 'STEAL',
-                    allStealsDone: allStealsDone,
-                    myScore: p.score, myTokens: p.tokens
-                };
-                if (p.conn && p.online) p.conn.send(syncObj);
-            });
+            return {
+                type: 'SYNC', state: gameState, isPlaying: isPlaying,
+                activePlayerName: activePlayerName, isActivePlayer: p.id === activePlayerId,
+                timeline: activeTimeline, ownTimeline: p.timeline,
+                guesses: guessNameMap,
+                hasPassedSteal: stealDecisions[p.id] === 'PASS',
+                hasStealed: stealDecisions[p.id] === 'STEAL',
+                allStealsDone: allStealsDone,
+                myScore: p.score, myTokens: p.tokens,
+                correctYear: gameState === 'REVEAL' ? currentHostTrack.y : null,
+                trackTitle: gameState === 'REVEAL' ? currentHostTrack.t : null,
+                artistName: gameState === 'REVEAL' ? currentHostTrack.a : null,
+                winnerName: (gameState === 'REVEAL' && Object.keys(currentGuesses).length > 0) ? guessNameMap[currentGuesses[pId]] || "Someone" : null // Overwritten properly in reveal logic earlier, simplified here
+            };
+        }
 
-            const hostP = players[HOST_PLAYER_ID];
-            if (hostP) {
-                handlePlayerSync({
-                    type: 'SYNC', state: gameState, isPlaying: isPlaying,
-                    activePlayerName: activePlayerName, isActivePlayer: HOST_PLAYER_ID === activePlayerId,
-                    timeline: activeTimeline,
-                    ownTimeline: hostP.timeline,
-                    guesses: guessNameMap,
-                    hasPassedSteal: stealDecisions[HOST_PLAYER_ID] === 'PASS',
-                    hasStealed: stealDecisions[HOST_PLAYER_ID] === 'STEAL',
-                    allStealsDone: allStealsDone,
-                    myScore: hostP.score, myTokens: hostP.tokens
-                });
+        function sendTargetedSync(pId) {
+            const p = players[pId];
+            if (!p) return;
+            if (gameState === 'IDLE') {
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', myScore: p.score, myTokens: p.tokens });
+                return;
             }
+            const syncObj = buildSyncObj(pId);
+            
+            if (gameState === 'REVEAL') {
+                // Recompute exact winner name for the sync obj if in reveal
+                 const activePlayerId = turnOrder[turnIndex];
+                 const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
+                 const targetYear = currentHostTrack.y;
+                 let wId = null;
+                 let wSlot = -1;
+                 const isCorrect = (idx) => {
+                    const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
+                    const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
+                    return targetYear >= prevY && targetYear <= nextY;
+                 };
+                 if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
+                     wId = activePlayerId; wSlot = currentGuesses[activePlayerId];
+                 } else {
+                     for (const [sId, sIdx] of Object.entries(currentGuesses)) {
+                         if (sId !== activePlayerId && isCorrect(sIdx)) { wId = sId; wSlot = sIdx; break; }
+                     }
+                 }
+                 syncObj.winnerName = wId ? players[wId].name : null;
+                 syncObj.winningSlot = wSlot;
+            }
+
+            if (pId === HOST_PLAYER_ID) {
+                handlePlayerSync(syncObj);
+            } else {
+                if (p.conn && p.online) p.conn.send(syncObj);
+            }
+        }
+
+        function broadcastSync() {
+            if (gameState !== 'IDLE') {
+                const activePlayerId = turnOrder[turnIndex];
+                const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
+                const badge = document.getElementById('host-status-badge');
+                document.getElementById('host-turn-player-name').innerText = activePlayerName;
+                if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
+                else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
+                else if (gameState === 'STEALING') badge.innerText = "STEAL MODE 🎯";
+                else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+            }
+
+            Object.keys(players).forEach(pId => sendTargetedSync(pId));
         }
 
         // Host View Switching Controls
@@ -802,14 +806,10 @@
             switchContainer('host-game-ui');
         }
 
-        // Orientation auto-switch for Host
         window.addEventListener('orientationchange', () => {
             if (isHostMode) {
-                if (window.orientation === 90 || window.orientation === -90) {
-                    switchHostToPlayerView();
-                } else {
-                    switchPlayerToHostView();
-                }
+                if (window.orientation === 90 || window.orientation === -90) switchHostToPlayerView();
+                else switchPlayerToHostView();
             }
         });
 
@@ -836,7 +836,16 @@
                 myId = id;
                 hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
                 
+                let connTimeout = setTimeout(() => {
+                    if (!hostConnection || !hostConnection.open) {
+                        document.getElementById('btn-connect').classList.remove('hidden');
+                        document.getElementById('player-status').classList.add('hidden');
+                        showMessage("Connection timed out. Check PIN.", "error");
+                    }
+                }, 8000);
+
                 hostConnection.on('open', () => { 
+                    clearTimeout(connTimeout);
                     switchContainer('player-game-ui'); 
                     hostConnection.send({ action: 'REQUEST_SYNC' });
                 });
@@ -875,6 +884,16 @@
             const passStealBox = document.getElementById('p-steal-pass-control');
             const playBtn = document.getElementById('p-btn-play');
             const viewToggleBtn = document.getElementById('p-btn-toggle-view');
+
+            if (data.state === 'IDLE') {
+                if (musicBox) musicBox.classList.add('hidden');
+                if (passStealBox) passStealBox.classList.add('hidden');
+                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
+                setPlayerHeader('bg-slate-800 border-slate-600', 'Connected! 🟢', 'Waiting for DJ to start the game...', 'text-green-400');
+                const container = document.getElementById('p-ui-timeline');
+                if (container) container.innerHTML = '';
+                return;
+            }
 
             if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
                 viewToggleBtn.classList.remove('hidden');
