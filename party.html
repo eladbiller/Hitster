@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.3.0">
+    <meta name="app-version" content="1.4.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -40,29 +40,37 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-4">
 
+    <!-- Fullscreen Toggle Button -->
+    <button onclick="toggleFullScreen()" class="fixed top-4 right-4 z-[1000] bg-slate-800/80 p-3 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square">
+        <i class="fa-solid fa-expand" id="fs-icon"></i>
+    </button>
+
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
-    <!-- MAIN SETUP CONTAINER (Centered) -->
-    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 text-center space-y-6 relative overflow-hidden">
+    <!-- MAIN SETUP CONTAINER (Fixed Layout Bug) -->
+    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-6 relative overflow-hidden">
         
-        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1" id="main-title">
-            <i class="fa-solid fa-users text-green-400 mr-2"></i> Hitster Party
-        </h1>
-        <p class="text-slate-400 text-xs mb-4" id="main-desc">Live multiplayer music timeline game.</p>
+        <div class="w-full flex flex-col items-center justify-center text-center">
+            <i class="fa-solid fa-users text-green-400 text-4xl mb-2 block"></i>
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight" id="main-title">
+                Hitster Party
+            </h1>
+            <p class="text-slate-400 text-xs mt-1" id="main-desc">Live multiplayer music timeline game.</p>
+        </div>
         
-        <!-- View 1: Role Selection (Fixed Stacking for Mobile) -->
-        <div id="view-roles" class="flex flex-col space-y-3 w-full">
+        <!-- View 1: Role Selection (Strict Flex Col) -->
+        <div id="view-roles" class="flex flex-col gap-3 w-full items-center">
             <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
-                <i class="fa-solid fa-crown text-yellow-400 text-lg"></i>
-                <div class="text-left">
+                <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
+                <div class="text-left flex-1">
                     <div class="text-base font-extrabold leading-tight">Create Room</div>
                     <div class="text-[10px] text-indigo-200 font-normal">Host DJ (Plays Music)</div>
                 </div>
             </button>
             <button onclick="showPlayerJoin()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3 border border-slate-600">
-                <i class="fa-solid fa-mobile-screen text-green-400 text-lg"></i>
-                <div class="text-left">
+                <i class="fa-solid fa-mobile-screen text-green-400 text-xl"></i>
+                <div class="text-left flex-1">
                     <div class="text-base font-extrabold leading-tight">Join Room</div>
                     <div class="text-[10px] text-slate-300 font-normal">Player Remote</div>
                 </div>
@@ -70,12 +78,14 @@
         </div>
 
         <!-- View 2: Spotify Login (Host Only) -->
-        <div id="view-spotify-login" class="hidden flex-col items-center space-y-4">
+        <div id="view-spotify-login" class="hidden flex-col items-center w-full gap-4">
             <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-2">
                 <i class="fa-brands fa-spotify"></i>
             </div>
-            <h2 class="text-xl font-bold">Host requires Spotify</h2>
-            <p class="text-xs text-slate-400">Premium is required to stream music directly to this browser tab.</p>
+            <div class="text-center">
+                <h2 class="text-xl font-bold">Host requires Spotify</h2>
+                <p class="text-xs text-slate-400 mt-1">Premium is required to stream music directly to this browser tab.</p>
+            </div>
             
             <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
@@ -84,26 +94,28 @@
         </div>
 
         <!-- View 3: Host Setup (Select Playlist) -->
-        <div id="view-host-setup" class="hidden flex-col items-center space-y-4">
+        <div id="view-host-setup" class="hidden flex-col items-center w-full gap-4">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 w-full text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> DJ Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold">Ready</span>
             </div>
             <h2 class="text-xl font-bold text-white pt-2">Choose Music Source</h2>
             
-            <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-1 border border-purple-400/50">
-                <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
-                <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
-            </button>
+            <div class="w-full flex flex-col gap-3">
+                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-1 border border-purple-400/50">
+                    <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
+                    <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
+                </button>
 
-            <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
-                <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
-            </button>
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-4">Logout Spotify</button>
+                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
+                </button>
+            </div>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2">Logout Spotify</button>
         </div>
 
         <!-- View 4: Player Join Form -->
-        <div id="view-player-join" class="hidden flex-col items-center space-y-4">
+        <div id="view-player-join" class="hidden flex-col items-center w-full gap-4">
             <input type="number" id="join-pin" placeholder="PIN" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-center text-indigo-400 font-black text-3xl focus:outline-none focus:border-indigo-500 tracking-widest">
             <input type="text" id="join-name" placeholder="Your Name" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-base focus:outline-none focus:border-indigo-500" maxlength="12">
             
@@ -115,7 +127,7 @@
         </div>
 
         <!-- Version Number -->
-        <p class="text-slate-500 text-xs mt-4 font-mono" id="version-tag">v1.3.0</p>
+        <p class="text-slate-500 text-[10px] font-mono absolute bottom-2 right-3" id="version-tag">v1.4.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -138,7 +150,7 @@
                 <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
                 <div id="host-turn-player-name" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
                 <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-xs px-3 py-1 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
-                <p class="text-[11px] text-slate-500 italic mt-2">Leave this screen open and screen unlocked. Players control playback from their phones!</p>
+                <p class="text-[11px] text-slate-500 italic mt-2">Leave this screen open. Players control playback from their phones!</p>
             </div>
         </div>
         
@@ -150,7 +162,7 @@
     </div>
 
     <!-- PLAYER REMOTE UI -->
-    <div id="player-game-ui" class="hidden w-full h-[95vh] flex-col items-center p-2 max-w-lg">
+    <div id="player-game-ui" class="hidden w-full h-[95vh] flex-col items-center p-2 max-w-lg mt-10">
         <!-- Top Bar -->
         <div class="w-full flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0">
             <div class="flex items-center gap-2">
@@ -162,8 +174,12 @@
                 <div class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
                 </div>
-                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
-                    <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
+                <!-- Token Control UI -->
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-2">
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span></div>
+                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-5 h-5 flex items-center justify-center font-black transition active:scale-95">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -173,7 +189,6 @@
             <h2 id="p-ui-title" class="text-xl font-bold text-white">Loading...</h2>
             <p id="p-ui-desc" class="text-xs text-slate-400 mt-1 mb-2">Syncing with Host</p>
             
-            <!-- Active Player Remote Control Buttons -->
             <div id="p-music-controls" class="hidden w-full pt-2 border-t border-slate-800 mt-2">
                 <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-full bg-green-500 hover:bg-green-400 text-slate-950 font-black py-3 rounded-xl shadow-lg transition text-base flex items-center justify-center gap-2">
                     <i class="fa-solid fa-play"></i> Start Song
@@ -184,7 +199,7 @@
         <!-- Horizontal Scrollable Timeline -->
         <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
             <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-1 px-4 py-4 hide-scrollbar scroll-smooth snap-x">
-                <!-- Javascript injects timeline cards and placement gaps here -->
+                <!-- Javascript injects timeline cards -->
             </div>
         </div>
         
@@ -197,6 +212,30 @@
     </div>
 
     <script>
+        // --- FULLSCREEN FUNCTIONALITY ---
+        function toggleFullScreen() {
+            const doc = window.document;
+            const docEl = doc.documentElement;
+            const icon = document.getElementById('fs-icon');
+
+            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                requestFullScreen.call(docEl).then(() => {
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                }).catch(err => {
+                    showMessage("Fullscreen denied by browser.", "error");
+                });
+            } else {
+                cancelFullScreen.call(doc).then(() => {
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                });
+            }
+        }
+
         // --- SPOTIFY OAUTH (PKCE) ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
@@ -315,12 +354,11 @@
         const PEER_PREFIX = 'hitster-party-v1-'; 
         let myPeer = null; 
         
-        // Host Data (Server Source of Truth)
         let players = {}; 
         let turnOrder = [];
         let turnIndex = 0;
-        let gameState = 'IDLE'; // IDLE, READY_TO_PLAY, PLAYING, STEALING, REVEAL
-        let currentGuesses = {}; // { peerId: slotIndex }
+        let gameState = 'IDLE';
+        let currentGuesses = {}; 
         
         let tracks = [];
         let currentHostTrack = null;
@@ -328,7 +366,6 @@
         let spotifyPlayer = null;
         let webDeviceId = null;
         
-        // Player Local Data
         let hostConnection = null; 
         let myPlayerName = "";
         let myId = "";
@@ -395,7 +432,6 @@
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
                 });
-
                 initHostNetwork(); 
             });
 
@@ -435,7 +471,6 @@
                     updateHostPlayerList();
                     showMessage(`${pName} joined!`, 'success');
                     
-                    // If first player joined, load first song turn
                     if (gameState === 'IDLE' && turnOrder.length === 1) {
                         turnIndex = 0;
                         loadTurn();
@@ -490,7 +525,16 @@
         function handlePlayerAction(pId, data) {
             const activePlayerId = turnOrder[turnIndex];
             
-            // Player toggles play/pause from remote
+            // Add a manual token requested by player
+            if (data.action === 'ADD_TOKEN') {
+                if (players[pId]) {
+                    players[pId].tokens++;
+                    updateHostPlayerList();
+                    broadcastSync();
+                }
+                return; 
+            }
+
             if (data.action === 'TOGGLE_PLAY' && pId === activePlayerId) {
                 if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
                     if (isPlaying) {
@@ -506,29 +550,23 @@
                     broadcastSync();
                 }
             }
-            
-            // Player places card while listening -> Stops music & triggers Steal Mode
             else if (data.action === 'GUESS' && pId === activePlayerId) {
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
-                if (spotifyPlayer) spotifyPlayer.pause(); // Stop music immediately
+                if (spotifyPlayer) spotifyPlayer.pause();
                 broadcastSync();
             }
-            
-            // Stealers guess
             else if (data.action === 'STEAL' && gameState === 'STEALING') {
                 if (pId === activePlayerId) return;
                 const player = players[pId];
-                if (player.tokens <= 0) return;
-                if (Object.values(currentGuesses).includes(data.index)) return; // Slot taken
+                if (player.tokens <= 0) return; // Automatic block if no tokens
+                if (Object.values(currentGuesses).includes(data.index)) return;
                 
-                player.tokens--;
+                player.tokens--; // System deducts on use
                 currentGuesses[pId] = data.index;
                 updateHostPlayerList();
                 broadcastSync();
             }
-
-            // DJ/Player triggers reveal evaluation
             else if (data.action === 'EVALUATE_ROUND') {
                 evaluateAndScoreRound();
             }
@@ -572,29 +610,21 @@
             Object.values(players).forEach(p => {
                 p.conn.send({
                     type: 'SYNC', state: 'REVEAL',
-                    correctYear: targetYear,
-                    trackTitle: currentHostTrack.t,
-                    artistName: currentHostTrack.a,
-                    winnerName: winnerId ? players[winnerId].name : null,
-                    winningSlot: winningSlot,
-                    myScore: p.score, myTokens: p.tokens
+                    correctYear: targetYear, trackTitle: currentHostTrack.t,
+                    artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
+                    winningSlot: winningSlot, myScore: p.score, myTokens: p.tokens
                 });
             });
 
-            // Automatically move to next turn after 5 seconds
-            setTimeout(() => {
-                if (gameState === 'REVEAL') nextTurn();
-            }, 5000);
+            setTimeout(() => { if (gameState === 'REVEAL') nextTurn(); }, 5000);
         }
 
         function broadcastSync() {
             if (turnOrder.length === 0) return;
             const activePlayerId = turnOrder[turnIndex];
             const activeTimeline = players[activePlayerId].timeline;
-            
             const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
             
-            // Host Badge Status
             const badge = document.getElementById('host-status-badge');
             document.getElementById('host-turn-player-name').innerText = activePlayerName;
             if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
@@ -603,21 +633,14 @@
             else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
 
             const guessNameMap = {};
-            for (const [pId, slot] of Object.entries(currentGuesses)) {
-                guessNameMap[slot] = players[pId].name;
-            }
+            for (const [pId, slot] of Object.entries(currentGuesses)) { guessNameMap[slot] = players[pId].name; }
 
             Object.values(players).forEach(p => {
                 p.conn.send({
-                    type: 'SYNC',
-                    state: gameState,
-                    isPlaying: isPlaying,
-                    activePlayerName: activePlayerName,
-                    isActivePlayer: p.id === activePlayerId,
-                    timeline: activeTimeline,
-                    guesses: guessNameMap,
-                    myScore: p.score,
-                    myTokens: p.tokens
+                    type: 'SYNC', state: gameState, isPlaying: isPlaying,
+                    activePlayerName: activePlayerName, isActivePlayer: p.id === activePlayerId,
+                    timeline: activeTimeline, guesses: guessNameMap,
+                    myScore: p.score, myTokens: p.tokens
                 });
             });
         }
@@ -744,9 +767,7 @@
                 }
             }
 
-            // If active player placed card and everyone else is done or stealers guessed, trigger round eval
             if (data.state === 'STEALING' && data.isActivePlayer) {
-                // Add an explicit "Lock & Reveal" button for active player to proceed if no one wants to steal
                 const revealTriggerBtn = document.createElement('button');
                 revealTriggerBtn.className = "fixed bottom-4 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-full shadow-2xl text-xs flex items-center gap-2 border border-indigo-400 z-40";
                 revealTriggerBtn.innerHTML = `<i class="fa-solid fa-check"></i> Submit & Reveal Answer`;
@@ -782,4 +803,5 @@
     </script>
 </body>
 </html>
+
 
