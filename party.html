@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.21.0">
+    <meta name="app-version" content="1.22.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -55,7 +55,7 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Screen Controls (Bottom Left to prevent overlap with counters) -->
+    <!-- Screen Controls (Bottom Left to prevent overlap) -->
     <div class="fixed bottom-3 left-3 z-[1000] flex gap-2">
         <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
             A
@@ -152,31 +152,21 @@
 
             <h2 class="text-xs font-bold text-white pt-1">Choose Music Source</h2>
             
-            <div class="w-full flex flex-col gap-2">
+            <div class="w-full flex flex-col gap-3">
                 <button id="resume-game-btn" onclick="resumeHostGame()" class="hidden w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-blue-400/50 text-sm mb-1">
                     <i class="fa-solid fa-clock-rotate-left"></i> Resume Saved Game
                 </button>
 
-                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
-                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-globe"></i> Global Hits</span>
-                    <span class="text-[9px] text-purple-200 font-normal">200 Tracks: 1960 to 2024</span>
+                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
+                    <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-globe"></i> Classic Hitster Mix</span>
+                    <span class="text-xs text-purple-200 font-normal">200 Tracks: 1960 to 2024</span>
                 </button>
 
-                <button onclick="startHostGame('hebrew')" class="w-full bg-indigo-700 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-indigo-500/50">
-                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-star-of-david"></i> Hebrew Hits</span>
-                    <span class="text-[9px] text-indigo-200 font-normal">200 Tracks: Israeli Pop & Classics</span>
-                </button>
-
-                <button onclick="startHostGame('pop2000s')" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-pink-400/50">
-                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> 2000s Pop</span>
-                    <span class="text-[9px] text-pink-200 font-normal">Nostalgia 2000-2009</span>
-                </button>
-
-                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm mt-1">
                     <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
                 </button>
             </div>
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-1">Logout Spotify</button>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2">Logout Spotify</button>
         </div>
 
         <!-- View 4: Player Join Form -->
@@ -191,7 +181,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.21.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.22.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -243,7 +233,7 @@
     </div>
 
     <!-- PLAYER REMOTE UI -->
-    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
+    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl pl-16">
         <!-- Top Bar -->
         <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
             <div class="flex items-center gap-2">
@@ -265,7 +255,6 @@
                 <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-baseline gap-1">
                     <i class="fa-solid fa-layer-group text-green-400 self-center"></i> <span id="p-ui-score">0</span><span class="text-[9px] text-green-200">/10</span>
                 </div>
-                <!-- Removed ADD_TOKEN manual button. Only display tokens here -->
                 <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
                     <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
@@ -553,19 +542,6 @@
             requestWakeLock(); 
             
             try {
-                let searchQueries = [];
-                // Fallback to the highly stable original search queries format that worked!
-                if (mode === 'hitster_classic') {
-                    searchQueries = ['year:1960-1979', 'year:1980-1989', 'year:1990-1999', 'year:2000-2009', 'year:2010-2024'];
-                } else if (mode === 'hebrew') {
-                    searchQueries = ['year:1970-1989 genre:israeli', 'year:1990-1999 genre:israeli', 'year:2000-2009 genre:israeli', 'year:2010-2024 genre:israeli', 'year:2010-2024 genre:mizrahi'];
-                } else if (mode === 'pop2000s') {
-                    searchQueries = ['year:2000-2001 genre:pop', 'year:2002-2003 genre:pop', 'year:2004-2005 genre:pop', 'year:2006-2007 genre:pop', 'year:2008-2009 genre:pop'];
-                } else if (mode === 'rock') {
-                    searchQueries = ['year:1970-1989 genre:rock', 'year:1990-1999 genre:rock', 'year:2000-2009 genre:rock', 'year:1980-2010 genre:metal', 'year:1990-2010 genre:alternative'];
-                }
-
-                let fetchPromises = [];
                 let rawItems = [];
 
                 if (mode === 'liked') {
@@ -573,19 +549,17 @@
                     const total = initData.total || 50;
                     for(let i=0; i<4; i++) {
                         let offset = Math.floor(Math.random() * Math.max(1, total - 50)); 
-                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`));
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
+                        if (data.items) rawItems.push(...data.items);
                     }
+                } else {
+                    // EXACT ORIGINAL ROBUST FETCH CODE (Restored)
+                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=40&offset=${Math.floor(Math.random() * 50)}`));
                     const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.items) rawItems.push(...res.items); });
-                } else if (searchQueries.length > 0) {
-                    searchQueries.forEach(q => {
-                        // Requesting 40 tracks per query to easily exceed 150-200 track pool
-                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=40&offset=${Math.floor(Math.random() * 20)}`));
-                    });
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => {
+                    results.forEach(res => { 
                         if (res.tracks && res.tracks.items) {
-                            rawItems.push(...res.tracks.items.map(t => ({ track: t })));
+                            rawItems.push(...res.tracks.items.map(t => ({ track: t }))); 
                         }
                     });
                 }
@@ -598,7 +572,9 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                if (tracks.length === 0) throw new Error("No valid tracks found for this category.");
+                if (tracks.length === 0) throw new Error("No valid tracks found.");
+                
+                // Shuffle tracks randomly
                 tracks.sort(() => Math.random() - 0.5); 
 
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
@@ -744,6 +720,9 @@
                                 updateHostPlayerList();
                                 if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
                                     triggerDisconnectPrompt(p.id, p.name);
+                                }
+                                if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
+                                    try { evaluateAndScoreRound(); } catch(e) {}
                                 }
                             } else if (p.conn && p.conn.open) {
                                 p.conn.send({ type: 'PING' });
@@ -924,8 +903,9 @@
         function nextTurn() {
             if (turnOrder.length === 0) return;
             
-            // STRICT ROUND ROBIN TURNS. Do NOT auto-skip offline players.
-            // Offline players MUST be explicitly kicked by the host to remove them from the array.
+            // STRICT ROUND ROBIN TURNS.
+            // Do NOT auto-skip offline players automatically here. 
+            // The disconnect modal forces the host to explicitly kick them if they want to skip.
             turnIndex = (turnIndex + 1) % turnOrder.length;
             
             loadTurn();
@@ -1265,7 +1245,7 @@
             myPeer = new Peer(peerConfig);
             myPeer.on('open', (id) => {
                 myId = id;
-                hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName } });
+                hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
                 
                 let connTimeout = setTimeout(() => {
                     if (!hostConnection || !hostConnection.open) {
