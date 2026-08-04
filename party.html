@@ -62,7 +62,7 @@
         <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
     </div>
 
-    <!-- MAIN SETUP CONTAINER (Strict Flex Column for Portrait & Landscape) -->
+    <!-- MAIN SETUP CONTAINER -->
     <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] my-auto">
         
         <div class="w-full flex flex-col items-center justify-center text-center shrink-0">
@@ -169,6 +169,9 @@
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
                 <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
                 <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
+                <div id="host-action-warning" class="hidden w-full bg-red-500/20 border border-red-500 text-red-400 p-2 rounded-lg text-[10px] font-bold mt-2 animate-pulse">
+                    Waiting for YOU! Switch to Player Mode.
+                </div>
             </div>
         </div>
         
@@ -245,7 +248,10 @@
         <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm">
             <div id="p-overlay-icon" class="text-5xl mb-2"><i class="fa-solid fa-check-circle text-green-400"></i></div>
             <h2 id="p-overlay-title" class="text-2xl font-black text-white mb-1">Result</h2>
-            <p id="p-overlay-desc" class="text-sm text-slate-300">Description here.</p>
+            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-6">Description here.</p>
+            <button onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+                <i class="fa-solid fa-forward"></i> Next Round
+            </button>
         </div>
     </div>
 
@@ -281,7 +287,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
-            // Prefill local name if exists
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
 
@@ -396,6 +401,18 @@
         // --- GLOBAL STATE ---
         const PEER_PREFIX = 'hitster-party-v1-'; 
         const HOST_PLAYER_ID = 'host-local-player';
+        
+        // PeerJS Config with robust STUN servers
+        const peerConfig = {
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        };
+
         let myPeer = null; 
         
         let players = {}; 
@@ -500,7 +517,6 @@
             myId = HOST_PLAYER_ID;
             myPlayerName = hostName;
 
-            // Host is always online
             players[HOST_PLAYER_ID] = {
                 id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
                 tokens: 2, score: 0,
@@ -508,7 +524,7 @@
             };
             turnOrder.push(HOST_PLAYER_ID);
 
-            myPeer = new Peer(PEER_PREFIX + pin, { debug: 2 });
+            myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
             myPeer.on('open', () => {
                 document.getElementById('host-loading-info').classList.add('hidden');
@@ -522,7 +538,7 @@
             myPeer.on('connection', (conn) => {
                 conn.on('open', () => {
                     const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase(); // Stable identifier
+                    const stableId = pName.trim().toLowerCase(); 
                     
                     if (players[stableId]) {
                         players[stableId].conn = conn;
@@ -554,7 +570,13 @@
                         showMessage(`${pName} disconnected.`, 'error');
                     }
                     updateHostPlayerList();
-                    // Do NOT remove from turnOrder.
+                    
+                    // If steal mode was waiting on this person, auto-evaluate
+                    if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
+                        evaluateAndScoreRound();
+                    } else {
+                        broadcastSync();
+                    }
                 });
             });
         }
@@ -590,8 +612,15 @@
 
         function nextTurn() {
             if (turnOrder.length === 0) return;
-            // Strict round-robin rotation
-            turnIndex = (turnIndex + 1) % turnOrder.length;
+            
+            let attempts = 0;
+            do {
+                turnIndex = (turnIndex + 1) % turnOrder.length;
+                attempts++;
+            } while (!players[turnOrder[turnIndex]].online && attempts <= turnOrder.length);
+            
+            if (attempts > turnOrder.length) return showMessage("Everyone is offline!", "error");
+
             loadTurn();
         }
 
@@ -603,8 +632,8 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore offline
-                if (p.tokens <= 0) return true; 
+                if (!p || !p.online) return true; // Auto-pass offline players
+                if (p.tokens <= 0) return true; // Auto-pass players with no tokens
                 return stealDecisions[id] !== undefined;
             });
         }
@@ -624,6 +653,11 @@
                     broadcastSync();
                 }
                 return; 
+            }
+
+            if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
+                nextTurn();
+                return;
             }
 
             if (data.action === 'TOGGLE_PLAY' && pId === activePlayerId) {
@@ -646,7 +680,13 @@
                 gameState = 'STEALING';
                 stealDecisions = {}; 
                 if (spotifyPlayer) spotifyPlayer.pause();
-                broadcastSync();
+                
+                // Immediately check if steals are done (e.g. 2 player game and P2 has 0 tokens)
+                if (checkAllStealsSubmitted()) {
+                    evaluateAndScoreRound();
+                } else {
+                    broadcastSync();
+                }
             }
             else if (data.action === 'STEAL' && gameState === 'STEALING') {
                 if (pId === activePlayerId) return;
@@ -658,19 +698,16 @@
                 currentGuesses[pId] = data.index;
                 stealDecisions[pId] = 'STEAL';
                 updateHostPlayerList();
-                broadcastSync();
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
             }
             else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
                 if (pId === activePlayerId) return;
                 stealDecisions[pId] = 'PASS';
-                broadcastSync();
-            }
-            else if (data.action === 'EVALUATE_ROUND') {
-                if (checkAllStealsSubmitted()) {
-                    evaluateAndScoreRound();
-                } else {
-                    showMessage("Waiting for all players to steal or pass!", "info");
-                }
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
             }
         }
 
@@ -709,8 +746,7 @@
 
             updateHostPlayerList();
             broadcastSync();
-
-            setTimeout(() => { if (gameState === 'REVEAL') nextTurn(); }, 5000);
+            // We removed the auto-timeout for Next Turn. Players must click "Next Round"
         }
 
         function buildSyncObj(pId) {
@@ -726,7 +762,7 @@
             const allStealsDone = checkAllStealsSubmitted();
             const p = players[pId];
 
-            return {
+            const syncObj = {
                 type: 'SYNC', state: gameState, isPlaying: isPlaying,
                 activePlayerName: activePlayerName, isActivePlayer: p.id === activePlayerId,
                 timeline: activeTimeline, ownTimeline: p.timeline,
@@ -738,24 +774,10 @@
                 correctYear: gameState === 'REVEAL' ? currentHostTrack.y : null,
                 trackTitle: gameState === 'REVEAL' ? currentHostTrack.t : null,
                 artistName: gameState === 'REVEAL' ? currentHostTrack.a : null,
-                winnerName: (gameState === 'REVEAL' && Object.keys(currentGuesses).length > 0) ? guessNameMap[currentGuesses[pId]] || "Someone" : null // Overwritten properly in reveal logic earlier, simplified here
+                winnerName: null 
             };
-        }
 
-        function sendTargetedSync(pId) {
-            const p = players[pId];
-            if (!p) return;
-            if (gameState === 'IDLE') {
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', myScore: p.score, myTokens: p.tokens });
-                return;
-            }
-            const syncObj = buildSyncObj(pId);
-            
             if (gameState === 'REVEAL') {
-                // Recompute exact winner name for the sync obj if in reveal
-                 const activePlayerId = turnOrder[turnIndex];
-                 const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-                 const targetYear = currentHostTrack.y;
                  let wId = null;
                  let wSlot = -1;
                  const isCorrect = (idx) => {
@@ -773,6 +795,17 @@
                  syncObj.winnerName = wId ? players[wId].name : null;
                  syncObj.winningSlot = wSlot;
             }
+            return syncObj;
+        }
+
+        function sendTargetedSync(pId) {
+            const p = players[pId];
+            if (!p) return;
+            if (gameState === 'IDLE') {
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', myScore: p.score, myTokens: p.tokens });
+                return;
+            }
+            const syncObj = buildSyncObj(pId);
 
             if (pId === HOST_PLAYER_ID) {
                 handlePlayerSync(syncObj);
@@ -782,7 +815,7 @@
         }
 
         function broadcastSync() {
-            if (gameState !== 'IDLE') {
+            if (gameState !== 'IDLE' && turnOrder.length > 0) {
                 const activePlayerId = turnOrder[turnIndex];
                 const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
                 const badge = document.getElementById('host-status-badge');
@@ -791,6 +824,19 @@
                 else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
                 else if (gameState === 'STEALING') badge.innerText = "STEAL MODE 🎯";
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+
+                // Warning if Host is blocking steals
+                const hostWarning = document.getElementById('host-action-warning');
+                if (hostWarning) {
+                    if (gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && players[HOST_PLAYER_ID].tokens > 0 && !stealDecisions[HOST_PLAYER_ID]) {
+                        hostWarning.classList.remove('hidden');
+                    } else if (gameState === 'READY_TO_PLAY' && HOST_PLAYER_ID === activePlayerId && !isPlaying) {
+                        hostWarning.innerText = "Your Turn! Switch to Player Mode to Play Music.";
+                        hostWarning.classList.remove('hidden');
+                    } else {
+                        hostWarning.classList.add('hidden');
+                    }
+                }
             }
 
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
@@ -831,7 +877,7 @@
             document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
 
-            myPeer = new Peer({ debug: 2 });
+            myPeer = new Peer(peerConfig);
             myPeer.on('open', (id) => {
                 myId = id;
                 hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
@@ -841,6 +887,7 @@
                         document.getElementById('btn-connect').classList.remove('hidden');
                         document.getElementById('player-status').classList.add('hidden');
                         showMessage("Connection timed out. Check PIN.", "error");
+                        if (myPeer) { myPeer.destroy(); myPeer = null; }
                     }
                 }, 8000);
 
@@ -931,8 +978,7 @@
                 musicBox.classList.add('hidden');
                 if (data.isActivePlayer) {
                     passStealBox.classList.add('hidden');
-                    const statusText = data.allStealsDone ? "All players have stolen or passed! Tap Submit below." : "Waiting for all players to steal or pass...";
-                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
+                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', "Waiting for others to steal or pass...", 'text-slate-400');
                 } else {
                     if (data.hasPassedSteal) {
                         passStealBox.classList.add('hidden');
@@ -1003,16 +1049,6 @@
                     `;
                     container.appendChild(card);
                 }
-            }
-
-            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer) {
-                const revealTriggerBtn = document.createElement('button');
-                const isReady = data.allStealsDone;
-                revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2.5 px-5 rounded-full shadow-2xl text-xs flex items-center gap-2 border z-40 transition-all ${isReady ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 cursor-pointer animate-bounce' : 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed opacity-75'}`;
-                revealTriggerBtn.innerHTML = isReady ? `<i class="fa-solid fa-check"></i> Submit & Reveal Answer` : `<i class="fa-solid fa-spinner fa-spin"></i> Waiting for Stealers...`;
-                revealTriggerBtn.disabled = !isReady;
-                revealTriggerBtn.onclick = () => { if (isReady) sendPlayerAction('EVALUATE_ROUND', 0); };
-                container.appendChild(revealTriggerBtn);
             }
         }
 
