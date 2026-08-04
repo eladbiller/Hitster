@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.18.0">
+    <meta name="app-version" content="1.19.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -55,7 +55,7 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Screen Controls (Bottom Left to prevent overlap) -->
+    <!-- Screen Controls (Anchored Bottom-Left to prevent overlapping top UI) -->
     <div class="fixed bottom-3 left-3 z-[1000] flex gap-2">
         <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
             A
@@ -191,7 +191,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.18.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.19.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -226,6 +226,11 @@
                 <!-- Direct Play Button for Host when it's their turn -->
                 <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
                     <i class="fa-solid fa-play mr-1"></i> Start Song
+                </button>
+
+                <!-- Direct Pass Steal Button for Host on DJ screen -->
+                <button id="dj-direct-pass-btn" onclick="sendPlayerAction('PASS_STEAL')" class="hidden mt-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-full shadow-lg text-xs transition border border-slate-600">
+                    <i class="fa-solid fa-forward mr-1"></i> Pass Steal (Host)
                 </button>
             </div>
         </div>
@@ -539,6 +544,11 @@
             } catch (err) {}
         }
 
+        function getStarterTrack() {
+            if (tracks && tracks.length > 0) return tracks.pop();
+            return { y: 2000, t: "Unknown Starter", a: "Unknown", c: "" };
+        }
+
         async function startHostGame(mode) {
             switchContainer('host-game-ui');
             isHostMode = true;
@@ -551,11 +561,9 @@
                 if (mode === 'hitster_classic') {
                     searchQueries = ['year:1960-1979', 'year:1980-1989', 'year:1990-1999', 'year:2000-2009', 'year:2010-2024'];
                 } else if (mode === 'hebrew') {
-                    searchQueries = ['genre:israeli year:1980-1999', 'genre:israeli year:2000-2009', 'genre:israeli year:2010-2024', 'tag:new genre:israeli', 'genre:israeli'];
+                    searchQueries = ['year:1980-1995 genre:israeli', 'year:1996-2005 genre:israeli', 'year:2006-2015 genre:israeli', 'year:2016-2024 genre:israeli', 'year:2010-2024 genre:mizrahi'];
                 } else if (mode === 'pop2000s') {
-                    searchQueries = ['year:2000-2003 genre:pop', 'year:2004-2006 genre:pop', 'year:2007-2009 genre:pop', 'year:2000-2005 genre:dance', 'year:2005-2009 genre:dance'];
-                } else if (mode === 'liked') {
-                    // Handled below
+                    searchQueries = ['year:2000-2002 genre:pop', 'year:2003-2005 genre:pop', 'year:2006-2007 genre:pop', 'year:2008-2009 genre:pop', 'year:2000-2009 genre:dance'];
                 }
 
                 let fetchPromises = [];
@@ -590,7 +598,7 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                if (tracks.length === 0) throw new Error("No valid tracks found.");
+                if (tracks.length === 0) throw new Error("No valid tracks found for this category.");
                 tracks.sort(() => Math.random() - 0.5); 
 
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
@@ -808,9 +816,8 @@
         function hostStartGameFromLobby() {
             if (turnOrder.length === 0) return showMessage("No players in room!", "error");
             
-            // Assign a random starter card to everyone's timeline
             Object.values(players).forEach(p => {
-                if (tracks.length > 0) p.timeline = [tracks.pop()];
+                p.timeline = [getStarterTrack()];
             });
 
             turnIndex = Math.floor(Math.random() * turnOrder.length);
@@ -906,19 +913,11 @@
             broadcastSync();
         }
 
+        // Strictly do NOT skip offline players to preserve exact turn array bounds. 
+        // Disconnections must be handled via the Host's explicit Kick option to change the array length safely.
         function nextTurn() {
             if (turnOrder.length === 0) return;
-            
             turnIndex = (turnIndex + 1) % turnOrder.length;
-            
-            let attempts = 0;
-            while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
-                turnIndex = (turnIndex + 1) % turnOrder.length;
-                attempts++;
-            }
-
-            if (attempts >= turnOrder.length) return showMessage("Everyone is offline!", "error");
-
             loadTurn();
         }
 
@@ -971,7 +970,7 @@
                 if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
                     Object.values(players).forEach(p => {
                         p.tokens = 2;
-                        if (tracks.length > 0) p.timeline = [tracks.pop()];
+                        p.timeline = [getStarterTrack()];
                     });
                     turnIndex = Math.floor(Math.random() * turnOrder.length);
                     loadTurn();
@@ -989,7 +988,6 @@
                                 body: JSON.stringify({ uris: [currentHostTrack.u] })
                             }).catch(e => {
                                 console.error("Spotify Play Err", e);
-                                showMessage("Playback failed. Is Spotify active?", "error");
                             });
                             gameState = 'PLAYING';
                         }
@@ -1041,7 +1039,7 @@
             gameState = 'REVEAL';
             const activePlayerId = turnOrder[turnIndex];
             const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-            const targetYear = currentHostTrack.y;
+            const targetYear = currentHostTrack ? currentHostTrack.y : 0;
             
             let winnerId = null;
 
@@ -1179,6 +1177,27 @@
                 else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
             }
 
+            const djPlayBtn = document.getElementById('dj-direct-play-btn');
+            if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
+                djPlayBtn.classList.remove('hidden');
+                if (isPlaying) {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause Song`;
+                    djPlayBtn.className = "mt-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                } else {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Start Song`;
+                    djPlayBtn.className = "mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                }
+            } else if (djPlayBtn) {
+                djPlayBtn.classList.add('hidden');
+            }
+
+            const djPassBtn = document.getElementById('dj-direct-pass-btn');
+            if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
+                djPassBtn.classList.remove('hidden');
+            } else if (djPassBtn) {
+                djPassBtn.classList.add('hidden');
+            }
+
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
             saveGameState();
         }
@@ -1195,7 +1214,6 @@
             isHostInPlayerView = false;
             switchContainer('host-game-ui');
             
-            // If the host switched back to DJ UI during Steal Mode, evaluate if their pass finished the phase.
             if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
                 try { evaluateAndScoreRound(); } catch(e){}
             } else {
@@ -1366,7 +1384,7 @@
                     } else if (data.myTokens <= 0) {
                         passStealBox.classList.add('hidden');
                         noTokensMsg.classList.remove('hidden');
-                        setPlayerHeader('bg-slate-800 border-slate-600', `${titleText} 🎯 (${data.stealTimeLeft}s)`, 'You are out of tokens and have been auto-passed.', 'text-slate-400');
+                        setPlayerHeader('bg-red-950 border-red-500', 'Out of Tokens', 'Auto-passed the steal phase.', 'text-red-400');
                     } else {
                         passStealBox.classList.remove('hidden');
                         noTokensMsg.classList.add('hidden');
