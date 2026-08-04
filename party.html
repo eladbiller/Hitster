@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.11.0">
+    <meta name="app-version" content="1.12.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -143,7 +143,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.11.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.12.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -173,6 +173,11 @@
                 <!-- Direct Play Button for Host when it's their turn -->
                 <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
                     <i class="fa-solid fa-play mr-1"></i> Start Song
+                </button>
+
+                <!-- Direct Pass Steal Button for Host on DJ screen -->
+                <button id="dj-direct-pass-btn" onclick="sendPlayerAction('PASS_STEAL')" class="hidden mt-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-full shadow-lg text-xs transition border border-slate-600">
+                    <i class="fa-solid fa-forward mr-1"></i> Pass Steal (Host)
                 </button>
             </div>
         </div>
@@ -276,7 +281,7 @@
             }
         }
 
-        // --- WAKE LOCK API (Prevents Host phone from sleeping) ---
+        // --- WAKE LOCK API ---
         let wakeLock = null;
         async function requestWakeLock() {
             try {
@@ -437,7 +442,8 @@
         let gameState = 'IDLE';
         let currentGuesses = {}; 
         let stealDecisions = {}; 
-        let stealTimerRemaining = 0; // The 15-second steal countdown timer
+        let stealEndTime = 0; 
+        let isHostInPlayerView = false; // Tracks if Host device is currently in Player Remote UI
         
         let tracks = [];
         let currentHostTrack = null;
@@ -468,6 +474,7 @@
         async function startHostGame(mode) {
             switchContainer('host-game-ui');
             isHostMode = true;
+            isHostInPlayerView = false;
             document.getElementById('host-loading-text').innerText = "Fetching Songs...";
             requestWakeLock(); 
             
@@ -555,12 +562,12 @@
                 document.getElementById('host-active-info').classList.remove('hidden');
                 document.getElementById('host-active-info').classList.add('flex');
                 
-                // HOST BACKGROUND LOOP (Runs every 1s to handle timers and drops)
+                // Timestamp-based broadcast loop (1000ms interval)
                 hostBroadcastInterval = setInterval(() => { 
                     if (gameState === 'STEALING') {
-                        if (stealTimerRemaining > 0) {
-                            stealTimerRemaining--;
-                            if (stealTimerRemaining === 0) evaluateAndScoreRound(); // Timeout! Auto evaluate
+                        const remaining = Math.ceil((stealEndTime - Date.now()) / 1000);
+                        if (remaining <= 0) {
+                            evaluateAndScoreRound(); // Timer expired, evaluate round!
                         }
                     }
                     broadcastSync(); 
@@ -637,7 +644,7 @@
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
             stealDecisions = {};
-            stealTimerRemaining = 0;
+            stealEndTime = 0;
             currentHostTrack = tracks.pop();
             isPlaying = false;
             
@@ -667,8 +674,9 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore ghost drops
-                if (p.tokens <= 0) return true; 
+                if (!p || !p.online) return true; // Ignore offline players
+                if (p.tokens <= 0) return true; // Ignore broke players
+                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if host is sitting on DJ Speaker screen!
                 return stealDecisions[id] !== undefined; 
             });
         }
@@ -695,7 +703,7 @@
                 return;
             }
 
-            if (data.action === 'TOGGLE_PLAY' && pId === activePlayerId) {
+            if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
                 if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
                     if (isPlaying) {
                         spotifyPlayer.pause();
@@ -714,7 +722,7 @@
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
                 stealDecisions = {}; 
-                stealTimerRemaining = 15; // 15 seconds to steal!
+                stealEndTime = Date.now() + 15000; // 15 seconds timestamp deadline
                 
                 if (spotifyPlayer) spotifyPlayer.pause();
                 
@@ -751,7 +759,7 @@
         }
 
         function evaluateAndScoreRound() {
-            stealTimerRemaining = 0;
+            stealEndTime = 0;
             gameState = 'REVEAL';
             const activePlayerId = turnOrder[turnIndex];
             const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
@@ -807,10 +815,14 @@
                 otherPlayers.forEach(id => {
                     const op = players[id];
                     if (op && op.online && op.tokens > 0 && stealDecisions[id] === undefined) {
-                        waitingOn.push(op.name);
+                        if (!(id === HOST_PLAYER_ID && !isHostInPlayerView)) {
+                            waitingOn.push(op.name);
+                        }
                     }
                 });
             }
+
+            const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
 
             const syncObj = {
                 type: 'SYNC', state: gameState, isPlaying: isPlaying,
@@ -821,17 +833,18 @@
                 hasStealed: p ? stealDecisions[p.id] === 'STEAL' : false,
                 allStealsDone: allStealsDone,
                 waitingOn: waitingOn,
-                stealTimeLeft: stealTimerRemaining,
+                stealTimeLeft: remainingTime,
                 myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
-                correctYear: gameState === 'REVEAL' ? currentHostTrack.y : null,
-                trackTitle: gameState === 'REVEAL' ? currentHostTrack.t : null,
-                artistName: gameState === 'REVEAL' ? currentHostTrack.a : null,
+                correctYear: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.y : null,
+                trackTitle: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.t : null,
+                artistName: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.a : null,
                 winnerName: null 
             };
 
-            if (gameState === 'REVEAL') {
+            if (gameState === 'REVEAL' && currentHostTrack) {
                  let wId = null;
                  let wSlot = -1;
+                 const targetYear = currentHostTrack.y;
                  const isCorrect = (idx) => {
                     const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
                     const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
@@ -871,10 +884,13 @@
                 const activePlayerId = turnOrder[turnIndex];
                 const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
                 const badge = document.getElementById('host-status-badge');
+                
+                const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
+
                 document.getElementById('host-turn-player-name').innerText = activePlayerName;
                 if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
                 else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
-                else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${stealTimerRemaining}s)`;
+                else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${remainingTime}s)`;
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
 
                 // Direct Play Button for Host Background UI
@@ -891,18 +907,30 @@
                 } else if (djPlayBtn) {
                     djPlayBtn.classList.add('hidden');
                 }
+
+                // Direct Pass Steal Button for Host on DJ screen
+                const djPassBtn = document.getElementById('dj-direct-pass-btn');
+                if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
+                    djPassBtn.classList.remove('hidden');
+                } else if (djPassBtn) {
+                    djPassBtn.classList.add('hidden');
+                }
             }
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
         }
 
         // Host View Switching Controls
         function switchHostToPlayerView() {
+            isHostInPlayerView = true;
             switchContainer('player-game-ui');
             document.getElementById('p-btn-host-back').classList.remove('hidden');
+            broadcastSync();
         }
 
         function switchPlayerToHostView() {
+            isHostInPlayerView = false;
             switchContainer('host-game-ui');
+            broadcastSync();
         }
 
         window.addEventListener('orientationchange', () => {
@@ -1149,5 +1177,4 @@
     </script>
 </body>
 </html>
-
 
