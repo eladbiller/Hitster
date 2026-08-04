@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.10.0">
+    <meta name="app-version" content="1.11.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -70,7 +70,7 @@
             <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight">
                 Hitster Party
             </h1>
-            <p class="text-slate-400 text-xs mt-0.5">Live multiplayer music timeline game.</p>
+            <p class="text-slate-400 text-xs mt-0.5">Live multiplayer via local hotspot.</p>
         </div>
         
         <!-- View 1: Role Selection -->
@@ -143,7 +143,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.10.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.11.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -169,6 +169,11 @@
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
                 <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
                 <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
+                
+                <!-- Direct Play Button for Host when it's their turn -->
+                <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
+                    <i class="fa-solid fa-play mr-1"></i> Start Song
+                </button>
             </div>
         </div>
         
@@ -277,21 +282,15 @@
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Screen Wake Lock released');
-                    });
+                    wakeLock.addEventListener('release', () => { console.log('Screen Wake Lock released'); });
                 }
-            } catch (err) {
-                console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-            }
+            } catch (err) { console.error(`Wake Lock error: ${err.name}, ${err.message}`); }
         }
         document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
+            if (wakeLock !== null && document.visibilityState === 'visible') { await requestWakeLock(); }
         });
 
-        // --- SPOTIFY OAUTH (PKCE) ---
+        // --- SPOTIFY OAUTH ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('party_spotify_token') || null;
@@ -352,7 +351,7 @@
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
-            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Please log in again."); }
+            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Log in again."); }
             if (res.status === 204) return {};
             if (!res.ok) throw new Error(`Spotify Error ${res.status}`);
             return await res.json();
@@ -420,7 +419,6 @@
         const PEER_PREFIX = 'hitster-party-v1-'; 
         const HOST_PLAYER_ID = 'host-local-player';
         
-        // PeerJS Config with robust STUN servers for cellular reliability
         const peerConfig = {
             debug: 2,
             config: {
@@ -439,6 +437,7 @@
         let gameState = 'IDLE';
         let currentGuesses = {}; 
         let stealDecisions = {}; 
+        let stealTimerRemaining = 0; // The 15-second steal countdown timer
         
         let tracks = [];
         let currentHostTrack = null;
@@ -470,7 +469,7 @@
             switchContainer('host-game-ui');
             isHostMode = true;
             document.getElementById('host-loading-text').innerText = "Fetching Songs...";
-            requestWakeLock(); // Request wake lock early to prevent sleep during setup
+            requestWakeLock(); 
             
             try {
                 let rawItems = [];
@@ -526,8 +525,8 @@
                 broadcastSync();
             });
 
-            spotifyPlayer.addListener('authentication_error', ({ message }) => {
-                showMessage("Spotify Auth Error. Need to log in again.", "error");
+            spotifyPlayer.addListener('authentication_error', () => {
+                showMessage("Spotify Auth Error. Log back in.", "error");
                 logoutSpotify();
             });
 
@@ -556,8 +555,16 @@
                 document.getElementById('host-active-info').classList.remove('hidden');
                 document.getElementById('host-active-info').classList.add('flex');
                 
-                // Continuous background heartbeat to ensure connections stay fresh
-                hostBroadcastInterval = setInterval(() => { broadcastSync(); }, 2000);
+                // HOST BACKGROUND LOOP (Runs every 1s to handle timers and drops)
+                hostBroadcastInterval = setInterval(() => { 
+                    if (gameState === 'STEALING') {
+                        if (stealTimerRemaining > 0) {
+                            stealTimerRemaining--;
+                            if (stealTimerRemaining === 0) evaluateAndScoreRound(); // Timeout! Auto evaluate
+                        }
+                    }
+                    broadcastSync(); 
+                }, 1000);
 
                 turnIndex = 0;
                 loadTurn();
@@ -630,6 +637,7 @@
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
             stealDecisions = {};
+            stealTimerRemaining = 0;
             currentHostTrack = tracks.pop();
             isPlaying = false;
             
@@ -659,9 +667,9 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Auto-pass offline players
-                if (p.tokens <= 0) return true; // Auto-pass broke players
-                return stealDecisions[id] !== undefined; // True if they made a choice
+                if (!p || !p.online) return true; // Ignore ghost drops
+                if (p.tokens <= 0) return true; 
+                return stealDecisions[id] !== undefined; 
             });
         }
 
@@ -706,6 +714,8 @@
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
                 stealDecisions = {}; 
+                stealTimerRemaining = 15; // 15 seconds to steal!
+                
                 if (spotifyPlayer) spotifyPlayer.pause();
                 
                 if (checkAllStealsSubmitted()) {
@@ -741,6 +751,7 @@
         }
 
         function evaluateAndScoreRound() {
+            stealTimerRemaining = 0;
             gameState = 'REVEAL';
             const activePlayerId = turnOrder[turnIndex];
             const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
@@ -810,6 +821,7 @@
                 hasStealed: p ? stealDecisions[p.id] === 'STEAL' : false,
                 allStealsDone: allStealsDone,
                 waitingOn: waitingOn,
+                stealTimeLeft: stealTimerRemaining,
                 myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
                 correctYear: gameState === 'REVEAL' ? currentHostTrack.y : null,
                 trackTitle: gameState === 'REVEAL' ? currentHostTrack.t : null,
@@ -862,20 +874,22 @@
                 document.getElementById('host-turn-player-name').innerText = activePlayerName;
                 if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
                 else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
-                else if (gameState === 'STEALING') badge.innerText = "STEAL MODE 🎯";
+                else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${stealTimerRemaining}s)`;
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
 
-                const hostWarning = document.getElementById('host-action-warning');
-                if (hostWarning) {
-                    if (gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && players[HOST_PLAYER_ID].tokens > 0 && !stealDecisions[HOST_PLAYER_ID]) {
-                        hostWarning.innerText = "Waiting for YOU! Switch to Player Mode to Steal/Pass.";
-                        hostWarning.classList.remove('hidden');
-                    } else if (gameState === 'READY_TO_PLAY' && HOST_PLAYER_ID === activePlayerId && !isPlaying) {
-                        hostWarning.innerText = "Your Turn! Switch to Player Mode to Play Music.";
-                        hostWarning.classList.remove('hidden');
+                // Direct Play Button for Host Background UI
+                const djPlayBtn = document.getElementById('dj-direct-play-btn');
+                if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
+                    djPlayBtn.classList.remove('hidden');
+                    if (isPlaying) {
+                        djPlayBtn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause Song`;
+                        djPlayBtn.className = "mt-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
                     } else {
-                        hostWarning.classList.add('hidden');
+                        djPlayBtn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Start Song`;
+                        djPlayBtn.className = "mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
                     }
+                } else if (djPlayBtn) {
+                    djPlayBtn.classList.add('hidden');
                 }
             }
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
@@ -1018,20 +1032,20 @@
                 if (data.isActivePlayer) {
                     passStealBox.classList.add('hidden');
                     const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList}`;
+                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList} (${data.stealTimeLeft}s)`;
                     setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
                 } else {
                     if (data.hasPassedSteal) {
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList}`, 'text-slate-400');
+                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-slate-400');
                     } else if (data.hasStealed) {
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList}`, 'text-indigo-300');
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300');
                     } else {
                         passStealBox.classList.remove('hidden');
-                        setPlayerHeader('bg-yellow-950 border-yellow-500', 'Steal Mode! 🎯', 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
+                        setPlayerHeader('bg-yellow-950 border-yellow-500', `Steal Mode! 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
                     }
                 }
             } else if (data.state === 'REVEAL') {
@@ -1094,19 +1108,12 @@
                 }
             }
 
-            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer) {
+            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer && !data.allStealsDone) {
                 const revealTriggerBtn = document.createElement('button');
-                const isReady = data.allStealsDone;
-                if (isReady) {
-                    revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2.5 px-5 rounded-full shadow-2xl text-xs flex items-center gap-2 border z-40 transition-all bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 cursor-pointer animate-bounce`;
-                    revealTriggerBtn.innerHTML = `<i class="fa-solid fa-check"></i> Submit & Reveal Answer`;
-                    revealTriggerBtn.onclick = () => sendPlayerAction('EVALUATE_ROUND', 0);
-                } else {
-                    const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
-                    revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
-                    revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Waiting for ${namesList} (Force Reveal)`;
-                    revealTriggerBtn.onclick = () => { if(confirm("Force the round to reveal and skip remaining players?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
-                }
+                const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
+                revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
+                revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Force Reveal (Skip ${namesList})`;
+                revealTriggerBtn.onclick = () => { if(confirm("Force round end and skip remaining stealers?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
                 container.appendChild(revealTriggerBtn);
             }
         }
@@ -1142,4 +1149,5 @@
     </script>
 </body>
 </html>
+
 
