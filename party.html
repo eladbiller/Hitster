@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.15.0">
+    <meta name="app-version" content="1.16.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -55,12 +55,12 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Screen Controls -->
-    <div class="fixed top-2 right-2 z-[1000] flex gap-2">
-        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
+    <!-- Screen Controls (Spacing Fixed) -->
+    <div class="fixed top-3 right-3 z-[1000] flex gap-4">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
             A
         </button>
-        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs w-9 h-9">
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
         </button>
     </div>
@@ -123,6 +123,17 @@
                     <div class="text-[10px] text-slate-300 font-normal">Player Remote</div>
                 </div>
             </button>
+
+            <!-- Resume Saved Game Container (Shown Dynamically) -->
+            <div id="resume-game-container" class="hidden w-full mt-2">
+                <button onclick="resumeHostGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    <div class="text-left flex-1">
+                        <div class="text-base font-extrabold leading-tight">Resume Game</div>
+                        <div class="text-[10px] text-orange-200 font-normal" id="resume-pin-text">Recover dropped session</div>
+                    </div>
+                </button>
+            </div>
         </div>
 
         <!-- View 2: Spotify Login (Host Only) -->
@@ -177,7 +188,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.15.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.16.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -225,7 +236,7 @@
             <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Connected Players:</h3>
             <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
         </div>
-        <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
+        <button onclick="endGameSession()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
 
     <!-- PLAYER REMOTE UI -->
@@ -358,6 +369,17 @@
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
 
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (savedStateStr) {
+                try {
+                    const savedState = JSON.parse(savedStateStr);
+                    if (savedState.pin) {
+                        document.getElementById('resume-game-container').classList.remove('hidden');
+                        document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                    }
+                } catch(e){}
+            }
+
             if (code) {
                 try {
                     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -458,14 +480,42 @@
             switchSetupView('view-roles');
         }
 
+        function endGameSession() {
+            if (confirm("End the game session and clear all saved data?")) {
+                localStorage.removeItem('party_host_state');
+                resetApp();
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
         const STARTER_SONGS = [
             { y: 1969, t: "Come Together", a: "The Beatles", c: "" },
             { y: 1983, t: "Billie Jean", a: "Michael Jackson", c: "" },
             { y: 1991, t: "Smells Like Teen Spirit", a: "Nirvana", c: "" },
             { y: 2003, t: "Hey Ya!", a: "Outkast", c: "" },
-            { y: 2014, t: "Uptown Funk", a: "Mark Ronson", c: "" }
+            { y: 2014, t: "Uptown Funk", a: "Mark Ronson", c: "" },
+            { y: 1975, t: "Bohemian Rhapsody", a: "Queen", c: "" },
+            { y: 1987, t: "Sweet Child O' Mine", a: "Guns N' Roses", c: "" },
+            { y: 1999, t: "Smooth", a: "Santana ft. Rob Thomas", c: "" },
+            { y: 2010, t: "Rolling in the Deep", a: "Adele", c: "" },
+            { y: 1965, t: "Like a Rolling Stone", a: "Bob Dylan", c: "" },
+            { y: 1980, t: "Another One Bites the Dust", a: "Queen", c: "" },
+            { y: 1995, t: "Wonderwall", a: "Oasis", c: "" },
+            { y: 2008, t: "Single Ladies", a: "Beyonce", c: "" },
+            { y: 1977, t: "Stayin' Alive", a: "Bee Gees", c: "" },
+            { y: 1985, t: "Take On Me", a: "a-ha", c: "" }
         ];
-        function getRandomStarter() { return STARTER_SONGS[Math.floor(Math.random() * STARTER_SONGS.length)]; }
+
+        function getRandomStarter() { 
+            return STARTER_SONGS[Math.floor(Math.random() * STARTER_SONGS.length)]; 
+        }
 
         // --- GLOBAL STATE ---
         const PEER_PREFIX = 'hitster-party-v1-'; 
@@ -483,10 +533,11 @@
 
         let myPeer = null; 
         
+        let currentRoomPin = null;
         let players = {}; 
         let turnOrder = [];
         let turnIndex = 0;
-        let gameState = 'IDLE'; // IDLE, READY_TO_PLAY, PLAYING, STEALING, REVEAL, PAUSED_DISCONNECT, GAME_OVER
+        let gameState = 'IDLE'; 
         let previousStateBeforePause = 'READY_TO_PLAY';
         let pendingDisconnectPlayerId = null;
         
@@ -524,6 +575,51 @@
             } catch (err) {}
         }
 
+        function resumeHostGame() {
+            if (!accessToken) {
+                showMessage("Please log in with Spotify to resume your game.", "info");
+                switchSetupView('view-spotify-login');
+                return;
+            }
+            
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (!savedStateStr) return;
+            
+            try {
+                const savedState = JSON.parse(savedStateStr);
+                currentRoomPin = savedState.pin;
+                players = savedState.players || {};
+                turnOrder = savedState.turnOrder || [];
+                turnIndex = savedState.turnIndex || 0;
+                gameState = savedState.gameState || 'READY_TO_PLAY';
+                currentHostTrack = savedState.currentHostTrack;
+                isPlaying = false; 
+                currentGuesses = savedState.currentGuesses || {};
+                stealDecisions = savedState.stealDecisions || {};
+                stealEndTime = savedState.stealEndTime || 0;
+                currentWinnerId = savedState.currentWinnerId;
+                bonusTokenClaimed = savedState.bonusTokenClaimed;
+                tracks = savedState.tracks || [];
+
+                Object.values(players).forEach(p => {
+                    p.conn = null;
+                    p.online = (p.id === HOST_PLAYER_ID); 
+                    p.lastPongAt = Date.now();
+                });
+
+                switchContainer('host-game-ui');
+                isHostMode = true;
+                isHostInPlayerView = false;
+                document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                requestWakeLock(); 
+
+                initSpotifyWebPlayer(true); 
+            } catch(err) {
+                showMessage("Corrupted save file. Starting fresh.", "error");
+                localStorage.removeItem('party_host_state');
+            }
+        }
+
         async function startHostGame(mode) {
             switchContainer('host-game-ui');
             isHostMode = true;
@@ -546,7 +642,7 @@
                     results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
                 }
 
-                tracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
+                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
                     u: i.track.uri,
                     t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
@@ -554,11 +650,11 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                if (tracks.length === 0) throw new Error("No valid tracks found.");
-                tracks.sort(() => Math.random() - 0.5); 
+                if (mappedTracks.length === 0) throw new Error("No valid tracks found.");
+                tracks = shuffleArray(mappedTracks);
 
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
-                initSpotifyWebPlayer();
+                initSpotifyWebPlayer(false);
 
             } catch (err) {
                 showMessage(`Error: ${err.message}`, "error");
@@ -566,7 +662,7 @@
             }
         }
 
-        function initSpotifyWebPlayer() {
+        function initSpotifyWebPlayer(isResuming = false) {
             spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
 
             spotifyPlayer.addListener('ready', ({ device_id }) => {
@@ -576,7 +672,7 @@
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
                 }).catch(e => console.log(e));
-                initHostNetwork(); 
+                initHostNetwork(isResuming); 
             });
 
             spotifyPlayer.addListener('player_state_changed', state => {
@@ -593,22 +689,49 @@
             spotifyPlayer.connect();
         }
 
-        function initHostNetwork() {
-            const pin = Math.floor(1000 + Math.random() * 9000);
+        function saveHostState() {
+            if (!isHostMode || gameState === 'IDLE') return; 
+            const stateToSave = {
+                pin: currentRoomPin, players: {},
+                turnOrder, turnIndex, gameState,
+                currentHostTrack, isPlaying, 
+                currentGuesses, stealDecisions, stealEndTime,
+                currentWinnerId, bonusTokenClaimed, tracks
+            };
+            for (const [id, p] of Object.entries(players)) {
+                stateToSave.players[id] = { ...p, conn: null, online: false }; 
+            }
+            localStorage.setItem('party_host_state', JSON.stringify(stateToSave));
+        }
+
+        function initHostNetwork(isResuming = false) {
+            let pin = currentRoomPin;
+            if (!isResuming) {
+                pin = Math.floor(1000 + Math.random() * 9000);
+                currentRoomPin = pin;
+            }
             document.getElementById('host-pin-display-game').innerText = pin;
             
-            const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
-            myId = HOST_PLAYER_ID;
-            myPlayerName = hostName;
+            if (!isResuming) {
+                const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
+                myId = HOST_PLAYER_ID;
+                myPlayerName = hostName;
 
-            players[HOST_PLAYER_ID] = {
-                id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
-                tokens: 2, score: 0,
-                lastPongAt: Date.now(),
-                timeline: [getRandomStarter()]
-            };
-            turnOrder = [HOST_PLAYER_ID];
-            gameState = 'IDLE'; 
+                players[HOST_PLAYER_ID] = {
+                    id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
+                    tokens: 2, score: 0, lastPongAt: Date.now(),
+                    timeline: [getRandomStarter()]
+                };
+                turnOrder = [HOST_PLAYER_ID];
+                gameState = 'IDLE'; 
+            } else {
+                myId = HOST_PLAYER_ID;
+                if (players[HOST_PLAYER_ID]) {
+                    myPlayerName = players[HOST_PLAYER_ID].name;
+                    players[HOST_PLAYER_ID].online = true;
+                    players[HOST_PLAYER_ID].lastPongAt = Date.now();
+                }
+            }
 
             myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
@@ -626,11 +749,9 @@
                         }
                     }
                     
-                    // Heartbeat connection tracking
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
                             if (now - p.lastPongAt > 5000) {
-                                // Lost connection heartbeat
                                 p.online = false;
                                 p.conn = null;
                                 showMessage(`${p.name} dropped offline.`, 'error');
@@ -645,10 +766,13 @@
                     });
 
                     broadcastSync(); 
+                    saveHostState();
                 }, 1000);
 
-                updateHostPlayerList();
-                broadcastSync();
+                if (!isResuming) {
+                    updateHostPlayerList();
+                    broadcastSync();
+                }
             });
 
             myPeer.on('connection', (conn) => {
@@ -683,6 +807,23 @@
 
                     conn.on('data', (data) => handlePlayerAction(stableId, data));
                 });
+
+                conn.on('close', () => {
+                    const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase();
+                    
+                    if (players[stableId]) {
+                        players[stableId].online = false;
+                        players[stableId].conn = null;
+                        showMessage(`${pName} disconnected.`, 'error');
+                        
+                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                            triggerDisconnectPrompt(stableId, pName);
+                        }
+                    }
+                    updateHostPlayerList();
+                    broadcastSync();
+                });
             });
         }
 
@@ -712,7 +853,6 @@
 
         function pauseGameForDisconnect() {
             closeDisconnectModal();
-            // Stays in PAUSED_DISCONNECT state
         }
 
         function kickDisconnectedPlayer() {
@@ -737,7 +877,6 @@
             }
 
             if (wasActivePlayer) {
-                // Skips to next player automatically as the array shrank
                 turnIndex = turnIndex % turnOrder.length;
                 loadTurn();
             } else {
@@ -785,7 +924,6 @@
         function nextTurn() {
             if (turnOrder.length === 0) return;
             
-            // STRICT ROUND ROBIN TURNS (0 -> 1 -> 2 -> 0)
             turnIndex = (turnIndex + 1) % turnOrder.length;
             
             let attempts = 0;
@@ -807,9 +945,9 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore offline players
-                if (p.tokens <= 0) return true; // Ignore broke players
-                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if sitting on DJ Speaker screen
+                if (!p || !p.online) return true; 
+                if (p.tokens <= 0) return true; 
+                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; 
                 return stealDecisions[id] !== undefined; 
             });
         }
@@ -817,7 +955,6 @@
         function handlePlayerAction(pId, data) {
             const activePlayerId = turnOrder[turnIndex];
 
-            // Heartbeat pong response
             if (data.action === 'PONG') {
                 if (players[pId]) players[pId].lastPongAt = Date.now();
                 return;
@@ -838,7 +975,6 @@
                 return;
             }
 
-            // Only the active player can jump to the next turn
             if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
                 if (pId === activePlayerId || pId === HOST_PLAYER_ID) {
                     nextTurn();
@@ -927,7 +1063,6 @@
                 return targetYear >= prevY && targetYear <= nextY;
             };
 
-            // 1. Determine Winner
             if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
                 winnerId = activePlayerId;
             } else {
@@ -941,20 +1076,16 @@
 
             currentWinnerId = winnerId;
 
-            // 2. Chronological Card Placement logic
             if (winnerId && players[winnerId]) {
                 const winnerTimeline = players[winnerId].timeline;
-                
                 let insertIdx = 0;
                 while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
                     insertIdx++;
                 }
-                
                 winnerTimeline.splice(insertIdx, 0, currentHostTrack);
                 players[winnerId].score++;
             }
 
-            // 3. Win Condition Check
             if (winnerId && players[winnerId].score >= 10) {
                 gameState = 'GAME_OVER';
             }
@@ -1055,7 +1186,6 @@
                 else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
             }
 
-            // Direct Play Button for Host Background UI
             const djPlayBtn = document.getElementById('dj-direct-play-btn');
             if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
                 djPlayBtn.classList.remove('hidden');
@@ -1070,7 +1200,6 @@
                 djPlayBtn.classList.add('hidden');
             }
 
-            // Direct Pass Steal Button for Host on DJ screen
             const djPassBtn = document.getElementById('dj-direct-pass-btn');
             if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
                 djPassBtn.classList.remove('hidden');
@@ -1081,7 +1210,6 @@
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
         }
 
-        // Host View Switching Controls
         function switchHostToPlayerView() {
             isHostInPlayerView = true;
             switchContainer('player-game-ui');
