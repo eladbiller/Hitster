@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.24.0">
+    <meta name="app-version" content="1.26.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -130,15 +130,21 @@
             <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-1">
                 <i class="fa-brands fa-spotify"></i>
             </div>
-            <div class="text-center">
+            <div class="text-center w-full">
                 <h2 class="text-xl font-bold">Host requires Spotify</h2>
                 <p class="text-xs text-slate-400 mt-1">Premium is required to stream music directly to this browser tab.</p>
+                
+                <div class="mt-3 p-2.5 bg-slate-900 rounded-lg border border-red-500/50 w-full text-left shadow-inner">
+                    <p class="text-[10px] text-red-300 font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> Required for Login:</p>
+                    <p class="text-[9px] text-slate-400 mb-1">Copy this exact URL and add it to your Spotify Developer Dashboard "Redirect URIs".</p>
+                    <code id="redirect-uri-display" class="text-[10px] text-green-300 font-mono break-all select-all block bg-black/50 p-1.5 rounded border border-slate-700"></code>
+                </div>
             </div>
             
-            <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
+            <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-1">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
             </button>
-            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mb-2">Back</button>
         </div>
 
         <!-- View 3: Host Setup -->
@@ -159,7 +165,7 @@
 
                 <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
                     <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-globe"></i> Classic Hitster Mix</span>
-                    <span class="text-xs text-purple-200 font-normal">200 Tracks: 1960 to 2024</span>
+                    <span class="text-xs text-purple-200 font-normal">250 Tracks: 1960 to 2024</span>
                 </button>
 
                 <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm mt-1">
@@ -181,7 +187,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.24.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.26.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -233,7 +239,7 @@
     </div>
 
     <!-- PLAYER REMOTE UI -->
-    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
+    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl pl-16">
         <!-- Top Bar -->
         <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
             <div class="flex items-center gap-2">
@@ -252,6 +258,9 @@
             </button>
 
             <div class="flex items-center gap-3">
+                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-baseline gap-1">
+                    <i class="fa-solid fa-layer-group text-green-400 self-center"></i> <span id="p-ui-score">0</span><span class="text-[9px] text-green-200">/10</span>
+                </div>
                 <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
                     <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
@@ -277,6 +286,9 @@
                 <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5 border border-slate-600">
                     <i class="fa-solid fa-forward"></i> Pass (No Steal)
                 </button>
+                <div id="p-steal-no-tokens" class="hidden text-red-400 font-bold text-[10px] px-2 text-right">
+                    No tokens.<br>Auto-passed.
+                </div>
             </div>
         </div>
 
@@ -345,7 +357,8 @@
 
         // --- SPOTIFY OAUTH ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
-        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        const REDIRECT_URI = window.location.origin + window.location.pathname; 
+        
         let accessToken = localStorage.getItem('party_spotify_token') || null;
 
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
@@ -353,6 +366,9 @@
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
         window.addEventListener('load', async () => {
+            const redirectDisplayEl = document.getElementById('redirect-uri-display');
+            if (redirectDisplayEl) redirectDisplayEl.innerText = REDIRECT_URI;
+
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
@@ -387,7 +403,9 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
-            const params = newSearchParams({ 
+            
+            // FIXED JAVASCRIPT SYNTAX ERROR HERE
+            const params = new URLSearchParams({ 
                 response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
                 code_challenge_method: 'S256', code_challenge: codeChallenge, 
                 redirect_uri: REDIRECT_URI, show_dialog: 'true'
@@ -532,29 +550,30 @@
             switchContainer('host-game-ui');
             isHostMode = true;
             isHostInPlayerView = false;
-            document.getElementById('host-loading-text').innerText = "Fetching Songs...";
+            document.getElementById('host-loading-text').innerText = "Fetching 250 Songs...";
             requestWakeLock(); 
             
             try {
+                let fetchPromises = [];
                 let rawItems = [];
 
                 if (mode === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
-                    let fetchPromises = [];
-                    for(let i=0; i<4; i++) {
+                    for(let i=0; i<5; i++) {
                         let offset = Math.floor(Math.random() * Math.max(1, total - 50)); 
                         fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`));
                     }
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.items) rawItems.push(...res.items); });
 
-                } else {
-                    // EXACT ORIGINAL ROBUST LOGIC REVERTED: Pulls 200 tracks (40 * 5)
+                } else if (mode === 'hitster_classic') {
+                    // PRISTINE ORIGINAL FETCH LOGIC (100% STABLE, NO URL ENCODING ISSUES)
+                    // limit increased safely to 50
                     const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    const fetchPromises = eras.map(era => 
-                        safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=40&offset=${Math.floor(Math.random() * 50)}`)
-                    );
+                    eras.forEach(era => {
+                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=50&offset=${Math.floor(Math.random() * 50)}`));
+                    });
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { 
                         if (res.tracks && res.tracks.items) {
@@ -708,6 +727,7 @@
                         }
                     }
                     
+                    // Heartbeat connection tracking
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
                             if (now - p.lastPongAt > 15000) { 
@@ -843,6 +863,7 @@
             }
 
             if (wasActivePlayer) {
+                // Skips to next player automatically as the array shrank
                 turnIndex = turnIndex % turnOrder.length;
                 loadTurn();
             } else {
@@ -1279,21 +1300,25 @@
             cachedSyncData = data;
             
             const pNameEl = document.getElementById('p-ui-name');
+            const pScoreEl = document.getElementById('p-ui-score');
             const pTokensEl = document.getElementById('p-ui-tokens');
             
             if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
+            if (pScoreEl) pScoreEl.innerText = data.myScore !== undefined ? data.myScore : 0;
             if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
             
             document.getElementById('p-ui-overlay').classList.add('hidden');
 
             const musicBox = document.getElementById('p-music-controls');
             const passStealBox = document.getElementById('p-steal-pass-control');
+            const noTokensMsg = document.getElementById('p-steal-no-tokens');
             const playBtn = document.getElementById('p-btn-play');
             const viewToggleBtn = document.getElementById('p-btn-toggle-view');
 
             if (data.state === 'IDLE') {
                 if (musicBox) musicBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
+                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 
                 const playersListStr = data.lobbyPlayers ? data.lobbyPlayers.join(', ') : '';
@@ -1306,6 +1331,7 @@
             if (data.state === 'PAUSED_DISCONNECT') {
                 if (musicBox) musicBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
+                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 setPlayerHeader('bg-red-950 border-red-500', 'Game Paused ⏸️', `Waiting for ${data.pausedPlayerName || 'player'} to reconnect or Host decision...`, 'text-red-400');
                 return;
@@ -1327,6 +1353,7 @@
 
             if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
                 passStealBox.classList.add('hidden');
+                noTokensMsg.classList.add('hidden');
                 if (data.isActivePlayer) {
                     musicBox.classList.remove('hidden');
                     if (data.isPlaying) {
@@ -1348,27 +1375,36 @@
                 musicBox.classList.add('hidden');
                 if (data.isActivePlayer) {
                     passStealBox.classList.add('hidden');
-                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for others (${data.stealTimeLeft}s)`;
+                    noTokensMsg.classList.add('hidden');
+                    const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList} (${data.stealTimeLeft}s)`;
                     setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
                 } else {
                     const titleText = viewingOwnTimeline ? `My Timeline (${data.myScore}/10 Cards)` : `Stealing ${data.activePlayerName}`;
                     if (data.hasPassedSteal) {
                         passStealBox.classList.add('hidden');
-                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for others (${data.stealTimeLeft}s)`, 'text-slate-400');
+                        noTokensMsg.classList.add('hidden');
+                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-slate-400');
                     } else if (data.hasStealed) {
                         passStealBox.classList.add('hidden');
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for others (${data.stealTimeLeft}s)`, 'text-indigo-300');
+                        noTokensMsg.classList.add('hidden');
+                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300');
                     } else if (data.myTokens <= 0) {
                         passStealBox.classList.add('hidden');
+                        noTokensMsg.classList.remove('hidden');
                         setPlayerHeader('bg-red-950 border-red-500', 'Out of Tokens', 'Auto-passed the steal phase.', 'text-red-400');
                     } else {
                         passStealBox.classList.remove('hidden');
+                        noTokensMsg.classList.add('hidden');
                         setPlayerHeader('bg-yellow-950 border-yellow-500', `${titleText} 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
                     }
                 }
             } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
                 musicBox.classList.add('hidden');
                 passStealBox.classList.add('hidden');
+                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 showRevealOverlay(data);
                 return;
             }
@@ -1494,4 +1530,5 @@
     </script>
 </body>
 </html>
+
 
