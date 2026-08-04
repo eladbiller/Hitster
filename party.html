@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.4.0">
+    <meta name="app-version" content="1.5.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -36,36 +36,50 @@
         ::-webkit-scrollbar { height: 8px; width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+
+        /* Orientation Enforcer for Player Game Mode */
+        #portrait-blocker { display: none; }
+        @media screen and (orientation: portrait) and (max-width: 768px) {
+            .landscape-mode #portrait-blocker { display: flex !important; }
+            .landscape-mode #player-game-ui { display: none !important; }
+        }
     </style>
 </head>
-<body class="flex flex-col min-h-screen items-center justify-center relative p-4">
+<body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
     <!-- Fullscreen Toggle Button -->
-    <button onclick="toggleFullScreen()" class="fixed top-4 right-4 z-[1000] bg-slate-800/80 p-3 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square">
+    <button onclick="toggleFullScreen()" class="fixed top-2 right-2 z-[1000] bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs">
         <i class="fa-solid fa-expand" id="fs-icon"></i>
     </button>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
-    <!-- MAIN SETUP CONTAINER (Fixed Layout Bug) -->
+    <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
+    <div id="portrait-blocker" class="fixed inset-0 bg-slate-900/95 z-[900] flex-col items-center justify-center p-6 text-center space-y-4">
+        <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
+        <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
+        <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
+    </div>
+
+    <!-- MAIN SETUP CONTAINER -->
     <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-6 relative overflow-hidden">
         
         <div class="w-full flex flex-col items-center justify-center text-center">
             <i class="fa-solid fa-users text-green-400 text-4xl mb-2 block"></i>
-            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight" id="main-title">
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight">
                 Hitster Party
             </h1>
-            <p class="text-slate-400 text-xs mt-1" id="main-desc">Live multiplayer music timeline game.</p>
+            <p class="text-slate-400 text-xs mt-1">Live multiplayer music timeline game.</p>
         </div>
         
-        <!-- View 1: Role Selection (Strict Flex Col) -->
+        <!-- View 1: Role Selection -->
         <div id="view-roles" class="flex flex-col gap-3 w-full items-center">
             <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
                 <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
                 <div class="text-left flex-1">
                     <div class="text-base font-extrabold leading-tight">Create Room</div>
-                    <div class="text-[10px] text-indigo-200 font-normal">Host DJ (Plays Music)</div>
+                    <div class="text-[10px] text-indigo-200 font-normal">Host DJ + Player</div>
                 </div>
             </button>
             <button onclick="showPlayerJoin()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3 border border-slate-600">
@@ -93,25 +107,28 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
         </div>
 
-        <!-- View 3: Host Setup (Select Playlist) -->
+        <!-- View 3: Host Setup -->
         <div id="view-host-setup" class="hidden flex-col items-center w-full gap-4">
             <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 w-full text-xs text-slate-300 flex items-center justify-between">
                 <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> DJ Connected:</span>
                 <span id="host-email-display" class="font-mono text-green-300 font-bold">Ready</span>
             </div>
-            <h2 class="text-xl font-bold text-white pt-2">Choose Music Source</h2>
             
-            <div class="w-full flex flex-col gap-3">
-                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-1 border border-purple-400/50">
-                    <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
+            <input type="text" id="host-player-name" placeholder="Host Name (e.g. Host DJ)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500" maxlength="12" value="Host DJ">
+
+            <h2 class="text-sm font-bold text-white pt-1">Choose Music Source</h2>
+            
+            <div class="w-full flex flex-col gap-2">
+                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
+                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
                     <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
                 </button>
 
-                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
                     <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
                 </button>
             </div>
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2">Logout Spotify</button>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-1">Logout Spotify</button>
         </div>
 
         <!-- View 4: Player Join Form -->
@@ -126,31 +143,32 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Cancel</button>
         </div>
 
-        <!-- Version Number -->
-        <p class="text-slate-500 text-[10px] font-mono absolute bottom-2 right-3" id="version-tag">v1.4.0</p>
+        <p class="text-slate-500 text-[10px] font-mono absolute bottom-2 right-3">v1.5.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
-    <div id="host-game-ui" class="hidden w-full max-w-sm flex-col items-center space-y-4">
+    <div id="host-game-ui" class="hidden w-full max-w-sm flex-col items-center space-y-3">
         <div class="w-full flex justify-between items-center bg-slate-800/80 p-3 rounded-xl border border-slate-700 shadow-md">
-            <span class="text-sm font-bold text-indigo-400"><i class="fa-solid fa-crown mr-1"></i> DJ Speaker (Background)</span>
+            <span class="text-xs font-bold text-indigo-400"><i class="fa-solid fa-crown mr-1"></i> DJ Speaker</span>
+            <button onclick="switchHostToPlayerView()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-gamepad"></i> Play as Host
+            </button>
             <div class="text-right">
-                <h2 class="text-[10px] font-bold text-slate-400">ROOM PIN</h2>
-                <div id="host-pin-display-game" class="text-xl font-black text-white tracking-widest">----</div>
+                <h2 class="text-[9px] font-bold text-slate-400">PIN</h2>
+                <div id="host-pin-display-game" class="text-lg font-black text-white tracking-widest">----</div>
             </div>
         </div>
 
-        <div class="w-full bg-slate-900 rounded-2xl p-5 border-2 border-indigo-500 text-center shadow-xl relative min-h-[220px] flex flex-col justify-between">
-            <div id="host-loading-info" class="flex flex-col items-center justify-center h-full space-y-3 text-slate-400 py-4">
-                <i class="fa-solid fa-compact-disc fa-spin text-4xl text-indigo-500"></i>
-                <p class="text-sm font-bold" id="host-loading-text">Loading Audio Engine...</p>
+        <div class="w-full bg-slate-900 rounded-2xl p-4 border-2 border-indigo-500 text-center shadow-xl relative min-h-[180px] flex flex-col justify-between">
+            <div id="host-loading-info" class="flex flex-col items-center justify-center h-full space-y-2 text-slate-400 py-3">
+                <i class="fa-solid fa-compact-disc fa-spin text-3xl text-indigo-500"></i>
+                <p class="text-xs font-bold" id="host-loading-text">Loading Audio Engine...</p>
             </div>
 
-            <div id="host-active-info" class="hidden flex-col items-center w-full py-2 space-y-3">
-                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
-                <div id="host-turn-player-name" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
-                <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-xs px-3 py-1 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
-                <p class="text-[11px] text-slate-500 italic mt-2">Leave this screen open. Players control playback from their phones!</p>
+            <div id="host-active-info" class="hidden flex-col items-center w-full py-1 space-y-2">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Turn</div>
+                <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Player</div>
+                <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYER</div>
             </div>
         </div>
         
@@ -158,56 +176,68 @@
             <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Connected Players:</h3>
             <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
         </div>
-        <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-2">End Game Session</button>
+        <button onclick="resetApp()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
 
-    <!-- PLAYER REMOTE UI -->
-    <div id="player-game-ui" class="hidden w-full h-[95vh] flex-col items-center p-2 max-w-lg mt-10">
+    <!-- PLAYER REMOTE UI (Sideways / Full Screen Landscape View) -->
+    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
         <!-- Top Bar -->
-        <div class="w-full flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0">
+        <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
             <div class="flex items-center gap-2">
                 <div class="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 border border-indigo-500/30">
                     <i class="fa-solid fa-user"></i> <span id="p-ui-name">Me</span>
                 </div>
+                <!-- Host Mode Switch Button -->
+                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+                    <i class="fa-solid fa-crown"></i> DJ
+                </button>
             </div>
+
+            <!-- View Toggle Button (When NOT your turn) -->
+            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5">
+                <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
+            </button>
+
             <div class="flex items-center gap-3">
-                <div class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
                 </div>
                 <!-- Token Control UI -->
                 <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-2">
                     <div class="flex items-center gap-1"><i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span></div>
-                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-5 h-5 flex items-center justify-center font-black transition active:scale-95">
-                        <i class="fa-solid fa-plus text-[10px]"></i>
+                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-4 h-4 flex items-center justify-center font-black transition active:scale-95">
+                        <i class="fa-solid fa-plus text-[9px]"></i>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Dynamic Header & Player Music Controls -->
-        <div id="p-ui-header" class="w-full bg-slate-900 border-2 border-slate-700 p-4 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-3 flex flex-col justify-center min-h-[110px]">
-            <h2 id="p-ui-title" class="text-xl font-bold text-white">Loading...</h2>
-            <p id="p-ui-desc" class="text-xs text-slate-400 mt-1 mb-2">Syncing with Host</p>
+        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] gap-2">
+            <div class="text-left flex-1 min-w-0">
+                <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate">Loading...</h2>
+                <p id="p-ui-desc" class="text-[11px] text-slate-400 truncate">Syncing with Host</p>
+            </div>
             
-            <div id="p-music-controls" class="hidden w-full pt-2 border-t border-slate-800 mt-2">
-                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-full bg-green-500 hover:bg-green-400 text-slate-950 font-black py-3 rounded-xl shadow-lg transition text-base flex items-center justify-center gap-2">
+            <div id="p-music-controls" class="hidden flex-shrink-0">
+                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5">
                     <i class="fa-solid fa-play"></i> Start Song
                 </button>
             </div>
         </div>
 
-        <!-- Horizontal Scrollable Timeline -->
+        <!-- Full Horizontal Scrollable Timeline -->
         <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
-            <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-1 px-4 py-4 hide-scrollbar scroll-smooth snap-x">
+            <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-1 px-4 py-2 hide-scrollbar scroll-smooth snap-x">
                 <!-- Javascript injects timeline cards -->
             </div>
         </div>
         
         <!-- Result Overlay -->
-        <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-6 backdrop-blur-sm">
-            <div id="p-overlay-icon" class="text-7xl mb-4"><i class="fa-solid fa-check-circle text-green-400"></i></div>
-            <h2 id="p-overlay-title" class="text-3xl font-black text-white mb-2">Result</h2>
-            <p id="p-overlay-desc" class="text-lg text-slate-300">Description here.</p>
+        <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm">
+            <div id="p-overlay-icon" class="text-5xl mb-2"><i class="fa-solid fa-check-circle text-green-400"></i></div>
+            <h2 id="p-overlay-title" class="text-2xl font-black text-white mb-1">Result</h2>
+            <p id="p-overlay-desc" class="text-sm text-slate-300">Description here.</p>
         </div>
     </div>
 
@@ -222,17 +252,11 @@
             const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
 
             if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl).then(() => {
-                    icon.classList.remove('fa-expand');
-                    icon.classList.add('fa-compress');
-                }).catch(err => {
-                    showMessage("Fullscreen denied by browser.", "error");
-                });
+                if (requestFullScreen) requestFullScreen.call(docEl);
+                if (icon) { icon.classList.remove('fa-expand'); icon.classList.add('fa-compress'); }
             } else {
-                cancelFullScreen.call(doc).then(() => {
-                    icon.classList.remove('fa-compress');
-                    icon.classList.add('fa-expand');
-                });
+                if (cancelFullScreen) cancelFullScreen.call(doc);
+                if (icon) { icon.classList.remove('fa-compress'); icon.classList.add('fa-expand'); }
             }
         }
 
@@ -323,6 +347,12 @@
             });
             const target = document.getElementById(id);
             if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
+
+            if (id === 'player-game-ui') {
+                document.body.classList.add('landscape-mode');
+            } else {
+                document.body.classList.remove('landscape-mode');
+            }
         }
 
         function switchSetupView(viewId) {
@@ -352,6 +382,7 @@
 
         // --- GLOBAL STATE ---
         const PEER_PREFIX = 'hitster-party-v1-'; 
+        const HOST_PLAYER_ID = 'host-local-player';
         let myPeer = null; 
         
         let players = {}; 
@@ -365,10 +396,12 @@
         let isPlaying = false;
         let spotifyPlayer = null;
         let webDeviceId = null;
+        let isHostMode = false;
         
         let hostConnection = null; 
         let myPlayerName = "";
         let myId = "";
+        let viewingOwnTimeline = false; // Player view toggle
 
         // ==========================================
         //               HOST LOGIC
@@ -385,6 +418,7 @@
 
         async function startHostGame(mode) {
             switchContainer('host-game-ui');
+            isHostMode = true;
             document.getElementById('host-loading-text').innerText = "Fetching Songs...";
             
             try {
@@ -448,12 +482,28 @@
             const pin = Math.floor(1000 + Math.random() * 9000);
             document.getElementById('host-pin-display-game').innerText = pin;
             
+            // Register Host as a Player automatically!
+            const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
+            myId = HOST_PLAYER_ID;
+            myPlayerName = hostName;
+
+            players[HOST_PLAYER_ID] = {
+                id: HOST_PLAYER_ID, name: hostName, conn: null, // null connection means internal host player
+                tokens: 2, score: 0,
+                timeline: [getRandomStarter()]
+            };
+            turnOrder.push(HOST_PLAYER_ID);
+
             myPeer = new Peer(PEER_PREFIX + pin, { debug: 2 });
             
             myPeer.on('open', () => {
                 document.getElementById('host-loading-info').classList.add('hidden');
                 document.getElementById('host-active-info').classList.remove('hidden');
                 document.getElementById('host-active-info').classList.add('flex');
+                
+                // Initialize first turn for host
+                turnIndex = 0;
+                loadTurn();
             });
 
             myPeer.on('connection', (conn) => {
@@ -470,13 +520,6 @@
                     if (!turnOrder.includes(pId)) turnOrder.push(pId);
                     updateHostPlayerList();
                     showMessage(`${pName} joined!`, 'success');
-                    
-                    if (gameState === 'IDLE' && turnOrder.length === 1) {
-                        turnIndex = 0;
-                        loadTurn();
-                    } else {
-                        broadcastSync();
-                    }
 
                     conn.on('data', (data) => handlePlayerAction(pId, data));
                 });
@@ -495,11 +538,10 @@
             const ul = document.getElementById('host-game-player-list');
             ul.innerHTML = '';
             const pArr = Object.values(players);
-            if (pArr.length === 0) { ul.innerHTML = '<li class="text-slate-500 italic">Waiting for players to join...</li>'; return; }
             pArr.forEach((p, idx) => {
                 const isTurn = idx === turnIndex;
-                ul.innerHTML += `<li class="flex justify-between items-center py-1 ${isTurn ? 'text-green-400 font-bold' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name}</span>
+                ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''}">
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}</span>
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
@@ -525,7 +567,6 @@
         function handlePlayerAction(pId, data) {
             const activePlayerId = turnOrder[turnIndex];
             
-            // Add a manual token requested by player
             if (data.action === 'ADD_TOKEN') {
                 if (players[pId]) {
                     players[pId].tokens++;
@@ -559,10 +600,10 @@
             else if (data.action === 'STEAL' && gameState === 'STEALING') {
                 if (pId === activePlayerId) return;
                 const player = players[pId];
-                if (player.tokens <= 0) return; // Automatic block if no tokens
+                if (player.tokens <= 0) return;
                 if (Object.values(currentGuesses).includes(data.index)) return;
                 
-                player.tokens--; // System deducts on use
+                player.tokens--;
                 currentGuesses[pId] = data.index;
                 updateHostPlayerList();
                 broadcastSync();
@@ -608,12 +649,20 @@
             updateHostPlayerList();
 
             Object.values(players).forEach(p => {
-                p.conn.send({
+                const payload = {
                     type: 'SYNC', state: 'REVEAL',
                     correctYear: targetYear, trackTitle: currentHostTrack.t,
                     artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
                     winningSlot: winningSlot, myScore: p.score, myTokens: p.tokens
-                });
+                };
+                if (p.conn) p.conn.send(payload);
+            });
+
+            // Local Host UI sync
+            handlePlayerSync({
+                state: 'REVEAL', correctYear: targetYear, trackTitle: currentHostTrack.t,
+                artistName: currentHostTrack.a, winnerName: winnerId ? players[winnerId].name : null,
+                winningSlot: winningSlot, myScore: players[HOST_PLAYER_ID].score, myTokens: players[HOST_PLAYER_ID].tokens
             });
 
             setTimeout(() => { if (gameState === 'REVEAL') nextTurn(); }, 5000);
@@ -635,15 +684,53 @@
             const guessNameMap = {};
             for (const [pId, slot] of Object.entries(currentGuesses)) { guessNameMap[slot] = players[pId].name; }
 
+            // Sync all remote players
             Object.values(players).forEach(p => {
-                p.conn.send({
+                const syncObj = {
                     type: 'SYNC', state: gameState, isPlaying: isPlaying,
                     activePlayerName: activePlayerName, isActivePlayer: p.id === activePlayerId,
-                    timeline: activeTimeline, guesses: guessNameMap,
+                    timeline: activeTimeline,
+                    ownTimeline: p.timeline,
+                    guesses: guessNameMap,
                     myScore: p.score, myTokens: p.tokens
-                });
+                };
+                if (p.conn) p.conn.send(syncObj);
             });
+
+            // Local sync for Host Player UI
+            const hostP = players[HOST_PLAYER_ID];
+            if (hostP) {
+                handlePlayerSync({
+                    type: 'SYNC', state: gameState, isPlaying: isPlaying,
+                    activePlayerName: activePlayerName, isActivePlayer: HOST_PLAYER_ID === activePlayerId,
+                    timeline: activeTimeline,
+                    ownTimeline: hostP.timeline,
+                    guesses: guessNameMap,
+                    myScore: hostP.score, myTokens: hostP.tokens
+                });
+            }
         }
+
+        // Host View Switching Controls
+        function switchHostToPlayerView() {
+            switchContainer('player-game-ui');
+            document.getElementById('p-btn-host-back').classList.remove('hidden');
+        }
+
+        function switchPlayerToHostView() {
+            switchContainer('host-game-ui');
+        }
+
+        // Orientation auto-switch for Host
+        window.addEventListener('orientationchange', () => {
+            if (isHostMode) {
+                if (window.orientation === 90 || window.orientation === -90) {
+                    switchHostToPlayerView();
+                } else {
+                    switchPlayerToHostView();
+                }
+            }
+        });
 
         // ==========================================
         //               PLAYER LOGIC
@@ -677,7 +764,15 @@
             });
         }
 
+        let cachedSyncData = null;
+
+        function togglePlayerTimelineView() {
+            viewingOwnTimeline = !viewingOwnTimeline;
+            if (cachedSyncData) handlePlayerSync(cachedSyncData);
+        }
+
         function handlePlayerSync(data) {
+            cachedSyncData = data;
             document.getElementById('p-ui-name').innerText = myPlayerName;
             document.getElementById('p-ui-score').innerText = data.myScore;
             document.getElementById('p-ui-tokens').innerText = data.myTokens;
@@ -685,27 +780,44 @@
 
             const musicBox = document.getElementById('p-music-controls');
             const playBtn = document.getElementById('p-btn-play');
+            const viewToggleBtn = document.getElementById('p-btn-toggle-view');
+
+            // Show/Hide View Toggle Button if not active player
+            if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
+                viewToggleBtn.classList.remove('hidden');
+                if (viewingOwnTimeline) {
+                    document.getElementById('toggle-view-text').innerText = "View Active Player";
+                    document.getElementById('toggle-view-icon').className = "fa-solid fa-crosshairs";
+                } else {
+                    document.getElementById('toggle-view-text').innerText = "View My Timeline";
+                    document.getElementById('toggle-view-icon').className = "fa-solid fa-eye";
+                }
+            } else {
+                viewToggleBtn.classList.add('hidden');
+                viewingOwnTimeline = false; // Reset when active turn arrives
+            }
 
             if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
                 if (data.isActivePlayer) {
                     musicBox.classList.remove('hidden');
                     if (data.isPlaying) {
-                        playBtn.className = "w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-3 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2";
+                        playBtn.className = "bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
                         playBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Song`;
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Music Playing! 🎵', 'Tap a + on your timeline below to lock in your guess.', 'text-indigo-300');
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Music Playing! 🎵', 'Tap a + slot below to place your card.', 'text-indigo-300');
                     } else {
-                        playBtn.className = "w-full spotify-green text-slate-950 font-black py-3 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2";
+                        playBtn.className = "spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
                         playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Play Song`;
-                        setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the music.', 'text-indigo-300');
+                        setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the track.', 'text-indigo-300');
                     }
                 } else {
                     musicBox.classList.add('hidden');
-                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.", 'text-slate-300');
+                    const subText = viewingOwnTimeline ? "Inspecting your timeline." : (data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.");
+                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, subText, 'text-slate-300');
                 }
             } else if (data.state === 'STEALING') {
                 musicBox.classList.add('hidden');
                 if (data.isActivePlayer) {
-                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', 'Waiting for others to steal or time to reveal.', 'text-slate-400');
+                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', 'Waiting for others to steal or submit to reveal.', 'text-slate-400');
                 } else {
                     setPlayerHeader('bg-yellow-950 border-yellow-500', 'Steal Mode! 🎯', 'Spend 1 Token to steal this card on another slot.', 'text-yellow-400');
                 }
@@ -720,9 +832,9 @@
 
         function setPlayerHeader(bgClass, title, desc, titleColor) {
             const h = document.getElementById('p-ui-header');
-            h.className = `w-full ${bgClass} p-4 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-3 flex flex-col justify-center min-h-[110px] border-2`;
+            h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
             document.getElementById('p-ui-title').innerText = title;
-            document.getElementById('p-ui-title').className = `text-xl font-black ${titleColor}`;
+            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColor} truncate`;
             document.getElementById('p-ui-desc').innerText = desc;
         }
 
@@ -730,22 +842,23 @@
             const container = document.getElementById('p-ui-timeline');
             container.innerHTML = '';
             
-            const timeline = data.timeline;
+            // Render own timeline if toggled, otherwise active timeline
+            const timeline = (viewingOwnTimeline && data.ownTimeline) ? data.ownTimeline : data.timeline;
             
             for (let i = 0; i <= timeline.length; i++) {
                 const gap = document.createElement('div');
-                gap.className = "flex flex-col justify-center px-1 snap-center w-16 items-center shrink-0 h-40";
+                gap.className = "flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
                 
                 const guesserName = data.guesses[i];
                 
-                if (guesserName) {
-                    gap.innerHTML = `<div class="bg-indigo-600 border border-indigo-400 text-white text-[10px] font-bold py-2 px-1 rounded-lg text-center w-full shadow-[0_0_10px_rgba(79,70,229,0.5)] break-words leading-tight animate-pulse"><i class="fa-solid fa-crosshairs mb-1"></i><br>${guesserName}</div>`;
+                if (!viewingOwnTimeline && guesserName) {
+                    gap.innerHTML = `<div class="bg-indigo-600 border border-indigo-400 text-white text-[9px] font-bold py-1.5 px-1 rounded-lg text-center w-full shadow-[0_0_10px_rgba(79,70,229,0.5)] break-words leading-tight animate-pulse"><i class="fa-solid fa-crosshairs mb-0.5"></i><br>${guesserName}</div>`;
                 } 
-                else if ((data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') && data.isActivePlayer) {
-                    gap.innerHTML = `<button onclick="sendPlayerAction('GUESS', ${i})" class="w-12 h-32 bg-indigo-500/20 border-2 border-dashed border-indigo-500 hover:bg-indigo-500/40 text-indigo-300 rounded-xl flex flex-col items-center justify-center text-xs transition"><i class="fa-solid fa-plus text-base mb-1"></i><span>Place</span></button>`;
+                else if (!viewingOwnTimeline && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') && data.isActivePlayer) {
+                    gap.innerHTML = `<button onclick="sendPlayerAction('GUESS', ${i})" class="w-11 h-28 bg-indigo-500/20 border-2 border-dashed border-indigo-500 hover:bg-indigo-500/40 text-indigo-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-plus text-sm mb-1"></i><span>Place</span></button>`;
                 } 
-                else if (data.state === 'STEALING' && !data.isActivePlayer && data.myTokens > 0) {
-                    gap.innerHTML = `<button onclick="sendPlayerAction('STEAL', ${i})" class="w-12 h-32 bg-yellow-500/20 border-2 border-dashed border-yellow-500 hover:bg-yellow-500/40 text-yellow-300 rounded-xl flex flex-col items-center justify-center text-xs transition"><i class="fa-solid fa-coins mb-1 text-sm"></i><span>Steal</span></button>`;
+                else if (!viewingOwnTimeline && data.state === 'STEALING' && !data.isActivePlayer && data.myTokens > 0) {
+                    gap.innerHTML = `<button onclick="sendPlayerAction('STEAL', ${i})" class="w-11 h-28 bg-yellow-500/20 border-2 border-dashed border-yellow-500 hover:bg-yellow-500/40 text-yellow-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-coins mb-1 text-xs"></i><span>Steal</span></button>`;
                 } 
                 else {
                     gap.innerHTML = `<div class="w-full h-full flex items-center justify-center"><div class="h-full border-r-2 border-dashed border-slate-700/50"></div></div>`;
@@ -757,19 +870,19 @@
                     const t = timeline[i];
                     let imgUrl = t.c ? (t.c.startsWith('http') ? t.c : `https://i.scdn.co/image/${t.c}`) : '';
                     const card = document.createElement('div');
-                    card.className = "w-32 h-44 bg-slate-900 border border-slate-600 rounded-xl p-2 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center";
+                    card.className = "w-28 h-36 bg-slate-900 border border-slate-600 rounded-xl p-1.5 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center";
                     card.innerHTML = `
-                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-2 leading-none">${t.y}</div>
-                        ${imgUrl ? `<img src="${imgUrl}" class="w-16 h-16 rounded object-cover shadow-md border border-slate-700 mb-2">` : `<div class="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-slate-600 mb-2"><i class="fa-solid fa-music"></i></div>`}
-                        <div class="text-[10px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
+                        <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-1 leading-none">${t.y}</div>
+                        ${imgUrl ? `<img src="${imgUrl}" class="w-12 h-12 rounded object-cover shadow border border-slate-700 mb-1">` : `<div class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-slate-600 mb-1"><i class="fa-solid fa-music"></i></div>`}
+                        <div class="text-[9px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
                     `;
                     container.appendChild(card);
                 }
             }
 
-            if (data.state === 'STEALING' && data.isActivePlayer) {
+            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer) {
                 const revealTriggerBtn = document.createElement('button');
-                revealTriggerBtn.className = "fixed bottom-4 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-full shadow-2xl text-xs flex items-center gap-2 border border-indigo-400 z-40";
+                revealTriggerBtn.className = "fixed bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-5 rounded-full shadow-2xl text-xs flex items-center gap-2 border border-indigo-400 z-40";
                 revealTriggerBtn.innerHTML = `<i class="fa-solid fa-check"></i> Submit & Reveal Answer`;
                 revealTriggerBtn.onclick = () => sendPlayerAction('EVALUATE_ROUND', 0);
                 container.appendChild(revealTriggerBtn);
@@ -777,8 +890,12 @@
         }
 
         function sendPlayerAction(actionType, index) {
-            if (!hostConnection || !hostConnection.open) return;
-            hostConnection.send({ action: actionType, index: index });
+            if (isHostMode) {
+                handlePlayerAction(HOST_PLAYER_ID, { action: actionType, index: index });
+            } else {
+                if (!hostConnection || !hostConnection.open) return;
+                hostConnection.send({ action: actionType, index: index });
+            }
         }
 
         function showRevealOverlay(data) {
@@ -793,15 +910,14 @@
             if (data.winnerName) {
                 icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
                 title.innerText = `${data.winnerName} got it!`;
-                desc.innerHTML = `<div class="font-bold text-white text-base mb-1">${data.trackTitle || ''}</div><div class="text-xs text-slate-400 mb-2">${data.artistName || ''}</div>The release year was <span class="font-black text-yellow-400 text-2xl">${data.correctYear}</span>.`;
+                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-yellow-400 text-xl">${data.correctYear}</span>.`;
             } else {
                 icon.innerHTML = `<i class="fa-solid fa-skull-crossbones text-red-500"></i>`;
                 title.innerText = `Nobody got it!`;
-                desc.innerHTML = `<div class="font-bold text-white text-base mb-1">${data.trackTitle || ''}</div><div class="text-xs text-slate-400 mb-2">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-2xl">${data.correctYear}</span>.`;
+                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
             }
         }
     </script>
 </body>
 </html>
-
 
