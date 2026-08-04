@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.12.0">
+    <meta name="app-version" content="1.13.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -43,14 +43,27 @@
             .landscape-mode #portrait-blocker { display: flex !important; }
             .landscape-mode #player-game-ui { display: none !important; }
         }
+
+        /* Large Font / Accessibility Mode */
+        .text-scaled .timeline-card { width: 8.5rem !important; height: 11.5rem !important; }
+        .text-scaled .timeline-card-year { font-size: 2.25rem !important; }
+        .text-scaled .timeline-card-title { font-size: 0.75rem !important; line-height: 1.1 !important; }
+        .text-scaled .gap-slot { width: 4.5rem !important; }
+        .text-scaled #p-ui-title { font-size: 1.25rem !important; }
+        .text-scaled #p-ui-desc { font-size: 0.85rem !important; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Fullscreen Toggle Button -->
-    <button onclick="toggleFullScreen()" class="fixed top-2 right-2 z-[1000] bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs">
-        <i class="fa-solid fa-expand" id="fs-icon"></i>
-    </button>
+    <!-- Screen Controls -->
+    <div class="fixed top-2 right-2 z-[1000] flex gap-2">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
+            A
+        </button>
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs w-9 h-9">
+            <i class="fa-solid fa-expand" id="fs-icon"></i>
+        </button>
+    </div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
@@ -143,7 +156,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.12.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.13.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -212,12 +225,8 @@
                 <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
                 </div>
-                <!-- Token Control UI -->
-                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-2">
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span></div>
-                    <button onclick="sendPlayerAction('ADD_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 rounded-sm w-4 h-4 flex items-center justify-center font-black transition active:scale-95">
-                        <i class="fa-solid fa-plus text-[9px]"></i>
-                    </button>
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                    <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
             </div>
         </div>
@@ -252,18 +261,28 @@
         </div>
         
         <!-- Result Overlay -->
-        <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm">
+        <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm overflow-y-auto">
             <div id="p-overlay-icon" class="text-5xl mb-2"><i class="fa-solid fa-check-circle text-green-400"></i></div>
             <h2 id="p-overlay-title" class="text-2xl font-black text-white mb-1">Result</h2>
-            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-6">Description here.</p>
-            <button onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
-                <i class="fa-solid fa-forward"></i> Next Round
+            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-4">Description here.</p>
+            
+            <div id="p-bonus-container" class="hidden flex flex-col items-center mb-4"></div>
+
+            <button id="p-btn-next-round" onclick="sendPlayerAction('NEXT_TURN')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+                <i class="fa-solid fa-forward"></i> <span id="p-btn-next-text">Next Round</span>
             </button>
         </div>
     </div>
 
     <script>
-        // --- FULLSCREEN FUNCTIONALITY ---
+        // --- UI TOGGLES ---
+        let isLargeFont = false;
+        function toggleFontSize() {
+            isLargeFont = !isLargeFont;
+            if (isLargeFont) document.body.classList.add('text-scaled');
+            else document.body.classList.remove('text-scaled');
+        }
+
         function toggleFullScreen() {
             const doc = window.document;
             const docEl = doc.documentElement;
@@ -443,8 +462,12 @@
         let currentGuesses = {}; 
         let stealDecisions = {}; 
         let stealEndTime = 0; 
-        let isHostInPlayerView = false; // Tracks if Host device is currently in Player Remote UI
+        let isHostInPlayerView = false; 
         
+        // Bonus Token State
+        let currentWinnerId = null;
+        let bonusTokenClaimed = false;
+
         let tracks = [];
         let currentHostTrack = null;
         let isPlaying = false;
@@ -562,12 +585,11 @@
                 document.getElementById('host-active-info').classList.remove('hidden');
                 document.getElementById('host-active-info').classList.add('flex');
                 
-                // Timestamp-based broadcast loop (1000ms interval)
                 hostBroadcastInterval = setInterval(() => { 
                     if (gameState === 'STEALING') {
                         const remaining = Math.ceil((stealEndTime - Date.now()) / 1000);
                         if (remaining <= 0) {
-                            evaluateAndScoreRound(); // Timer expired, evaluate round!
+                            evaluateAndScoreRound();
                         }
                     }
                     broadcastSync(); 
@@ -632,19 +654,21 @@
                 const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
                 
                 ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon}</span>
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon} (Score: ${p.score})</span>
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
         }
 
         function loadTurn() {
-            if (tracks.length === 0) return showMessage("Out of songs!", "error");
+            if (tracks.length === 0) return showMessage("Out of songs! Please restart.", "error");
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
             stealDecisions = {};
             stealEndTime = 0;
+            currentWinnerId = null;
+            bonusTokenClaimed = false;
             currentHostTrack = tracks.pop();
             isPlaying = false;
             
@@ -674,9 +698,9 @@
 
             return otherPlayers.every(id => {
                 const p = players[id];
-                if (!p || !p.online) return true; // Ignore offline players
+                if (!p || !p.online) return true; // Ignore ghost drops
                 if (p.tokens <= 0) return true; // Ignore broke players
-                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if host is sitting on DJ Speaker screen!
+                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; // Auto-pass host if host is sitting on DJ Speaker screen
                 return stealDecisions[id] !== undefined; 
             });
         }
@@ -688,18 +712,31 @@
                 sendTargetedSync(pId);
                 return;
             }
-            
-            if (data.action === 'ADD_TOKEN') {
-                if (players[pId]) {
+
+            if (data.action === 'CLAIM_BONUS_TOKEN' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
+                // Only the active player can claim a bonus, and only if they won the guess!
+                if (pId === activePlayerId && pId === currentWinnerId && !bonusTokenClaimed) {
                     players[pId].tokens++;
+                    bonusTokenClaimed = true;
                     updateHostPlayerList();
                     broadcastSync();
                 }
-                return; 
+                return;
             }
 
             if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
                 nextTurn();
+                return;
+            }
+
+            if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
+                Object.values(players).forEach(p => {
+                    p.score = 0;
+                    p.tokens = 2;
+                    p.timeline = [getRandomStarter()];
+                });
+                turnIndex = 0;
+                loadTurn();
                 return;
             }
 
@@ -722,7 +759,7 @@
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
                 stealDecisions = {}; 
-                stealEndTime = Date.now() + 15000; // 15 seconds timestamp deadline
+                stealEndTime = Date.now() + 15000; 
                 
                 if (spotifyPlayer) spotifyPlayer.pause();
                 
@@ -766,7 +803,6 @@
             const targetYear = currentHostTrack.y;
             
             let winnerId = null;
-            let winningSlot = -1;
 
             const isCorrect = (idx) => {
                 const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
@@ -774,22 +810,37 @@
                 return targetYear >= prevY && targetYear <= nextY;
             };
 
+            // 1. Determine Winner
             if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
                 winnerId = activePlayerId;
-                winningSlot = currentGuesses[activePlayerId];
             } else {
                 for (const [sId, sIdx] of Object.entries(currentGuesses)) {
                     if (sId !== activePlayerId && isCorrect(sIdx)) {
                         winnerId = sId;
-                        winningSlot = sIdx;
                         break;
                     }
                 }
             }
 
+            currentWinnerId = winnerId;
+
+            // 2. Chronological Card Placement logic
             if (winnerId && players[winnerId]) {
-                players[winnerId].timeline.splice(winningSlot, 0, currentHostTrack);
+                const winnerTimeline = players[winnerId].timeline;
+                
+                // Find correct chronological index to insert in the WINNER'S timeline
+                let insertIdx = 0;
+                while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
+                    insertIdx++;
+                }
+                
+                winnerTimeline.splice(insertIdx, 0, currentHostTrack);
                 players[winnerId].score++;
+            }
+
+            // 3. Win Condition Check
+            if (winnerId && players[winnerId].score >= 10) {
+                gameState = 'GAME_OVER';
             }
 
             updateHostPlayerList();
@@ -835,31 +886,17 @@
                 waitingOn: waitingOn,
                 stealTimeLeft: remainingTime,
                 myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
-                correctYear: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.y : null,
-                trackTitle: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.t : null,
-                artistName: gameState === 'REVEAL' && currentHostTrack ? currentHostTrack.a : null,
-                winnerName: null 
+                correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
+                trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
+                artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
+                
+                // Bonus & Win tracking
+                isWinner: p ? (p.id === currentWinnerId) : false,
+                bonusTokenClaimed: bonusTokenClaimed,
+                overallWinnerName: (gameState === 'GAME_OVER' && currentWinnerId) ? players[currentWinnerId].name : null,
+                winnerName: currentWinnerId ? players[currentWinnerId].name : null
             };
 
-            if (gameState === 'REVEAL' && currentHostTrack) {
-                 let wId = null;
-                 let wSlot = -1;
-                 const targetYear = currentHostTrack.y;
-                 const isCorrect = (idx) => {
-                    const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
-                    const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
-                    return targetYear >= prevY && targetYear <= nextY;
-                 };
-                 if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
-                     wId = activePlayerId; wSlot = currentGuesses[activePlayerId];
-                 } else {
-                     for (const [sId, sIdx] of Object.entries(currentGuesses)) {
-                         if (sId !== activePlayerId && isCorrect(sIdx)) { wId = sId; wSlot = sIdx; break; }
-                     }
-                 }
-                 syncObj.winnerName = wId ? players[wId].name : null;
-                 syncObj.winningSlot = wSlot;
-            }
             return syncObj;
         }
 
@@ -892,6 +929,7 @@
                 else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
                 else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${remainingTime}s)`;
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+                else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
 
                 // Direct Play Button for Host Background UI
                 const djPlayBtn = document.getElementById('dj-direct-play-btn');
@@ -1076,7 +1114,7 @@
                         setPlayerHeader('bg-yellow-950 border-yellow-500', `Steal Mode! 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
                     }
                 }
-            } else if (data.state === 'REVEAL') {
+            } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
                 musicBox.classList.add('hidden');
                 passStealBox.classList.add('hidden');
                 showRevealOverlay(data);
@@ -1103,7 +1141,7 @@
             
             for (let i = 0; i <= timeline.length; i++) {
                 const gap = document.createElement('div');
-                gap.className = "flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
+                gap.className = "gap-slot flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
                 
                 const guesserName = data.guesses ? data.guesses[i] : null;
                 
@@ -1126,11 +1164,11 @@
                     const t = timeline[i];
                     let imgUrl = t.c ? (t.c.startsWith('http') ? t.c : `https://i.scdn.co/image/${t.c}`) : '';
                     const card = document.createElement('div');
-                    card.className = "w-28 h-36 bg-slate-900 border border-slate-600 rounded-xl p-1.5 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center";
+                    card.className = "timeline-card w-28 h-36 bg-slate-900 border border-slate-600 rounded-xl p-1.5 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center transition-all duration-300";
                     card.innerHTML = `
-                        <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-1 leading-none">${t.y}</div>
+                        <div class="timeline-card-year text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-1 leading-none">${t.y}</div>
                         ${imgUrl ? `<img src="${imgUrl}" class="w-12 h-12 rounded object-cover shadow border border-slate-700 mb-1">` : `<div class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-slate-600 mb-1"><i class="fa-solid fa-music"></i></div>`}
-                        <div class="text-[9px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
+                        <div class="timeline-card-title text-[9px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
                     `;
                     container.appendChild(card);
                 }
@@ -1160,10 +1198,26 @@
             const icon = document.getElementById('p-overlay-icon');
             const title = document.getElementById('p-overlay-title');
             const desc = document.getElementById('p-overlay-desc');
+            const bonusContainer = document.getElementById('p-bonus-container');
+            const nextBtn = document.getElementById('p-btn-next-round');
+            const nextText = document.getElementById('p-btn-next-text');
             
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
             
+            if (data.state === 'GAME_OVER') {
+                icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400 text-6xl animate-bounce"></i>`;
+                title.innerText = `${data.overallWinnerName} WINS!`;
+                desc.innerHTML = `Reached 10 cards!`;
+                nextText.innerText = "Play Again";
+                nextBtn.onclick = () => sendPlayerAction('RESTART_GAME');
+                bonusContainer.classList.add('hidden');
+                return;
+            }
+
+            nextText.innerText = "Next Round";
+            nextBtn.onclick = () => sendPlayerAction('NEXT_TURN');
+
             if (data.winnerName) {
                 icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
                 title.innerText = `${data.winnerName} got it!`;
@@ -1173,8 +1227,18 @@
                 title.innerText = `Nobody got it!`;
                 desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
             }
+
+            // Bonus Token Logic
+            if (data.isActivePlayer && data.isWinner && !data.bonusTokenClaimed) {
+                bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed the Artist & Title! (+1 Token)</button>`;
+                bonusContainer.classList.remove('hidden');
+            } else {
+                bonusContainer.classList.add('hidden');
+                bonusContainer.innerHTML = '';
+            }
         }
     </script>
 </body>
 </html>
+
 
