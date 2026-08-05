@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.26.0">
+    <meta name="app-version" content="1.17.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -55,12 +55,12 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Screen Controls (Anchored Bottom-Left) -->
-    <div class="fixed bottom-3 left-3 z-[1000] flex gap-2">
-        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-10 h-10">
+    <!-- Screen Controls -->
+    <div class="fixed top-3 right-3 z-[1000] flex gap-4">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
             A
         </button>
-        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs w-10 h-10">
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
         </button>
     </div>
@@ -123,6 +123,17 @@
                     <div class="text-[10px] text-slate-300 font-normal">Player Remote</div>
                 </div>
             </button>
+
+            <!-- Resume Saved Game Container (Shown Dynamically) -->
+            <div id="resume-game-container" class="hidden w-full mt-2">
+                <button onclick="resumeHostGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    <div class="text-left flex-1">
+                        <div class="text-base font-extrabold leading-tight">Resume Game</div>
+                        <div class="text-[10px] text-orange-200 font-normal" id="resume-pin-text">Recover dropped session</div>
+                    </div>
+                </button>
+            </div>
         </div>
 
         <!-- View 2: Spotify Login (Host Only) -->
@@ -130,21 +141,15 @@
             <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-1">
                 <i class="fa-brands fa-spotify"></i>
             </div>
-            <div class="text-center w-full">
+            <div class="text-center">
                 <h2 class="text-xl font-bold">Host requires Spotify</h2>
                 <p class="text-xs text-slate-400 mt-1">Premium is required to stream music directly to this browser tab.</p>
-                
-                <div class="mt-3 p-2.5 bg-slate-900 rounded-lg border border-red-500/50 w-full text-left shadow-inner">
-                    <p class="text-[10px] text-red-300 font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> Required for Login:</p>
-                    <p class="text-[9px] text-slate-400 mb-1">Copy this exact URL and add it to your Spotify Developer Dashboard "Redirect URIs".</p>
-                    <code id="redirect-uri-display" class="text-[10px] text-green-300 font-mono break-all select-all block bg-black/50 p-1.5 rounded border border-slate-700"></code>
-                </div>
             </div>
             
-            <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-1">
+            <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
             </button>
-            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mb-2">Back</button>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
         </div>
 
         <!-- View 3: Host Setup -->
@@ -159,20 +164,16 @@
             <h2 class="text-xs font-bold text-white pt-1">Choose Music Source</h2>
             
             <div class="w-full flex flex-col gap-2">
-                <button id="resume-game-btn" onclick="resumeHostGame()" class="hidden w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-blue-400/50 text-sm mb-1">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Resume Saved Game
+                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
+                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
+                    <span class="text-[10px] text-purple-200 font-normal">200+ Hits bridging 1960 to 2024</span>
                 </button>
 
-                <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
-                    <span class="flex items-center gap-2 text-base"><i class="fa-solid fa-globe"></i> Classic Hitster Mix</span>
-                    <span class="text-xs text-purple-200 font-normal">250 Tracks: 1960 to 2024</span>
-                </button>
-
-                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm mt-1">
+                <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
                     <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
                 </button>
             </div>
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2">Logout Spotify</button>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-1">Logout Spotify</button>
         </div>
 
         <!-- View 4: Player Join Form -->
@@ -187,7 +188,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.26.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.17.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -216,7 +217,7 @@
                 
                 <!-- Start Game Button (In Lobby) -->
                 <button id="host-start-game-btn" onclick="hostStartGameFromLobby()" class="mt-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-slate-950 font-black py-3 px-8 rounded-xl shadow-lg text-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-play"></i> Start Game (Random Starter)
+                    <i class="fa-solid fa-play"></i> Start Game (Pick Random Starter)
                 </button>
 
                 <!-- Direct Play Button for Host when it's their turn -->
@@ -232,36 +233,40 @@
         </div>
         
         <div class="w-full bg-slate-900 rounded-lg p-3 border border-slate-700 text-left">
-            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Connected Players:</h3>
+            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between">
+                <span>Connected Players:</span>
+                <span id="host-track-count" class="text-indigo-400">0 Songs Left</span>
+            </h3>
             <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
         </div>
         <button onclick="endGameSession()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
 
     <!-- PLAYER REMOTE UI -->
-    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl pl-16">
-        <!-- Top Bar -->
-        <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
-            <div class="flex items-center gap-2">
+    <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
+        <!-- Top Bar (With Flex Wrap Fix) -->
+        <div class="w-full flex flex-wrap justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-y-2 gap-x-2">
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
                 <div class="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 border border-indigo-500/30">
                     <i class="fa-solid fa-user"></i> <span id="p-ui-name">Me</span>
                 </div>
                 <!-- Host Mode Switch Button -->
-                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1 shrink-0">
                     <i class="fa-solid fa-crown"></i> DJ
                 </button>
             </div>
 
             <!-- View Toggle Button (When NOT your turn) -->
-            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5">
+            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5 shrink-0 ml-auto md:ml-0">
                 <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
             </button>
 
-            <div class="flex items-center gap-3">
-                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-baseline gap-1">
-                    <i class="fa-solid fa-layer-group text-green-400 self-center"></i> <span id="p-ui-score">0</span><span class="text-[9px] text-green-200">/10</span>
+            <!-- Score & Tokens protected in their own box -->
+            <div class="flex items-center gap-3 shrink-0 bg-slate-900/50 px-2.5 py-1.5 rounded-lg border border-slate-700 ml-auto">
+                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                    <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
                 </div>
-                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
                     <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
             </div>
@@ -286,9 +291,6 @@
                 <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5 border border-slate-600">
                     <i class="fa-solid fa-forward"></i> Pass (No Steal)
                 </button>
-                <div id="p-steal-no-tokens" class="hidden text-red-400 font-bold text-[10px] px-2 text-right">
-                    No tokens.<br>Auto-passed.
-                </div>
             </div>
         </div>
 
@@ -357,8 +359,7 @@
 
         // --- SPOTIFY OAUTH ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
-        const REDIRECT_URI = window.location.origin + window.location.pathname; 
-        
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('party_spotify_token') || null;
 
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
@@ -366,14 +367,18 @@
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
         window.addEventListener('load', async () => {
-            const redirectDisplayEl = document.getElementById('redirect-uri-display');
-            if (redirectDisplayEl) redirectDisplayEl.innerText = REDIRECT_URI;
-
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
+            
+            const savedGame = localStorage.getItem('party_saved_game');
+            if (savedGame) {
+                const parsed = JSON.parse(savedGame);
+                document.getElementById('resume-pin-text').innerText = `Recover session ${parsed.pin || ''}`;
+                document.getElementById('resume-game-container').classList.remove('hidden');
+            }
 
             if (code) {
                 try {
@@ -403,8 +408,6 @@
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
             const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
-            
-            // FIXED JAVASCRIPT SYNTAX ERROR HERE
             const params = new URLSearchParams({ 
                 response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
                 code_challenge_method: 'S256', code_challenge: codeChallenge, 
@@ -537,7 +540,7 @@
             
             const saved = localStorage.getItem('party_saved_game');
             if (saved) {
-                document.getElementById('resume-game-btn').classList.remove('hidden');
+                document.getElementById('resume-game-container').classList.remove('hidden');
             }
 
             try {
@@ -550,39 +553,39 @@
             switchContainer('host-game-ui');
             isHostMode = true;
             isHostInPlayerView = false;
-            document.getElementById('host-loading-text').innerText = "Fetching 250 Songs...";
+            document.getElementById('host-loading-text').innerText = "Fetching 250+ Songs...";
             requestWakeLock(); 
             
             try {
-                let fetchPromises = [];
                 let rawItems = [];
-
                 if (mode === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
-                    for(let i=0; i<5; i++) {
-                        let offset = Math.floor(Math.random() * Math.max(1, total - 50)); 
-                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`));
+                    const maxStart = Math.max(0, total - 200);
+                    const startOffset = Math.floor(Math.random() * maxStart);
+                    
+                    const fetchPromises = [];
+                    for(let i=0; i<4; i++) {
+                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${startOffset + (i*50)}`));
                     }
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.items) rawItems.push(...res.items); });
-
-                } else if (mode === 'hitster_classic') {
-                    // PRISTINE ORIGINAL FETCH LOGIC (100% STABLE, NO URL ENCODING ISSUES)
-                    // limit increased safely to 50
-                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    eras.forEach(era => {
-                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=50&offset=${Math.floor(Math.random() * 50)}`));
-                    });
+                } else {
+                    const eras = ['1960-1974', '1975-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=50&offset=${Math.floor(Math.random() * 50)}`));
                     const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { 
-                        if (res.tracks && res.tracks.items) {
-                            rawItems.push(...res.tracks.items.map(t => ({ track: t }))); 
-                        }
-                    });
+                    results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
                 }
 
-                tracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
+                // De-duplicate tracks
+                const seen = new Set();
+                tracks = rawItems.filter(i => {
+                    const t = i?.track;
+                    if (!t?.uri || !t.album?.release_date || t.is_local) return false;
+                    if (seen.has(t.uri)) return false;
+                    seen.add(t.uri);
+                    return true;
+                }).map(i => ({
                     u: i.track.uri,
                     t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
@@ -592,7 +595,11 @@
 
                 if (tracks.length === 0) throw new Error("No valid tracks found.");
                 
-                tracks.sort(() => Math.random() - 0.5); 
+                // Shuffle final pool
+                for (let i = tracks.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+                }
 
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
                 initSpotifyWebPlayer(false);
@@ -696,9 +703,9 @@
 
                 players[HOST_PLAYER_ID] = {
                     id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
-                    tokens: 2, 
+                    tokens: 2, score: 0,
                     lastPongAt: Date.now(),
-                    timeline: [] 
+                    timeline: [] // Empty in Lobby
                 };
                 turnOrder = [HOST_PLAYER_ID];
                 gameState = 'IDLE'; 
@@ -723,23 +730,19 @@
                     if (gameState === 'STEALING') {
                         const remaining = Math.ceil((stealEndTime - now) / 1000);
                         if (remaining <= 0) {
-                            try { evaluateAndScoreRound(); } catch(e) { console.error("Auto Eval Error", e); }
+                            evaluateAndScoreRound();
                         }
                     }
                     
-                    // Heartbeat connection tracking
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
-                            if (now - p.lastPongAt > 15000) { 
+                            if (now - p.lastPongAt > 5000) {
                                 p.online = false;
                                 p.conn = null;
                                 showMessage(`${p.name} dropped offline.`, 'error');
                                 updateHostPlayerList();
                                 if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
                                     triggerDisconnectPrompt(p.id, p.name);
-                                }
-                                if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
-                                    try { evaluateAndScoreRound(); } catch(e) {}
                                 }
                             } else if (p.conn && p.conn.open) {
                                 p.conn.send({ type: 'PING' });
@@ -748,7 +751,7 @@
                     });
 
                     broadcastSync(); 
-                }, 2000); 
+                }, 1000);
 
                 updateHostPlayerList();
                 broadcastSync();
@@ -773,9 +776,9 @@
                     } else {
                         players[stableId] = {
                             id: stableId, name: pName, conn: conn, online: true,
-                            tokens: 2, 
+                            tokens: 2, score: 0,
                             lastPongAt: Date.now(),
-                            timeline: [] 
+                            timeline: gameState !== 'IDLE' ? [tracks.pop()] : []
                         };
                         if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
                         showMessage(`${pName} joined!`, 'success');
@@ -786,33 +789,17 @@
 
                     conn.on('data', (data) => handlePlayerAction(stableId, data));
                 });
-
-                conn.on('close', () => {
-                    const pName = conn.metadata.playerName || "Unknown";
-                    const stableId = pName.trim().toLowerCase();
-                    
-                    if (players[stableId]) {
-                        players[stableId].online = false;
-                        players[stableId].conn = null;
-                        showMessage(`${pName} disconnected.`, 'error');
-                        
-                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
-                            triggerDisconnectPrompt(stableId, pName);
-                        }
-                    }
-                    updateHostPlayerList();
-                    broadcastSync();
-                });
             });
         }
 
         function hostStartGameFromLobby() {
             if (turnOrder.length === 0) return showMessage("No players in room!", "error");
             
+            // Assign random Spotify starter songs!
             Object.values(players).forEach(p => {
-                if (tracks.length > 0) {
-                    p.timeline = [tracks.pop()];
-                }
+                p.timeline = [tracks.pop()];
+                p.score = 0;
+                p.tokens = 2;
             });
 
             turnIndex = Math.floor(Math.random() * turnOrder.length);
@@ -863,12 +850,11 @@
             }
 
             if (wasActivePlayer) {
-                // Skips to next player automatically as the array shrank
                 turnIndex = turnIndex % turnOrder.length;
                 loadTurn();
             } else {
                 if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
-                    try { evaluateAndScoreRound(); } catch(e){}
+                    evaluateAndScoreRound();
                 } else {
                     broadcastSync();
                 }
@@ -879,28 +865,23 @@
         function updateHostPlayerList() {
             const ul = document.getElementById('host-game-player-list');
             ul.innerHTML = '';
-            
-            turnOrder.forEach((id, idx) => {
-                const p = players[id];
-                if (!p) return;
-                
-                const isTurn = (gameState !== 'IDLE' && idx === turnIndex);
+            const pArr = Object.values(players);
+            pArr.forEach((p, idx) => {
+                const turnIdxOfP = turnOrder.indexOf(p.id);
+                const isTurn = (gameState !== 'IDLE' && turnIdxOfP === turnIndex);
                 const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
                 
                 ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon}</span>
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon} (Score: ${p.score})</span>
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
+
+            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
-            if (tracks.length === 0) {
-                showMessage("Out of songs! Game Over.", "info");
-                gameState = 'GAME_OVER';
-                broadcastSync();
-                return;
-            }
+            if (tracks.length === 0) return showMessage("Out of songs! Please restart.", "error");
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
@@ -918,10 +899,16 @@
         function nextTurn() {
             if (turnOrder.length === 0) return;
             
-            // STRICT TURN ORDER: Iterate sequentially without auto-skips. 
-            // If offline, the game pauses until the Host kicks them.
             turnIndex = (turnIndex + 1) % turnOrder.length;
             
+            let attempts = 0;
+            while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
+                turnIndex = (turnIndex + 1) % turnOrder.length;
+                attempts++;
+            }
+
+            if (attempts >= turnOrder.length) return showMessage("Everyone is offline!", "error");
+
             loadTurn();
         }
 
@@ -941,156 +928,147 @@
         }
 
         function handlePlayerAction(pId, data) {
-            try {
-                const activePlayerId = turnOrder[turnIndex];
+            const activePlayerId = turnOrder[turnIndex];
 
-                if (data.action === 'PONG') {
-                    if (players[pId]) players[pId].lastPongAt = Date.now();
-                    return;
-                }
+            if (data.action === 'PONG') {
+                if (players[pId]) players[pId].lastPongAt = Date.now();
+                return;
+            }
 
-                if (data.action === 'REQUEST_SYNC') {
-                    sendTargetedSync(pId);
-                    return;
-                }
+            if (data.action === 'REQUEST_SYNC') {
+                sendTargetedSync(pId);
+                return;
+            }
 
-                if (data.action === 'CLAIM_BONUS_TOKEN' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
-                    if (pId === activePlayerId && pId === currentWinnerId && !bonusTokenClaimed) {
-                        players[pId].tokens++;
-                        bonusTokenClaimed = true;
-                        updateHostPlayerList();
-                        broadcastSync();
-                    }
-                    return;
-                }
-
-                if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
-                    // Strictly only the active player can advance the round
-                    if (pId === activePlayerId || pId === HOST_PLAYER_ID) {
-                        nextTurn();
-                    }
-                    return;
-                }
-
-                if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
-                    Object.values(players).forEach(p => {
-                        p.tokens = 2;
-                        if (tracks.length > 0) p.timeline = [tracks.pop()];
-                    });
-                    turnIndex = Math.floor(Math.random() * turnOrder.length);
-                    loadTurn();
-                    return;
-                }
-
-                if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
-                    if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
-                        if (isPlaying) {
-                            spotifyPlayer.pause();
-                        } else {
-                            fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
-                                method: 'PUT',
-                                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ uris: [currentHostTrack.u] })
-                            }).catch(e => {
-                                console.error("Spotify Play Err", e);
-                            });
-                            gameState = 'PLAYING';
-                        }
-                        broadcastSync();
-                    }
-                }
-                else if (data.action === 'GUESS' && pId === activePlayerId) {
-                    currentGuesses[pId] = data.index;
-                    gameState = 'STEALING';
-                    stealDecisions = {}; 
-                    stealEndTime = Date.now() + 15000; 
-                    
-                    if (spotifyPlayer) spotifyPlayer.pause();
-                    
-                    if (checkAllStealsSubmitted()) {
-                        evaluateAndScoreRound();
-                    } else {
-                        broadcastSync();
-                    }
-                }
-                else if (data.action === 'STEAL' && gameState === 'STEALING') {
-                    if (pId === activePlayerId) return;
-                    const player = players[pId];
-                    if (!player || player.tokens <= 0) return;
-                    if (Object.values(currentGuesses).includes(data.index)) return; 
-                    
-                    player.tokens--;
-                    currentGuesses[pId] = data.index;
-                    stealDecisions[pId] = 'STEAL';
+            if (data.action === 'CLAIM_BONUS_TOKEN' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
+                if (pId === activePlayerId && pId === currentWinnerId && !bonusTokenClaimed) {
+                    players[pId].tokens++;
+                    bonusTokenClaimed = true;
                     updateHostPlayerList();
-                    
-                    if (checkAllStealsSubmitted()) evaluateAndScoreRound();
-                    else broadcastSync();
+                    broadcastSync();
                 }
-                else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
-                    if (pId === activePlayerId) return;
-                    stealDecisions[pId] = 'PASS';
-                    
-                    if (checkAllStealsSubmitted()) evaluateAndScoreRound();
-                    else broadcastSync();
+                return;
+            }
+
+            if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
+                if (pId === activePlayerId || pId === HOST_PLAYER_ID) {
+                    nextTurn();
                 }
-            } catch (err) {
-                console.error("Action error:", err);
+                return;
+            }
+
+            if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
+                Object.values(players).forEach(p => {
+                    p.score = 0;
+                    p.tokens = 2;
+                    p.timeline = [tracks.pop()];
+                });
+                turnIndex = Math.floor(Math.random() * turnOrder.length);
+                loadTurn();
+                return;
+            }
+
+            if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
+                if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
+                    if (isPlaying) {
+                        spotifyPlayer.pause();
+                    } else {
+                        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uris: [currentHostTrack.u] })
+                        });
+                        gameState = 'PLAYING';
+                    }
+                    broadcastSync();
+                }
+            }
+            else if (data.action === 'GUESS' && pId === activePlayerId) {
+                currentGuesses[pId] = data.index;
+                gameState = 'STEALING';
+                stealDecisions = {}; 
+                stealEndTime = Date.now() + 15000; 
+                
+                if (spotifyPlayer) spotifyPlayer.pause();
+                
+                if (checkAllStealsSubmitted()) {
+                    evaluateAndScoreRound();
+                } else {
+                    broadcastSync();
+                }
+            }
+            else if (data.action === 'STEAL' && gameState === 'STEALING') {
+                if (pId === activePlayerId) return;
+                const player = players[pId];
+                if (!player || player.tokens <= 0) return;
+                if (Object.values(currentGuesses).includes(data.index)) return; 
+                
+                player.tokens--;
+                currentGuesses[pId] = data.index;
+                stealDecisions[pId] = 'STEAL';
+                updateHostPlayerList();
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
+            }
+            else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
+                if (pId === activePlayerId) return;
+                stealDecisions[pId] = 'PASS';
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
+            }
+            else if (data.action === 'FORCE_EVALUATE_ROUND' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
+                if (gameState === 'STEALING') evaluateAndScoreRound();
             }
         }
 
         function evaluateAndScoreRound() {
-            try {
-                stealEndTime = 0;
-                gameState = 'REVEAL';
-                const activePlayerId = turnOrder[turnIndex];
-                const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-                const targetYear = currentHostTrack ? currentHostTrack.y : 0;
-                
-                let winnerId = null;
+            stealEndTime = 0;
+            gameState = 'REVEAL';
+            const activePlayerId = turnOrder[turnIndex];
+            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
+            const targetYear = currentHostTrack.y;
+            
+            let winnerId = null;
 
-                const isCorrect = (idx) => {
-                    const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
-                    const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
-                    return targetYear >= prevY && targetYear <= nextY;
-                };
+            const isCorrect = (idx) => {
+                const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
+                const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
+                return targetYear >= prevY && targetYear <= nextY;
+            };
 
-                // 1. Determine Winner
-                if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
-                    winnerId = activePlayerId;
-                } else {
-                    for (const [sId, sIdx] of Object.entries(currentGuesses)) {
-                        if (sId !== activePlayerId && isCorrect(sIdx)) {
-                            winnerId = sId;
-                            break;
-                        }
+            if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
+                winnerId = activePlayerId;
+            } else {
+                for (const [sId, sIdx] of Object.entries(currentGuesses)) {
+                    if (sId !== activePlayerId && isCorrect(sIdx)) {
+                        winnerId = sId;
+                        break;
                     }
                 }
-
-                currentWinnerId = winnerId;
-
-                // 2. Chronological Card Placement logic
-                if (winnerId && players[winnerId]) {
-                    const winnerTimeline = players[winnerId].timeline;
-                    
-                    let insertIdx = 0;
-                    while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
-                        insertIdx++;
-                    }
-                    
-                    winnerTimeline.splice(insertIdx, 0, currentHostTrack);
-                }
-
-                // 3. Win Condition Check
-                if (winnerId && players[winnerId].timeline.length >= 10) {
-                    gameState = 'GAME_OVER';
-                }
-
-                updateHostPlayerList();
-                broadcastSync();
-            } catch(err) {
-                console.error("Eval Error:", err);
             }
+
+            currentWinnerId = winnerId;
+
+            if (winnerId && players[winnerId]) {
+                const winnerTimeline = players[winnerId].timeline;
+                
+                let insertIdx = 0;
+                while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
+                    insertIdx++;
+                }
+                
+                winnerTimeline.splice(insertIdx, 0, currentHostTrack);
+                players[winnerId].score++;
+            }
+
+            if (winnerId && players[winnerId].score >= 10) {
+                gameState = 'GAME_OVER';
+            }
+
+            updateHostPlayerList();
+            broadcastSync();
         }
 
         function buildSyncObj(pId) {
@@ -1131,8 +1109,7 @@
                 allStealsDone: allStealsDone,
                 waitingOn: waitingOn,
                 stealTimeLeft: remainingTime,
-                myScore: p && p.timeline ? p.timeline.length : 0, myTokens: p ? p.tokens : 0,
-                activeTimelineLen: activeTimeline.length,
+                myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
                 correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
                 trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
                 artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
@@ -1152,7 +1129,7 @@
             if (!p) return;
             if (gameState === 'IDLE') {
                 const lobbyPlayers = Object.values(players).map(pl => pl.name);
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.timeline ? p.timeline.length : 0, myTokens: p.tokens });
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens });
                 return;
             }
             const syncObj = buildSyncObj(pId);
@@ -1165,7 +1142,6 @@
         }
 
         function broadcastSync() {
-            if (turnOrder.length === 0) return;
             const activePlayerId = turnOrder[turnIndex];
             const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "In Lobby";
             const badge = document.getElementById('host-status-badge');
@@ -1212,7 +1188,6 @@
             saveGameState();
         }
 
-        // Host View Switching Controls
         function switchHostToPlayerView() {
             isHostInPlayerView = true;
             switchContainer('player-game-ui');
@@ -1223,12 +1198,7 @@
         function switchPlayerToHostView() {
             isHostInPlayerView = false;
             switchContainer('host-game-ui');
-            
-            if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
-                try { evaluateAndScoreRound(); } catch(e){}
-            } else {
-                broadcastSync();
-            }
+            broadcastSync();
         }
 
         window.addEventListener('orientationchange', () => {
@@ -1256,36 +1226,40 @@
             document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
 
-            myPeer = new Peer(peerConfig);
-            myPeer.on('open', (id) => {
-                myId = id;
-                hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
-                
-                let connTimeout = setTimeout(() => {
-                    if (!hostConnection || !hostConnection.open) {
-                        document.getElementById('btn-connect').classList.remove('hidden');
-                        document.getElementById('player-status').classList.add('hidden');
-                        showMessage("Connection timed out. Check PIN.", "error");
-                        if (myPeer) { myPeer.destroy(); myPeer = null; }
-                    }
-                }, 8000);
+            const delay = Math.floor(Math.random() * 800);
+            
+            setTimeout(() => {
+                myPeer = new Peer(peerConfig);
+                myPeer.on('open', (id) => {
+                    myId = id;
+                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
+                    
+                    let connTimeout = setTimeout(() => {
+                        if (!hostConnection || !hostConnection.open) {
+                            document.getElementById('btn-connect').classList.remove('hidden');
+                            document.getElementById('player-status').classList.add('hidden');
+                            showMessage("Connection timed out. Check PIN.", "error");
+                            if (myPeer) { myPeer.destroy(); myPeer = null; }
+                        }
+                    }, 8000);
 
-                hostConnection.on('open', () => { 
-                    clearTimeout(connTimeout);
-                    switchContainer('player-game-ui'); 
-                    hostConnection.send({ action: 'REQUEST_SYNC' });
+                    hostConnection.on('open', () => { 
+                        clearTimeout(connTimeout);
+                        switchContainer('player-game-ui'); 
+                        hostConnection.send({ action: 'REQUEST_SYNC' });
+                    });
+                    hostConnection.on('data', (data) => { 
+                        if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                        if (data.type === 'SYNC') handlePlayerSync(data); 
+                    });
+                    hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
                 });
-                hostConnection.on('data', (data) => { 
-                    if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
-                    if (data.type === 'SYNC') handlePlayerSync(data); 
+                myPeer.on('error', (err) => {
+                    document.getElementById('btn-connect').classList.remove('hidden');
+                    document.getElementById('player-status').classList.add('hidden');
+                    showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
                 });
-                hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
-            });
-            myPeer.on('error', (err) => {
-                document.getElementById('btn-connect').classList.remove('hidden');
-                document.getElementById('player-status').classList.add('hidden');
-                showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
-            });
+            }, delay);
         }
 
         let cachedSyncData = null;
@@ -1311,14 +1285,12 @@
 
             const musicBox = document.getElementById('p-music-controls');
             const passStealBox = document.getElementById('p-steal-pass-control');
-            const noTokensMsg = document.getElementById('p-steal-no-tokens');
             const playBtn = document.getElementById('p-btn-play');
             const viewToggleBtn = document.getElementById('p-btn-toggle-view');
 
             if (data.state === 'IDLE') {
                 if (musicBox) musicBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
-                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 
                 const playersListStr = data.lobbyPlayers ? data.lobbyPlayers.join(', ') : '';
@@ -1331,7 +1303,6 @@
             if (data.state === 'PAUSED_DISCONNECT') {
                 if (musicBox) musicBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
-                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 setPlayerHeader('bg-red-950 border-red-500', 'Game Paused ⏸️', `Waiting for ${data.pausedPlayerName || 'player'} to reconnect or Host decision...`, 'text-red-400');
                 return;
@@ -1353,7 +1324,6 @@
 
             if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
                 passStealBox.classList.add('hidden');
-                noTokensMsg.classList.add('hidden');
                 if (data.isActivePlayer) {
                     musicBox.classList.remove('hidden');
                     if (data.isPlaying) {
@@ -1367,44 +1337,33 @@
                     }
                 } else {
                     musicBox.classList.add('hidden');
-                    const titleText = viewingOwnTimeline ? `My Timeline (${data.myScore}/10 Cards)` : `${data.activePlayerName}'s Turn (${data.activeTimelineLen || 0}/10 Cards)`;
                     const subText = viewingOwnTimeline ? "Inspecting your timeline." : (data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.");
-                    setPlayerHeader('bg-slate-800 border-slate-600', titleText, subText, 'text-slate-300');
+                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, subText, 'text-slate-300');
                 }
             } else if (data.state === 'STEALING') {
                 musicBox.classList.add('hidden');
                 if (data.isActivePlayer) {
                     passStealBox.classList.add('hidden');
-                    noTokensMsg.classList.add('hidden');
                     const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
                     const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList} (${data.stealTimeLeft}s)`;
                     setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
                 } else {
-                    const titleText = viewingOwnTimeline ? `My Timeline (${data.myScore}/10 Cards)` : `Stealing ${data.activePlayerName}`;
                     if (data.hasPassedSteal) {
                         passStealBox.classList.add('hidden');
-                        noTokensMsg.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
                         setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-slate-400');
                     } else if (data.hasStealed) {
                         passStealBox.classList.add('hidden');
-                        noTokensMsg.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
                         setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300');
-                    } else if (data.myTokens <= 0) {
-                        passStealBox.classList.add('hidden');
-                        noTokensMsg.classList.remove('hidden');
-                        setPlayerHeader('bg-red-950 border-red-500', 'Out of Tokens', 'Auto-passed the steal phase.', 'text-red-400');
                     } else {
                         passStealBox.classList.remove('hidden');
-                        noTokensMsg.classList.add('hidden');
-                        setPlayerHeader('bg-yellow-950 border-yellow-500', `${titleText} 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
+                        setPlayerHeader('bg-yellow-950 border-yellow-500', `Steal Mode! 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
                     }
                 }
             } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
                 musicBox.classList.add('hidden');
                 passStealBox.classList.add('hidden');
-                if (noTokensMsg) noTokensMsg.classList.add('hidden');
                 showRevealOverlay(data);
                 return;
             }
@@ -1460,6 +1419,15 @@
                     `;
                     container.appendChild(card);
                 }
+            }
+
+            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer && !data.allStealsDone) {
+                const revealTriggerBtn = document.createElement('button');
+                const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
+                revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
+                revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Force Reveal (Skip ${namesList})`;
+                revealTriggerBtn.onclick = () => { if(confirm("Force round end and skip remaining stealers?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
+                container.appendChild(revealTriggerBtn);
             }
         }
 
@@ -1520,7 +1488,7 @@
             }
 
             if (data.isActivePlayer && data.isWinner && !data.bonusTokenClaimed) {
-                bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed Artist & Title! (+1 Token)</button>`;
+                bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed the Artist & Title! (+1 Token)</button>`;
                 bonusContainer.classList.remove('hidden');
             } else {
                 bonusContainer.classList.add('hidden');
