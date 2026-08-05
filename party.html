@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.17.0">
+    <meta name="app-version" content="1.18.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -56,11 +56,11 @@
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
     <!-- Screen Controls -->
-    <div class="fixed top-3 right-3 z-[1000] flex gap-4">
-        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
+    <div class="fixed bottom-3 left-3 z-[1000] flex gap-2">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
             A
         </button>
-        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs w-9 h-9">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
         </button>
     </div>
@@ -87,6 +87,16 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- CLIENT DISCONNECT OVERLAY -->
+    <div id="client-disconnect-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] hidden flex-col items-center justify-center p-6 text-center">
+        <i class="fa-solid fa-wifi text-6xl text-red-500 mb-4 animate-pulse"></i>
+        <h2 class="text-2xl font-black text-white mb-2">Connection Lost</h2>
+        <p class="text-sm text-slate-400 mb-8 max-w-xs">We lost contact with the Host DJ. This usually happens if your screen turns off or the Host's connection drops.</p>
+        <button onclick="window.location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> Reload & Rejoin
+        </button>
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
@@ -188,7 +198,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.17.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.18.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -525,10 +535,13 @@
         let isHostMode = false;
         let hostBroadcastInterval = null;
         
+        // Client variables
         let hostConnection = null; 
         let myPlayerName = "";
         let myId = "";
         let viewingOwnTimeline = false; 
+        let lastHostContact = Date.now();
+        let clientWatchdog = null;
 
         // ==========================================
         //               HOST LOGIC
@@ -705,7 +718,7 @@
                     id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
                     tokens: 2, score: 0,
                     lastPongAt: Date.now(),
-                    timeline: [] // Empty in Lobby
+                    timeline: [] 
                 };
                 turnOrder = [HOST_PLAYER_ID];
                 gameState = 'IDLE'; 
@@ -734,9 +747,10 @@
                         }
                     }
                     
+                    // Host Heartbeat connection tracking - Increased tolerance to 15 seconds!
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
-                            if (now - p.lastPongAt > 5000) {
+                            if (now - p.lastPongAt > 15000) {
                                 p.online = false;
                                 p.conn = null;
                                 showMessage(`${p.name} dropped offline.`, 'error');
@@ -1225,6 +1239,7 @@
 
             document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
+            requestWakeLock(); // Enable WakeLock for client
 
             const delay = Math.floor(Math.random() * 800);
             
@@ -1246,13 +1261,33 @@
                     hostConnection.on('open', () => { 
                         clearTimeout(connTimeout);
                         switchContainer('player-game-ui'); 
+                        lastHostContact = Date.now();
+                        
+                        // Client Watchdog: Check if Host disappears
+                        if(clientWatchdog) clearInterval(clientWatchdog);
+                        clientWatchdog = setInterval(() => {
+                            if (Date.now() - lastHostContact > 8000) {
+                                document.getElementById('client-disconnect-overlay').classList.remove('hidden');
+                                document.getElementById('client-disconnect-overlay').classList.add('flex');
+                            } else {
+                                document.getElementById('client-disconnect-overlay').classList.add('hidden');
+                                document.getElementById('client-disconnect-overlay').classList.remove('flex');
+                            }
+                        }, 2000);
+
                         hostConnection.send({ action: 'REQUEST_SYNC' });
                     });
+                    
                     hostConnection.on('data', (data) => { 
+                        lastHostContact = Date.now();
                         if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
                         if (data.type === 'SYNC') handlePlayerSync(data); 
                     });
-                    hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
+                    
+                    hostConnection.on('close', () => { 
+                        document.getElementById('client-disconnect-overlay').classList.remove('hidden');
+                        document.getElementById('client-disconnect-overlay').classList.add('flex');
+                    });
                 });
                 myPeer.on('error', (err) => {
                     document.getElementById('btn-connect').classList.remove('hidden');
