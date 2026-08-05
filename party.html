@@ -816,6 +816,11 @@
             }
             document.getElementById('host-pin-display-game').innerText = pin;
 
+            myId = HOST_PLAYER_ID;
+            if (players[HOST_PLAYER_ID]) {
+                myPlayerName = players[HOST_PLAYER_ID].name;
+            }
+
             myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
             myPeer.on('open', () => {
