@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.18.0">
+    <meta name="app-version" content="1.16.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -55,12 +55,12 @@
 </head>
 <body class="flex flex-col min-h-screen items-center justify-center relative p-2 md:p-4">
 
-    <!-- Screen Controls -->
-    <div class="fixed bottom-3 left-3 z-[1000] flex gap-2">
-        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm font-bold w-9 h-9">
+    <!-- Screen Controls (Spacing Fixed) -->
+    <div class="fixed top-3 right-3 z-[1000] flex gap-4">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
             A
         </button>
-        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-xs w-9 h-9">
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
         </button>
     </div>
@@ -87,16 +87,6 @@
                 </button>
             </div>
         </div>
-    </div>
-
-    <!-- CLIENT DISCONNECT OVERLAY -->
-    <div id="client-disconnect-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] hidden flex-col items-center justify-center p-6 text-center">
-        <i class="fa-solid fa-wifi text-6xl text-red-500 mb-4 animate-pulse"></i>
-        <h2 class="text-2xl font-black text-white mb-2">Connection Lost</h2>
-        <p class="text-sm text-slate-400 mb-8 max-w-xs">We lost contact with the Host DJ. This usually happens if your screen turns off or the Host's connection drops.</p>
-        <button onclick="window.location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
-            <i class="fa-solid fa-rotate-right"></i> Reload & Rejoin
-        </button>
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
@@ -176,7 +166,7 @@
             <div class="w-full flex flex-col gap-2">
                 <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50">
                     <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> Classic Hitster Mix</span>
-                    <span class="text-[10px] text-purple-200 font-normal">200+ Hits bridging 1960 to 2024</span>
+                    <span class="text-[10px] text-purple-200 font-normal">50 Hits bridging 1960 to 2024</span>
                 </button>
 
                 <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
@@ -198,7 +188,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.18.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2">v1.16.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -243,10 +233,7 @@
         </div>
         
         <div class="w-full bg-slate-900 rounded-lg p-3 border border-slate-700 text-left">
-            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between">
-                <span>Connected Players:</span>
-                <span id="host-track-count" class="text-indigo-400">0 Songs Left</span>
-            </h3>
+            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Connected Players:</h3>
             <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
         </div>
         <button onclick="endGameSession()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
@@ -254,29 +241,28 @@
 
     <!-- PLAYER REMOTE UI -->
     <div id="player-game-ui" class="hidden w-full h-[98vh] flex-col items-center p-2 max-w-5xl">
-        <!-- Top Bar (With Flex Wrap Fix) -->
-        <div class="w-full flex flex-wrap justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-y-2 gap-x-2">
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <!-- Top Bar -->
+        <div class="w-full flex justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-2">
+            <div class="flex items-center gap-2">
                 <div class="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 border border-indigo-500/30">
                     <i class="fa-solid fa-user"></i> <span id="p-ui-name">Me</span>
                 </div>
                 <!-- Host Mode Switch Button -->
-                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1 shrink-0">
+                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
                     <i class="fa-solid fa-crown"></i> DJ
                 </button>
             </div>
 
             <!-- View Toggle Button (When NOT your turn) -->
-            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5 shrink-0 ml-auto md:ml-0">
+            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5">
                 <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
             </button>
 
-            <!-- Score & Tokens protected in their own box -->
-            <div class="flex items-center gap-3 shrink-0 bg-slate-900/50 px-2.5 py-1.5 rounded-lg border border-slate-700 ml-auto">
+            <div class="flex items-center gap-3">
                 <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
                 </div>
-                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
                     <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
             </div>
@@ -382,12 +368,16 @@
             
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
-            
-            const savedGame = localStorage.getItem('party_saved_game');
-            if (savedGame) {
-                const parsed = JSON.parse(savedGame);
-                document.getElementById('resume-pin-text').innerText = `Recover session ${parsed.pin || ''}`;
-                document.getElementById('resume-game-container').classList.remove('hidden');
+
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (savedStateStr) {
+                try {
+                    const savedState = JSON.parse(savedStateStr);
+                    if (savedState.pin) {
+                        document.getElementById('resume-game-container').classList.remove('hidden');
+                        document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                    }
+                } catch(e){}
             }
 
             if (code) {
@@ -491,8 +481,40 @@
         }
 
         function endGameSession() {
-            localStorage.removeItem('party_saved_game');
-            resetApp();
+            if (confirm("End the game session and clear all saved data?")) {
+                localStorage.removeItem('party_host_state');
+                resetApp();
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        const STARTER_SONGS = [
+            { y: 1969, t: "Come Together", a: "The Beatles", c: "" },
+            { y: 1983, t: "Billie Jean", a: "Michael Jackson", c: "" },
+            { y: 1991, t: "Smells Like Teen Spirit", a: "Nirvana", c: "" },
+            { y: 2003, t: "Hey Ya!", a: "Outkast", c: "" },
+            { y: 2014, t: "Uptown Funk", a: "Mark Ronson", c: "" },
+            { y: 1975, t: "Bohemian Rhapsody", a: "Queen", c: "" },
+            { y: 1987, t: "Sweet Child O' Mine", a: "Guns N' Roses", c: "" },
+            { y: 1999, t: "Smooth", a: "Santana ft. Rob Thomas", c: "" },
+            { y: 2010, t: "Rolling in the Deep", a: "Adele", c: "" },
+            { y: 1965, t: "Like a Rolling Stone", a: "Bob Dylan", c: "" },
+            { y: 1980, t: "Another One Bites the Dust", a: "Queen", c: "" },
+            { y: 1995, t: "Wonderwall", a: "Oasis", c: "" },
+            { y: 2008, t: "Single Ladies", a: "Beyonce", c: "" },
+            { y: 1977, t: "Stayin' Alive", a: "Bee Gees", c: "" },
+            { y: 1985, t: "Take On Me", a: "a-ha", c: "" }
+        ];
+
+        function getRandomStarter() { 
+            return STARTER_SONGS[Math.floor(Math.random() * STARTER_SONGS.length)]; 
         }
 
         // --- GLOBAL STATE ---
@@ -510,8 +532,8 @@
         };
 
         let myPeer = null; 
-        let currentRoomPin = null;
         
+        let currentRoomPin = null;
         let players = {}; 
         let turnOrder = [];
         let turnIndex = 0;
@@ -535,13 +557,10 @@
         let isHostMode = false;
         let hostBroadcastInterval = null;
         
-        // Client variables
         let hostConnection = null; 
         let myPlayerName = "";
         let myId = "";
         let viewingOwnTimeline = false; 
-        let lastHostContact = Date.now();
-        let clientWatchdog = null;
 
         // ==========================================
         //               HOST LOGIC
@@ -550,23 +569,62 @@
         async function checkSpotifyAuthAndInitHost() {
             if (!accessToken) { switchSetupView('view-spotify-login'); return; }
             switchSetupView('view-host-setup');
-            
-            const saved = localStorage.getItem('party_saved_game');
-            if (saved) {
-                document.getElementById('resume-game-container').classList.remove('hidden');
-            }
-
             try {
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
                 document.getElementById('host-email-display').innerText = userData.email || 'Ready';
             } catch (err) {}
         }
 
+        function resumeHostGame() {
+            if (!accessToken) {
+                showMessage("Please log in with Spotify to resume your game.", "info");
+                switchSetupView('view-spotify-login');
+                return;
+            }
+            
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (!savedStateStr) return;
+            
+            try {
+                const savedState = JSON.parse(savedStateStr);
+                currentRoomPin = savedState.pin;
+                players = savedState.players || {};
+                turnOrder = savedState.turnOrder || [];
+                turnIndex = savedState.turnIndex || 0;
+                gameState = savedState.gameState || 'READY_TO_PLAY';
+                currentHostTrack = savedState.currentHostTrack;
+                isPlaying = false; 
+                currentGuesses = savedState.currentGuesses || {};
+                stealDecisions = savedState.stealDecisions || {};
+                stealEndTime = savedState.stealEndTime || 0;
+                currentWinnerId = savedState.currentWinnerId;
+                bonusTokenClaimed = savedState.bonusTokenClaimed;
+                tracks = savedState.tracks || [];
+
+                Object.values(players).forEach(p => {
+                    p.conn = null;
+                    p.online = (p.id === HOST_PLAYER_ID); 
+                    p.lastPongAt = Date.now();
+                });
+
+                switchContainer('host-game-ui');
+                isHostMode = true;
+                isHostInPlayerView = false;
+                document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                requestWakeLock(); 
+
+                initSpotifyWebPlayer(true); 
+            } catch(err) {
+                showMessage("Corrupted save file. Starting fresh.", "error");
+                localStorage.removeItem('party_host_state');
+            }
+        }
+
         async function startHostGame(mode) {
             switchContainer('host-game-ui');
             isHostMode = true;
             isHostInPlayerView = false;
-            document.getElementById('host-loading-text').innerText = "Fetching 250+ Songs...";
+            document.getElementById('host-loading-text').innerText = "Fetching Songs...";
             requestWakeLock(); 
             
             try {
@@ -574,31 +632,17 @@
                 if (mode === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
-                    const maxStart = Math.max(0, total - 200);
-                    const startOffset = Math.floor(Math.random() * maxStart);
-                    
-                    const fetchPromises = [];
-                    for(let i=0; i<4; i++) {
-                        fetchPromises.push(safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${startOffset + (i*50)}`));
-                    }
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.items) rawItems.push(...res.items); });
+                    let offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
+                    rawItems = data.items || [];
                 } else {
-                    const eras = ['1960-1974', '1975-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=50&offset=${Math.floor(Math.random() * 50)}`));
+                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${Math.floor(Math.random() * 50)}`));
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
                 }
 
-                // De-duplicate tracks
-                const seen = new Set();
-                tracks = rawItems.filter(i => {
-                    const t = i?.track;
-                    if (!t?.uri || !t.album?.release_date || t.is_local) return false;
-                    if (seen.has(t.uri)) return false;
-                    seen.add(t.uri);
-                    return true;
-                }).map(i => ({
+                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
                     u: i.track.uri,
                     t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
@@ -606,13 +650,8 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                if (tracks.length === 0) throw new Error("No valid tracks found.");
-                
-                // Shuffle final pool
-                for (let i = tracks.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
-                }
+                if (mappedTracks.length === 0) throw new Error("No valid tracks found.");
+                tracks = shuffleArray(mappedTracks);
 
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
                 initSpotifyWebPlayer(false);
@@ -620,59 +659,6 @@
             } catch (err) {
                 showMessage(`Error: ${err.message}`, "error");
                 resetApp();
-            }
-        }
-
-        function resumeHostGame() {
-            const savedStr = localStorage.getItem('party_saved_game');
-            if (!savedStr) return;
-            const saved = JSON.parse(savedStr);
-
-            switchContainer('host-game-ui');
-            isHostMode = true;
-            isHostInPlayerView = false;
-            document.getElementById('host-loading-text').innerText = "Resuming Session...";
-            requestWakeLock();
-
-            currentRoomPin = saved.pin;
-            players = saved.players;
-            turnOrder = saved.turnOrder || [];
-            turnIndex = saved.turnIndex || 0;
-            gameState = saved.gameState || 'IDLE';
-            if (gameState === 'PLAYING') gameState = 'READY_TO_PLAY'; 
-            previousStateBeforePause = saved.previousStateBeforePause || 'READY_TO_PLAY';
-            pendingDisconnectPlayerId = saved.pendingDisconnectPlayerId || null;
-            currentGuesses = saved.currentGuesses || {};
-            stealDecisions = saved.stealDecisions || {};
-            stealEndTime = saved.stealEndTime || 0;
-            currentWinnerId = saved.currentWinnerId || null;
-            bonusTokenClaimed = saved.bonusTokenClaimed || false;
-            tracks = saved.tracks || [];
-            currentHostTrack = saved.currentHostTrack || null;
-
-            initSpotifyWebPlayer(true);
-        }
-
-        function saveGameState() {
-            if (!isHostMode) return;
-            try {
-                const strippedPlayers = {};
-                for (let k in players) {
-                    const p = players[k];
-                    strippedPlayers[k] = { ...p, conn: null, online: false };
-                }
-                const stateToSave = {
-                    pin: currentRoomPin,
-                    players: strippedPlayers,
-                    turnOrder, turnIndex, gameState,
-                    previousStateBeforePause, pendingDisconnectPlayerId,
-                    currentGuesses, stealDecisions, stealEndTime,
-                    currentWinnerId, bonusTokenClaimed,
-                    tracks, currentHostTrack
-                };
-                localStorage.setItem('party_saved_game', JSON.stringify(stateToSave));
-            } catch (e) {
-                console.error("Failed to save game state:", e);
             }
         }
 
@@ -703,11 +689,28 @@
             spotifyPlayer.connect();
         }
 
-        function initHostNetwork(isResuming = false) {
-            if (!isResuming) {
-                currentRoomPin = Math.floor(1000 + Math.random() * 9000);
+        function saveHostState() {
+            if (!isHostMode || gameState === 'IDLE') return; 
+            const stateToSave = {
+                pin: currentRoomPin, players: {},
+                turnOrder, turnIndex, gameState,
+                currentHostTrack, isPlaying, 
+                currentGuesses, stealDecisions, stealEndTime,
+                currentWinnerId, bonusTokenClaimed, tracks
+            };
+            for (const [id, p] of Object.entries(players)) {
+                stateToSave.players[id] = { ...p, conn: null, online: false }; 
             }
-            document.getElementById('host-pin-display-game').innerText = currentRoomPin;
+            localStorage.setItem('party_host_state', JSON.stringify(stateToSave));
+        }
+
+        function initHostNetwork(isResuming = false) {
+            let pin = currentRoomPin;
+            if (!isResuming) {
+                pin = Math.floor(1000 + Math.random() * 9000);
+                currentRoomPin = pin;
+            }
+            document.getElementById('host-pin-display-game').innerText = pin;
             
             if (!isResuming) {
                 const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
@@ -716,9 +719,8 @@
 
                 players[HOST_PLAYER_ID] = {
                     id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
-                    tokens: 2, score: 0,
-                    lastPongAt: Date.now(),
-                    timeline: [] 
+                    tokens: 2, score: 0, lastPongAt: Date.now(),
+                    timeline: [getRandomStarter()]
                 };
                 turnOrder = [HOST_PLAYER_ID];
                 gameState = 'IDLE'; 
@@ -731,7 +733,7 @@
                 }
             }
 
-            myPeer = new Peer(PEER_PREFIX + currentRoomPin, peerConfig);
+            myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
             myPeer.on('open', () => {
                 document.getElementById('host-loading-info').classList.add('hidden');
@@ -747,10 +749,9 @@
                         }
                     }
                     
-                    // Host Heartbeat connection tracking - Increased tolerance to 15 seconds!
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
-                            if (now - p.lastPongAt > 15000) {
+                            if (now - p.lastPongAt > 5000) {
                                 p.online = false;
                                 p.conn = null;
                                 showMessage(`${p.name} dropped offline.`, 'error');
@@ -765,10 +766,13 @@
                     });
 
                     broadcastSync(); 
+                    saveHostState();
                 }, 1000);
 
-                updateHostPlayerList();
-                broadcastSync();
+                if (!isResuming) {
+                    updateHostPlayerList();
+                    broadcastSync();
+                }
             });
 
             myPeer.on('connection', (conn) => {
@@ -792,7 +796,7 @@
                             id: stableId, name: pName, conn: conn, online: true,
                             tokens: 2, score: 0,
                             lastPongAt: Date.now(),
-                            timeline: gameState !== 'IDLE' ? [tracks.pop()] : []
+                            timeline: [getRandomStarter()]
                         };
                         if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
                         showMessage(`${pName} joined!`, 'success');
@@ -803,19 +807,28 @@
 
                     conn.on('data', (data) => handlePlayerAction(stableId, data));
                 });
+
+                conn.on('close', () => {
+                    const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase();
+                    
+                    if (players[stableId]) {
+                        players[stableId].online = false;
+                        players[stableId].conn = null;
+                        showMessage(`${pName} disconnected.`, 'error');
+                        
+                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                            triggerDisconnectPrompt(stableId, pName);
+                        }
+                    }
+                    updateHostPlayerList();
+                    broadcastSync();
+                });
             });
         }
 
         function hostStartGameFromLobby() {
             if (turnOrder.length === 0) return showMessage("No players in room!", "error");
-            
-            // Assign random Spotify starter songs!
-            Object.values(players).forEach(p => {
-                p.timeline = [tracks.pop()];
-                p.score = 0;
-                p.tokens = 2;
-            });
-
             turnIndex = Math.floor(Math.random() * turnOrder.length);
             loadTurn();
         }
@@ -890,8 +903,6 @@
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
-
-            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
@@ -975,7 +986,7 @@
                 Object.values(players).forEach(p => {
                     p.score = 0;
                     p.tokens = 2;
-                    p.timeline = [tracks.pop()];
+                    p.timeline = [getRandomStarter()];
                 });
                 turnIndex = Math.floor(Math.random() * turnOrder.length);
                 loadTurn();
@@ -1067,12 +1078,10 @@
 
             if (winnerId && players[winnerId]) {
                 const winnerTimeline = players[winnerId].timeline;
-                
                 let insertIdx = 0;
                 while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
                     insertIdx++;
                 }
-                
                 winnerTimeline.splice(insertIdx, 0, currentHostTrack);
                 players[winnerId].score++;
             }
@@ -1199,7 +1208,6 @@
             }
 
             Object.keys(players).forEach(pId => sendTargetedSync(pId));
-            saveGameState();
         }
 
         function switchHostToPlayerView() {
@@ -1239,62 +1247,37 @@
 
             document.getElementById('btn-connect').classList.add('hidden');
             document.getElementById('player-status').classList.remove('hidden');
-            requestWakeLock(); // Enable WakeLock for client
 
-            const delay = Math.floor(Math.random() * 800);
-            
-            setTimeout(() => {
-                myPeer = new Peer(peerConfig);
-                myPeer.on('open', (id) => {
-                    myId = id;
-                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
-                    
-                    let connTimeout = setTimeout(() => {
-                        if (!hostConnection || !hostConnection.open) {
-                            document.getElementById('btn-connect').classList.remove('hidden');
-                            document.getElementById('player-status').classList.add('hidden');
-                            showMessage("Connection timed out. Check PIN.", "error");
-                            if (myPeer) { myPeer.destroy(); myPeer = null; }
-                        }
-                    }, 8000);
+            myPeer = new Peer(peerConfig);
+            myPeer.on('open', (id) => {
+                myId = id;
+                hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
+                
+                let connTimeout = setTimeout(() => {
+                    if (!hostConnection || !hostConnection.open) {
+                        document.getElementById('btn-connect').classList.remove('hidden');
+                        document.getElementById('player-status').classList.add('hidden');
+                        showMessage("Connection timed out. Check PIN.", "error");
+                        if (myPeer) { myPeer.destroy(); myPeer = null; }
+                    }
+                }, 8000);
 
-                    hostConnection.on('open', () => { 
-                        clearTimeout(connTimeout);
-                        switchContainer('player-game-ui'); 
-                        lastHostContact = Date.now();
-                        
-                        // Client Watchdog: Check if Host disappears
-                        if(clientWatchdog) clearInterval(clientWatchdog);
-                        clientWatchdog = setInterval(() => {
-                            if (Date.now() - lastHostContact > 8000) {
-                                document.getElementById('client-disconnect-overlay').classList.remove('hidden');
-                                document.getElementById('client-disconnect-overlay').classList.add('flex');
-                            } else {
-                                document.getElementById('client-disconnect-overlay').classList.add('hidden');
-                                document.getElementById('client-disconnect-overlay').classList.remove('flex');
-                            }
-                        }, 2000);
-
-                        hostConnection.send({ action: 'REQUEST_SYNC' });
-                    });
-                    
-                    hostConnection.on('data', (data) => { 
-                        lastHostContact = Date.now();
-                        if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
-                        if (data.type === 'SYNC') handlePlayerSync(data); 
-                    });
-                    
-                    hostConnection.on('close', () => { 
-                        document.getElementById('client-disconnect-overlay').classList.remove('hidden');
-                        document.getElementById('client-disconnect-overlay').classList.add('flex');
-                    });
+                hostConnection.on('open', () => { 
+                    clearTimeout(connTimeout);
+                    switchContainer('player-game-ui'); 
+                    hostConnection.send({ action: 'REQUEST_SYNC' });
                 });
-                myPeer.on('error', (err) => {
-                    document.getElementById('btn-connect').classList.remove('hidden');
-                    document.getElementById('player-status').classList.add('hidden');
-                    showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
+                hostConnection.on('data', (data) => { 
+                    if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                    if (data.type === 'SYNC') handlePlayerSync(data); 
                 });
-            }, delay);
+                hostConnection.on('close', () => { showMessage("Disconnected from host.", 'error'); resetApp(); });
+            });
+            myPeer.on('error', (err) => {
+                document.getElementById('btn-connect').classList.remove('hidden');
+                document.getElementById('player-status').classList.add('hidden');
+                showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
+            });
         }
 
         let cachedSyncData = null;
@@ -1533,5 +1516,3 @@
     </script>
 </body>
 </html>
-
-
