@@ -475,7 +475,10 @@
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
-            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Log in again."); }
+            if (res.status === 401) {
+                if (accessToken) logoutSpotify(); // guard: avoid redundant resets when several requests 401 at once
+                throw new Error("Spotify session expired. Please log in again.");
+            }
             if (res.status === 204) return {};
             if (!res.ok) { 
                 let errMsg = `Spotify Error ${res.status}`;
@@ -623,7 +626,10 @@
             try {
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
                 document.getElementById('host-email-display').innerText = userData.email || 'Ready';
-            } catch (err) {}
+            } catch (err) {
+                console.error(err);
+                if (err.message) showMessage(err.message, "error");
+            }
         }
 
         async function fetchTracksFromSpotify() {
@@ -670,6 +676,7 @@
                 if (tracks.length === 0 && currentHostTrack === null) throw new Error("No valid tracks found.");
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
+                showMessage(err.message || "Couldn't fetch songs from Spotify.", "error");
             }
             
             isFetchingTracks = false;
@@ -694,6 +701,7 @@
             turnIndex = 0;
             gameState = 'IDLE';
             tracks = [];
+            isFetchingTracks = false;
             currentHostTrack = null;
             isPlaying = false;
             currentGuesses = {}; 
@@ -1004,9 +1012,10 @@
             document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
-        function loadTurn() {
+        async function loadTurn() {
             if (tracks.length < 15) {
-                fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
+                await fetchTracksFromSpotify();
+                updateHostPlayerList();
             }
 
             if (tracks.length === 0) return showMessage("Out of songs! Please restart.", "error");
