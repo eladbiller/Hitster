@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.32.0">
+    <meta name="app-version" content="1.33.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -47,6 +47,11 @@
         @media screen and (orientation: portrait) and (max-width: 768px) {
             .landscape-mode #portrait-blocker { display: flex !important; }
             .landscape-mode #player-game-ui { display: none !important; }
+        }
+        @keyframes rotate-hint {
+            0%, 15% { transform: rotate(0deg); }
+            50%, 65% { transform: rotate(90deg); }
+            100% { transform: rotate(0deg); }
         }
 
         /* Large Font / Accessibility Mode */
@@ -110,10 +115,10 @@
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
-    <div id="portrait-blocker" class="absolute inset-0 bg-slate-900/95 z-[900] flex-col items-center justify-center p-6 text-center space-y-4">
-        <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
-        <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
-        <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
+    <div id="portrait-blocker" class="absolute inset-0 bg-gradient-to-b from-slate-900 to-indigo-950/95 z-[900] flex-col items-center justify-center p-6 text-center space-y-5">
+        <i class="fa-solid fa-mobile-screen text-6xl text-indigo-400 drop-shadow-[0_0_12px_rgba(129,140,248,0.5)]" style="animation: rotate-hint 1.8s ease-in-out infinite;"></i>
+        <h2 class="text-2xl font-black text-white tracking-tight">Turn Device Sideways</h2>
+        <p class="text-sm text-slate-400 max-w-xs leading-relaxed">Rotate your phone to landscape mode to play and see your full timeline.</p>
     </div>
 
     <!-- MAIN SETUP CONTAINER (mt-20 forces gap at top) -->
@@ -225,7 +230,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.32.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.33.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI (mt-4 keeps it padded on mobile) -->
@@ -717,8 +722,19 @@
 
                 const existingUris = new Set(tracks.map(t => t.u));
                 mappedTracks = mappedTracks.filter(t => !existingUris.has(t.u));
-                
-                tracks = tracks.concat(shuffleArray(mappedTracks));
+
+                // Cap how many tracks one artist can contribute from a single fetch, so an artist-anchored
+                // search (Hebrew/Classic mode) can't flood the pool and cause a same-artist streak.
+                const perArtistCount = {};
+                mappedTracks = mappedTracks.filter(t => {
+                    perArtistCount[t.a] = (perArtistCount[t.a] || 0) + 1;
+                    return perArtistCount[t.a] <= 4;
+                });
+
+                // Reshuffle the WHOLE pool (not just the new batch) so freshly-fetched tracks interleave with
+                // what's already there, instead of sitting together at the draw end and coming out several
+                // in a row from the same era/artist.
+                tracks = shuffleArray(tracks.concat(mappedTracks));
                 if (tracks.length === 0 && currentHostTrack === null) throw new Error("No valid tracks found.");
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
