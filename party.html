@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.33.0">
+    <meta name="app-version" content="1.29.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -24,9 +24,11 @@
             font-family: 'Rubik', sans-serif; 
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); 
             color: #f8fafc; 
-            min-height: 100vh;
-            min-height: 100dvh;
-            overflow-x: hidden;
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
             margin: 0;
             padding: 0;
         }
@@ -74,10 +76,10 @@
     </div>
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+    <div id="toast-container" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
     <!-- HOST DISCONNECT MODAL -->
-    <div id="host-disconnect-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
+    <div id="host-disconnect-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
         <div class="bg-slate-900 border-2 border-red-500/80 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <div class="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-3xl mx-auto">
                 <i class="fa-solid fa-user-slash"></i>
@@ -98,7 +100,7 @@
     </div>
 
     <!-- CLIENT DISCONNECT OVERLAY -->
-    <div id="client-disconnect-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] hidden flex-col items-center justify-center p-6 text-center">
+    <div id="client-disconnect-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] hidden flex-col items-center justify-center p-6 text-center">
         <i class="fa-solid fa-wifi text-6xl text-red-500 mb-4 animate-pulse"></i>
         <h2 class="text-2xl font-black text-white mb-2">Connection Lost</h2>
         <p class="text-sm text-slate-400 mb-8 max-w-xs">We lost contact with the Host DJ. This usually happens if your screen turns off or the Host's connection drops.</p>
@@ -108,14 +110,14 @@
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
-    <div id="portrait-blocker" class="fixed inset-0 bg-slate-900/95 z-[9000] flex-col items-center justify-center p-6 text-center space-y-4">
+    <div id="portrait-blocker" class="fixed top-0 left-0 w-full bg-slate-900/95 z-[9999] flex-col items-center justify-center p-6 text-center space-y-4" style="height: 100dvh;">
         <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
         <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
         <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
     </div>
 
     <!-- MAIN SETUP CONTAINER -->
-    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] mt-12 mb-12">
+    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] mt-12 mb-auto">
         
         <div class="w-full flex flex-col items-center justify-center text-center shrink-0">
             <i class="fa-solid fa-users text-green-400 text-4xl mb-2 block"></i>
@@ -179,9 +181,6 @@
             
             <input type="text" id="host-player-name" placeholder="Host Name (e.g. Host DJ)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500 mb-2" maxlength="12" value="Host DJ">
 
-            <h2 class="text-xs font-bold text-white pt-1 w-full text-left">Choose Music Source</h2>
-            
-            <!-- Cleaned Up Categorized Menu -->
             <div class="w-full flex flex-col gap-3 max-h-[45vh] overflow-y-auto pr-1 pb-2">
                 
                 <!-- Main Mix -->
@@ -205,7 +204,7 @@
                         <button onclick="startHostGame('hitster_rock')" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
                             <i class="fa-solid fa-guitar"></i> Rock
                         </button>
-                        <button onclick="startHostGame('hitster_hiphop')" class="col-span-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                        <button onclick="startHostGame('hitster_hiphop')" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs col-span-2">
                             <i class="fa-solid fa-record-vinyl"></i> Hip-Hop
                         </button>
                     </div>
@@ -220,7 +219,7 @@
                 </div>
             </div>
 
-            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2 mb-1">Logout Spotify</button>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2">Logout Spotify</button>
         </div>
 
         <!-- View 4: Player Join Form -->
@@ -235,7 +234,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.33.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.29.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -283,7 +282,7 @@
             <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
                 <span>Connected Players:</span>
                 <div class="flex items-center gap-1.5">
-                    <button onclick="forceBackgroundFetch()" title="Force Refetch Songs" class="bg-indigo-600/50 hover:bg-indigo-500 text-indigo-200 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-500/30 transition">
+                    <button onclick="fetchTracksFromSpotify()" title="Force Refetch Songs" class="bg-indigo-600/50 hover:bg-indigo-500 text-indigo-200 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-500/30 transition">
                         <i class="fa-solid fa-arrows-rotate"></i> Refetch
                     </button>
                     <span id="host-refetch-status" class="text-[10px] text-yellow-400 hidden bg-yellow-900/30 px-2 py-0.5 rounded-full"><i class="fa-solid fa-spin fa-spinner"></i></span>
@@ -295,8 +294,8 @@
         <button onclick="endGameSession()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
     </div>
 
-    <!-- PLAYER REMOTE UI (Added pt-10 to push UI down from mobile status bars) -->
-    <div id="player-game-ui" class="hidden w-full h-[100dvh] flex-col items-center p-2 pt-10 md:p-4 max-w-5xl mx-auto overflow-hidden">
+    <!-- PLAYER REMOTE UI -->
+    <div id="player-game-ui" class="hidden w-full h-[100vh] flex-col items-center p-2 pt-4 md:p-4 max-w-5xl mx-auto overflow-hidden">
         <!-- Top Bar -->
         <div class="w-full flex flex-wrap justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-y-2 gap-x-2">
             <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -427,6 +426,17 @@
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
 
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (savedStateStr) {
+                try {
+                    const savedState = JSON.parse(savedStateStr);
+                    if (savedState.pin) {
+                        document.getElementById('resume-game-container').classList.remove('hidden');
+                        document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                    }
+                } catch(e){}
+            }
+
             if (code) {
                 try {
                     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -444,29 +454,17 @@
                         localStorage.setItem('party_spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         
-                        // Auto-Resume Magic
+                        // Auto-Resume Magic after 401 login
                         const savedStateStr = localStorage.getItem('party_host_state');
                         if (savedStateStr) {
                             checkSpotifyAuthAndInitHost();
                             resumeHostGame();
                             return;
                         }
-                        
+
                         checkSpotifyAuthAndInitHost();
                     }
                 } catch (e) { showMessage("Spotify login failed. Please reconnect.", "error"); }
-            } else {
-                // Check for saved state on normal load
-                const savedStateStr = localStorage.getItem('party_host_state');
-                if (savedStateStr) {
-                    try {
-                        const savedState = JSON.parse(savedStateStr);
-                        if (savedState.pin) {
-                            document.getElementById('resume-game-container').classList.remove('hidden');
-                            document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
-                        }
-                    } catch(e){}
-                }
             }
         });
 
@@ -491,18 +489,16 @@
         function logoutSpotify() {
             localStorage.removeItem('party_spotify_token');
             accessToken = null;
-            window.location.replace(window.location.pathname);
+            window.location.replace(window.location.pathname); 
         }
 
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
             if (res.status === 401) { 
-                saveHostState(); // Save room state before redirecting to login to allow auto-resume
-                localStorage.removeItem('party_spotify_token');
-                accessToken = null;
-                loginSpotify(); // Auto bounce to login
-                throw new Error("Spotify Session expired. Redirecting..."); 
+                saveHostState(); // SAVE ROOM STATE BEFORE KICKOUT
+                logoutSpotify(); 
+                throw new Error("Spotify Session expired. Log in again."); 
             }
             if (res.status === 204) return {};
             if (!res.ok) { 
@@ -529,14 +525,8 @@
             setTimeout(() => { toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 4000); }, 4000);
         }
 
-        // Aggressive cleaner for strict deduplication
-        function getTrackKey(t) {
-            if (!t || !t.t) return '';
-            let title = t.t.toLowerCase();
-            // Remove (feat. X), [Remastered], - Live, etc.
-            title = title.split('-')[0].split('(')[0].split('[')[0].trim();
-            let artist = t.a ? t.a.toLowerCase().trim() : '';
-            return title + '|' + artist;
+        function cleanTrackTitle(name) {
+            return name ? name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '').replace(/\s*-\s*.*remaster.*/gi, '').trim() : '';
         }
 
         function switchContainer(id) {
@@ -563,7 +553,7 @@
             if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
         }
 
-        // HARD RESET FIX: Wipe memory and reload cleanly
+        // HARD RESET: Fully refreshes the page to clear out any old Spotify connections
         function endGameSession() {
             if (confirm("End the game session and clear all saved data?")) {
                 localStorage.removeItem('party_host_state');
@@ -579,20 +569,9 @@
             return array;
         }
 
-        // Global Track History for deduplication across sessions (1000 song memory)
-        let globalTrackHistory = JSON.parse(localStorage.getItem('party_track_history') || '[]');
-
         function popTrack() {
             if (tracks.length > 0) {
                 const t = tracks.pop();
-                const trackKey = getTrackKey(t);
-                
-                // Add to global history memory if not already there
-                if (!globalTrackHistory.includes(trackKey)) {
-                    globalTrackHistory.push(trackKey);
-                    if(globalTrackHistory.length > 1000) globalTrackHistory.shift();
-                    localStorage.setItem('party_track_history', JSON.stringify(globalTrackHistory));
-                }
                 return t;
             }
             return { y: 2024, t: "Out of Songs! Wait for Refill.", a: "System", c: "" };
@@ -667,13 +646,6 @@
             } catch (err) {}
         }
 
-        function forceBackgroundFetch() {
-            if (!isFetchingTracks) {
-                fetchTracksFromSpotify().then(() => updateHostPlayerList());
-            }
-        }
-
-        // DRIP FEED FETCHING: Drip feed 4 songs per era sequentially to avoid API 429 lockout
         async function fetchTracksFromSpotify() {
             if (isFetchingTracks || !accessToken) return;
             isFetchingTracks = true;
@@ -689,29 +661,28 @@
                 if (currentMusicMode === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
-                    let offset = Math.floor(Math.random() * Math.min(total - 20, 950)); 
-                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=20&offset=${offset}`);
+                    let offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     if (data.items) rawItems.push(...data.items);
                 } 
                 else if (currentMusicMode === 'hitster_hebrew') {
-                    genreQuery = " genre:israeli";
+                    genreQuery = "%20genre:israeli";
                     eras = ['1970-1989', '1990-2009', '2010-2024', '2000-2020', '1980-2000'];
                 }
                 else {
                     if (currentMusicMode === 'hitster_classic') eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    if (currentMusicMode === 'hitster_pop') { genreQuery = " genre:pop"; eras = ['1980-1999', '1990-2009', '2000-2015', '2010-2024', '2020-2024']; }
-                    if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1960-1979', '1970-1989', '1980-1999', '1990-2009', '2000-2020']; }
-                    if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1980-1999', '1990-2005', '2000-2015', '2010-2024', '2015-2024']; }
+                    
+                    if (currentMusicMode === 'hitster_pop') { genreQuery = "%20genre:pop"; eras = ['1980-1999', '1990-2009', '2000-2015', '2010-2024', '2020-2024']; }
+                    if (currentMusicMode === 'hitster_rock') { genreQuery = "%20genre:rock"; eras = ['1960-1979', '1970-1989', '1980-1999', '1990-2009', '2000-2020']; }
+                    if (currentMusicMode === 'hitster_hiphop') { genreQuery = "%20genre:hiphop"; eras = ['1980-1999', '1990-2005', '2000-2015', '2010-2024', '2015-2024']; }
                 }
 
                 if (currentMusicMode !== 'liked') {
-                    // Drip-Feed: Fetch sequentially (no Promise.all burst). 
-                    // Pulls a modest amount (4 per era = 20 total) to avoid wasting limits when opening/closing games.
-                    const searchLimit = 4; 
+                    // SEQUENTIAL FETCH: Instead of Promise.all, we fetch one era after the other.
+                    // This solves the Spotify 429 Rate Limit error caused by simultaneous requests.
                     for (const era of eras) {
-                        const randomOffset = Math.floor(Math.random() * 800); // deep fetch
-                        const query = encodeURIComponent(`year:${era}${genreQuery}`.trim());
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=${searchLimit}&offset=${randomOffset}`);
+                        const randomOffset = Math.floor(Math.random() * 400); // 400 offset for huge variety
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=10&offset=${randomOffset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
@@ -720,38 +691,28 @@
 
                 let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
                     u: i.track.uri,
-                    t: i.track.name,
+                    t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
                     y: parseInt(i.track.album.release_date.substring(0, 4)),
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                // STRICT Deduplication: Active Table + Global History
+                // Strict Deduplication within the game
                 const activeKeys = new Set();
-                tracks.forEach(t => activeKeys.add(getTrackKey(t)));
-                if (currentHostTrack) activeKeys.add(getTrackKey(currentHostTrack));
+                tracks.forEach(t => activeKeys.add(t.t + t.a));
+                if (currentHostTrack) activeKeys.add(currentHostTrack.t + currentHostTrack.a);
                 Object.values(players).forEach(p => {
-                    p.timeline.forEach(t => activeKeys.add(getTrackKey(t)));
+                    p.timeline.forEach(t => activeKeys.add(t.t + t.a));
                 });
                 
-                let newTracks = mappedTracks.filter(t => {
-                    const key = getTrackKey(t);
+                mappedTracks = mappedTracks.filter(t => {
+                    const key = t.t + t.a;
                     if (activeKeys.has(key)) return false;
                     activeKeys.add(key);
                     return true;
                 });
 
-                // Filter against history
-                let finalTracks = newTracks.filter(t => !globalTrackHistory.includes(getTrackKey(t)));
-                
-                // Fallback: If history blocked literally every single track we found, wipe history to unfreeze the game
-                if (finalTracks.length === 0 && newTracks.length > 0) {
-                    globalTrackHistory = [];
-                    localStorage.removeItem('party_track_history');
-                    finalTracks = newTracks;
-                }
-
-                tracks = tracks.concat(shuffleArray(finalTracks));
+                tracks = tracks.concat(shuffleArray(mappedTracks));
 
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
@@ -759,17 +720,15 @@
             
             isFetchingTracks = false;
             if (refetchIcon) refetchIcon.classList.add('hidden');
-            updateHostPlayerList(); 
+            updateHostPlayerList(); // update counter
         }
 
         async function startHostGame(mode) {
-            // Guard against starting a game without refreshing if SDK already loaded
-            if (spotifyPlayer) {
-                localStorage.removeItem('party_host_state');
-                window.location.replace(window.location.pathname);
-                return;
-            }
-
+            localStorage.removeItem('party_host_state');
+            if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
+            if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
+            if (myPeer) { myPeer.destroy(); myPeer = null; }
+            
             const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
             currentRoomPin = null; 
             players = {};
@@ -803,6 +762,7 @@
                 initSpotifyWebPlayer(false);
             } catch (err) {
                 console.error(err);
+                showMessage("Failed to initialize.", "error");
                 resetApp();
             }
         }
@@ -887,7 +847,6 @@
             });
 
             spotifyPlayer.addListener('authentication_error', () => {
-                saveHostState(); // Save room state before redirecting to login to allow auto-resume
                 showMessage("Spotify Auth Error. Log back in.", "error");
                 logoutSpotify();
             });
@@ -902,28 +861,6 @@
                 currentRoomPin = pin;
             }
             document.getElementById('host-pin-display-game').innerText = pin;
-            
-            if (!isResuming) {
-                const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
-                myId = HOST_PLAYER_ID;
-                myPlayerName = hostName;
-
-                // Ensure Host is always in players array
-                players[HOST_PLAYER_ID] = {
-                    id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
-                    tokens: 2, score: 0, lastPongAt: Date.now(),
-                    timeline: [] 
-                };
-                turnOrder = [HOST_PLAYER_ID];
-                gameState = 'IDLE'; 
-            } else {
-                myId = HOST_PLAYER_ID;
-                if (players[HOST_PLAYER_ID]) {
-                    myPlayerName = players[HOST_PLAYER_ID].name;
-                    players[HOST_PLAYER_ID].online = true;
-                    players[HOST_PLAYER_ID].lastPongAt = Date.now();
-                }
-            }
 
             myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
@@ -1110,18 +1047,11 @@
         }
 
         function loadTurn() {
-            // Because we only fetch ~20 at a time, we trigger the background refill at < 10 songs.
-            if (tracks.length < 10) {
+            if (tracks.length < 15) {
                 fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
             }
 
-            if (tracks.length === 0) {
-                fetchTracksFromSpotify().then(() => {
-                    currentHostTrack = popTrack();
-                    broadcastSync();
-                });
-                return showMessage("Out of songs! Refetching from Spotify...", "info");
-            }
+            if (tracks.length === 0) return showMessage("Out of songs! Please refresh.", "error");
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
@@ -1198,22 +1128,13 @@
             }
 
             if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
-                const startNewRound = () => {
-                    Object.values(players).forEach(p => {
-                        p.score = 0;
-                        p.tokens = 2;
-                        p.timeline = [popTrack()];
-                    });
-                    turnIndex = Math.floor(Math.random() * turnOrder.length);
-                    loadTurn();
-                };
-
-                // Guard against empty deck before restarting
-                if (tracks.length < (Object.keys(players).length + 5)) {
-                    fetchTracksFromSpotify().then(startNewRound);
-                } else {
-                    startNewRound();
-                }
+                Object.values(players).forEach(p => {
+                    p.score = 0;
+                    p.tokens = 2;
+                    p.timeline = [popTrack()];
+                });
+                turnIndex = Math.floor(Math.random() * turnOrder.length);
+                loadTurn();
                 return;
             }
 
@@ -1365,7 +1286,7 @@
                 stealTimeLeft: remainingTime,
                 myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
                 correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
-                trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? cleanTrackTitle(currentHostTrack.t) : null,
+                trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
                 artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
                 
                 isWinner: p ? (p.id === currentWinnerId) : false,
