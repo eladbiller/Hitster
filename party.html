@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.28.2">
+    <meta name="app-version" content="1.29.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -47,6 +47,15 @@
         @media screen and (orientation: portrait) and (max-width: 768px) {
             .landscape-mode #portrait-blocker { display: flex !important; }
             .landscape-mode #player-game-ui { display: none !important; }
+        }
+
+        @keyframes phoneRotate {
+            0% { transform: rotate(0deg); }
+            40% { transform: rotate(90deg); }
+            100% { transform: rotate(90deg); }
+        }
+        .animate-phone-rotate {
+            animation: phoneRotate 2.5s ease-in-out infinite alternate;
         }
 
         /* Large Font / Accessibility Mode */
@@ -110,10 +119,10 @@
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
-    <div id="portrait-blocker" class="absolute inset-0 bg-slate-900/95 z-[900] flex-col items-center justify-center p-6 text-center space-y-4">
-        <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
-        <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
-        <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
+    <div id="portrait-blocker" class="fixed inset-0 bg-slate-950 z-[9999] flex-col items-center justify-center p-6 text-center shadow-inner">
+        <i class="fa-solid fa-mobile-screen text-[5rem] text-indigo-400 mb-8 animate-phone-rotate"></i>
+        <h2 class="text-3xl font-black text-white mb-3">Turn Device</h2>
+        <p class="text-sm text-slate-400 max-w-[280px] mx-auto leading-relaxed">Rotate your phone to landscape mode to play the game and view the full timeline.</p>
     </div>
 
     <!-- MAIN SETUP CONTAINER (mt-20 forces gap at top) -->
@@ -225,7 +234,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.28.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.29.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI (mt-4 keeps it padded on mobile) -->
@@ -531,7 +540,7 @@
 
         function resetApp() {
             if (myPeer) { myPeer.destroy(); myPeer = null; }
-            if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
+            // NOTE: We do NOT disconnect spotifyPlayer here, keeping it alive for soft restarts 
             if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
             switchContainer('setup-container');
             switchSetupView('view-roles');
@@ -593,8 +602,11 @@
         let currentHostTrack = null;
         let currentMusicMode = 'hitster_classic';
         let isPlaying = false;
+        
         let spotifyPlayer = null;
+        let spotifyPlayerReady = false;
         let webDeviceId = null;
+        
         let isHostMode = false;
         let hostBroadcastInterval = null;
         let isFetchingTracks = false;
@@ -615,7 +627,7 @@
             if (!accessToken) { switchSetupView('view-spotify-login'); return; }
             switchSetupView('view-host-setup');
             
-            const saved = localStorage.getItem('party_saved_game');
+            const saved = localStorage.getItem('party_host_state');
             if (saved) {
                 document.getElementById('resume-game-container').classList.remove('hidden');
             }
@@ -643,14 +655,29 @@
                     if (data.items) rawItems.push(...data.items);
                 } else {
                     let genreQuery = "";
-                    if (currentMusicMode === 'hitster_rock') genreQuery = "%20genre:rock";
-                    if (currentMusicMode === 'hitster_pop') genreQuery = "%20genre:pop";
-                    if (currentMusicMode === 'hitster_hiphop') genreQuery = "%20genre:hiphop";
-                    if (currentMusicMode === 'hitster_hebrew') genreQuery = "%20genre:israeli";
+                    let offsetMax = 100; // Deeper cuts limit
+                    let fetchPromises = [];
 
-                    // The Exact Verified Working Logic used in v1.16, just ensuring it runs smoothly
-                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=10&offset=${Math.floor(Math.random() * 50)}`));
+                    if (currentMusicMode === 'hitster_hebrew') {
+                        // Hebrew/Israeli Mode: Search by decade for a wider variance of recognizable tracks 
+                        // offset max is slightly lower as Israeli catalog is smaller per era
+                        const hebrewEras = ['1970-1989', '1990-1999', '2000-2009', '2010-2019', '2020-2024'];
+                        offsetMax = 80; 
+                        fetchPromises = hebrewEras.map(era => 
+                            safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}%20genre:israeli&type=track&limit=15&offset=${Math.floor(Math.random() * offsetMax)}`)
+                        );
+                    } else {
+                        // Standard Mixes
+                        const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                        if (currentMusicMode === 'hitster_rock') genreQuery = "%20genre:rock";
+                        if (currentMusicMode === 'hitster_pop') genreQuery = "%20genre:pop";
+                        if (currentMusicMode === 'hitster_hiphop') genreQuery = "%20genre:hiphop";
+
+                        fetchPromises = eras.map(era => 
+                            safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=12&offset=${Math.floor(Math.random() * offsetMax)}`)
+                        );
+                    }
+
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
                 }
@@ -677,9 +704,9 @@
         }
 
         async function startHostGame(mode) {
-            // BUG FIX: Completely wipe all ghost state when starting a fresh game instead of Resuming
+            // Completely wipe all ghost state when starting a fresh game instead of Resuming
             localStorage.removeItem('party_host_state');
-            if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
+            
             if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
             if (myPeer) { myPeer.destroy(); myPeer = null; }
             
@@ -782,10 +809,26 @@
         }
 
         function initSpotifyWebPlayer(isResuming = false) {
+            // Re-use active player if it already exists to prevent playback issues on restarts
+            if (spotifyPlayer) {
+                if (spotifyPlayerReady && webDeviceId) {
+                    // Ensure the device routes audio to us again by issuing a PUT request
+                    fetch('https://api.spotify.com/v1/me/player', {
+                        method: 'PUT',
+                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_ids: [webDeviceId], play: false })
+                    }).catch(e => console.log(e));
+
+                    initHostNetwork(isResuming);
+                }
+                return; 
+            }
+
             spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
 
             spotifyPlayer.addListener('ready', ({ device_id }) => {
                 webDeviceId = device_id;
+                spotifyPlayerReady = true;
                 fetch('https://api.spotify.com/v1/me/player', {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
