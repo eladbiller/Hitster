@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.29.0">
+    <meta name="app-version" content="1.30.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -225,7 +225,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.29.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.30.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI (mt-4 keeps it padded on mobile) -->
@@ -480,6 +480,10 @@
                 throw new Error("Spotify session expired. Please log in again.");
             }
             if (res.status === 204) return {};
+            if (res.status === 429) {
+                const retryAfter = res.headers.get('Retry-After');
+                throw new Error(retryAfter ? `Rate limited by Spotify — wait ${retryAfter}s and try again.` : "Rate limited by Spotify. Wait a moment and try again.");
+            }
             if (!res.ok) { 
                 let errMsg = `Spotify Error ${res.status}`;
                 try {
@@ -654,8 +658,9 @@
                     if (currentMusicMode === 'hitster_hiphop') genreQuery = "%20genre:hiphop";
                     if (currentMusicMode === 'hitster_hebrew') genreQuery = "%20genre:israeli";
 
-                    // The Exact Verified Working Logic used in v1.16, just ensuring it runs smoothly
-                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    // Query a random subset of eras (not all 5) each fetch to stay well under Spotify's rate limit —
+                    // genre modes were firing 5 parallel search calls per refill, which is what tripped the 429s.
+                    const eras = shuffleArray(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']).slice(0, 3);
                     const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=10&offset=${Math.floor(Math.random() * 50)}`));
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
