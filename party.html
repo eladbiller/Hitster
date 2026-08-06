@@ -110,7 +110,7 @@
     </div>
 
     <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
-    <div id="portrait-blocker" class="fixed top-0 left-0 w-full bg-slate-900/95 z-[9999] flex-col items-center justify-center p-6 text-center space-y-4" style="height: 100dvh;">
+    <div id="portrait-blocker" class="fixed top-0 left-0 w-full h-[100dvh] bg-slate-900/95 z-[9999] flex-col items-center justify-center p-6 text-center space-y-4">
         <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
         <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
         <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
@@ -204,7 +204,7 @@
                         <button onclick="startHostGame('hitster_rock')" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
                             <i class="fa-solid fa-guitar"></i> Rock
                         </button>
-                        <button onclick="startHostGame('hitster_hiphop')" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs col-span-2">
+                        <button onclick="startHostGame('hitster_hiphop')" class="col-span-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
                             <i class="fa-solid fa-record-vinyl"></i> Hip-Hop
                         </button>
                     </div>
@@ -426,17 +426,6 @@
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
 
-            const savedStateStr = localStorage.getItem('party_host_state');
-            if (savedStateStr) {
-                try {
-                    const savedState = JSON.parse(savedStateStr);
-                    if (savedState.pin) {
-                        document.getElementById('resume-game-container').classList.remove('hidden');
-                        document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
-                    }
-                } catch(e){}
-            }
-
             if (code) {
                 try {
                     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -454,17 +443,28 @@
                         localStorage.setItem('party_spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         
-                        // Auto-Resume Magic after 401 login
+                        // Auto-Resume Magic after returning from Spotify login
                         const savedStateStr = localStorage.getItem('party_host_state');
                         if (savedStateStr) {
                             checkSpotifyAuthAndInitHost();
                             resumeHostGame();
                             return;
                         }
-
                         checkSpotifyAuthAndInitHost();
                     }
                 } catch (e) { showMessage("Spotify login failed. Please reconnect.", "error"); }
+            } else {
+                // Check if we need to show the Resume button on normal load
+                const savedStateStr = localStorage.getItem('party_host_state');
+                if (savedStateStr) {
+                    try {
+                        const savedState = JSON.parse(savedStateStr);
+                        if (savedState.pin) {
+                            document.getElementById('resume-game-container').classList.remove('hidden');
+                            document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                        }
+                    } catch(e){}
+                }
             }
         });
 
@@ -489,14 +489,14 @@
         function logoutSpotify() {
             localStorage.removeItem('party_spotify_token');
             accessToken = null;
-            window.location.replace(window.location.pathname); 
+            window.location.replace(window.location.pathname);
         }
 
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
             if (res.status === 401) { 
-                saveHostState(); // SAVE ROOM STATE BEFORE KICKOUT
+                saveHostState(); // Save room right before kicking out
                 logoutSpotify(); 
                 throw new Error("Spotify Session expired. Log in again."); 
             }
@@ -526,7 +526,10 @@
         }
 
         function cleanTrackTitle(name) {
-            return name ? name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '').replace(/\s*-\s*.*remaster.*/gi, '').trim() : '';
+            if (!name) return '';
+            let s = name.toLowerCase();
+            s = s.split('-')[0].split('(')[0].split('[')[0];
+            return s.trim();
         }
 
         function switchContainer(id) {
@@ -553,7 +556,6 @@
             if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
         }
 
-        // HARD RESET: Fully refreshes the page to clear out any old Spotify connections
         function endGameSession() {
             if (confirm("End the game session and clear all saved data?")) {
                 localStorage.removeItem('party_host_state');
@@ -569,9 +571,18 @@
             return array;
         }
 
+        // Global Track History for deduplication across sessions
+        let globalTrackHistory = JSON.parse(localStorage.getItem('party_track_history') || '[]');
+
         function popTrack() {
             if (tracks.length > 0) {
                 const t = tracks.pop();
+                const trackKey = cleanTrackTitle(t.t) + '|' + t.a.toLowerCase();
+                if (!globalTrackHistory.includes(trackKey)) {
+                    globalTrackHistory.push(trackKey);
+                    if(globalTrackHistory.length > 1000) globalTrackHistory.shift();
+                    localStorage.setItem('party_track_history', JSON.stringify(globalTrackHistory));
+                }
                 return t;
             }
             return { y: 2024, t: "Out of Songs! Wait for Refill.", a: "System", c: "" };
@@ -646,13 +657,22 @@
             } catch (err) {}
         }
 
-        async function fetchTracksFromSpotify() {
+        // Exposed for manual refill button
+        function fetchTracksFromSpotify() {
             if (isFetchingTracks || !accessToken) return;
             isFetchingTracks = true;
             
             const refetchIcon = document.getElementById('host-refetch-status');
             if (refetchIcon) refetchIcon.classList.remove('hidden');
 
+            performSequentialFetch().then(() => {
+                isFetchingTracks = false;
+                if (refetchIcon) refetchIcon.classList.add('hidden');
+                updateHostPlayerList(); // update counter
+            });
+        }
+
+        async function performSequentialFetch() {
             try {
                 let rawItems = [];
                 let genreQuery = "";
@@ -671,18 +691,16 @@
                 }
                 else {
                     if (currentMusicMode === 'hitster_classic') eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    
                     if (currentMusicMode === 'hitster_pop') { genreQuery = "%20genre:pop"; eras = ['1980-1999', '1990-2009', '2000-2015', '2010-2024', '2020-2024']; }
                     if (currentMusicMode === 'hitster_rock') { genreQuery = "%20genre:rock"; eras = ['1960-1979', '1970-1989', '1980-1999', '1990-2009', '2000-2020']; }
                     if (currentMusicMode === 'hitster_hiphop') { genreQuery = "%20genre:hiphop"; eras = ['1980-1999', '1990-2005', '2000-2015', '2010-2024', '2015-2024']; }
                 }
 
                 if (currentMusicMode !== 'liked') {
-                    // SEQUENTIAL FETCH: Instead of Promise.all, we fetch one era after the other.
-                    // This solves the Spotify 429 Rate Limit error caused by simultaneous requests.
+                    // LOOP FETCH: 1 request per era, limited to 4 tracks per request (20 total). Avoids API blocks.
                     for (const era of eras) {
-                        const randomOffset = Math.floor(Math.random() * 400); // 400 offset for huge variety
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=10&offset=${randomOffset}`);
+                        const randomOffset = Math.floor(Math.random() * 400); 
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=4&offset=${randomOffset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
@@ -691,36 +709,43 @@
 
                 let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
                     u: i.track.uri,
-                    t: cleanTrackTitle(i.track.name).substring(0, 32),
+                    t: i.track.name, // Keep original for display
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
                     y: parseInt(i.track.album.release_date.substring(0, 4)),
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                // Strict Deduplication within the game
+                // Strict Deduplication checking history
                 const activeKeys = new Set();
-                tracks.forEach(t => activeKeys.add(t.t + t.a));
-                if (currentHostTrack) activeKeys.add(currentHostTrack.t + currentHostTrack.a);
+                tracks.forEach(t => activeKeys.add(cleanTrackTitle(t.t) + '|' + t.a.toLowerCase()));
+                if (currentHostTrack) activeKeys.add(cleanTrackTitle(currentHostTrack.t) + '|' + currentHostTrack.a.toLowerCase());
                 Object.values(players).forEach(p => {
-                    p.timeline.forEach(t => activeKeys.add(t.t + t.a));
+                    p.timeline.forEach(t => activeKeys.add(cleanTrackTitle(t.t) + '|' + t.a.toLowerCase()));
                 });
                 
-                mappedTracks = mappedTracks.filter(t => {
-                    const key = t.t + t.a;
+                let newTracks = mappedTracks.filter(t => {
+                    const key = cleanTrackTitle(t.t) + '|' + t.a.toLowerCase();
                     if (activeKeys.has(key)) return false;
                     activeKeys.add(key);
                     return true;
                 });
 
-                tracks = tracks.concat(shuffleArray(mappedTracks));
+                let finalTracks = newTracks.filter(t => {
+                    const key = cleanTrackTitle(t.t) + '|' + t.a.toLowerCase();
+                    return !globalTrackHistory.includes(key);
+                });
+
+                if (finalTracks.length === 0 && newTracks.length > 0) {
+                    globalTrackHistory = [];
+                    localStorage.removeItem('party_track_history');
+                    finalTracks = newTracks;
+                }
+
+                tracks = tracks.concat(shuffleArray(finalTracks));
 
             } catch (err) {
-                console.error("Fetch/Refill failed:", err);
+                console.error(err);
             }
-            
-            isFetchingTracks = false;
-            if (refetchIcon) refetchIcon.classList.add('hidden');
-            updateHostPlayerList(); // update counter
         }
 
         async function startHostGame(mode) {
@@ -757,7 +782,10 @@
             requestWakeLock(); 
             
             try {
-                await fetchTracksFromSpotify();
+                isFetchingTracks = true;
+                await performSequentialFetch();
+                isFetchingTracks = false;
+                
                 document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
                 initSpotifyWebPlayer(false);
             } catch (err) {
@@ -847,6 +875,7 @@
             });
 
             spotifyPlayer.addListener('authentication_error', () => {
+                saveHostState(); // Save state right before Spotify forces logout
                 showMessage("Spotify Auth Error. Log back in.", "error");
                 logoutSpotify();
             });
@@ -1047,11 +1076,15 @@
         }
 
         function loadTurn() {
-            if (tracks.length < 15) {
-                fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
+            // Because we only fetch 20 at a time, we trigger the background refill when drops below 10.
+            if (tracks.length < 10) {
+                fetchTracksFromSpotify(); // Quiet background fetch
             }
 
-            if (tracks.length === 0) return showMessage("Out of songs! Please refresh.", "error");
+            if (tracks.length === 0) {
+                fetchTracksFromSpotify();
+                return showMessage("Out of songs! Refetching from Spotify...", "info");
+            }
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
