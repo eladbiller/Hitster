@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.28.0">
+    <meta name="app-version" content="1.32.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -225,7 +225,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.28.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-4">v1.32.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI (mt-4 keeps it padded on mobile) -->
@@ -475,8 +475,23 @@
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
-            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Log in again."); }
+            if (res.status === 401) {
+                if (accessToken) logoutSpotify(); // guard: avoid redundant resets when several requests 401 at once
+                throw new Error("Spotify session expired. Please log in again.");
+            }
             if (res.status === 204) return {};
+            if (res.status === 429) {
+                const retryAfter = res.headers.get('Retry-After');
+                let reason = '';
+                try { const body = await res.json(); if (body && body.reason) reason = body.reason; } catch(e) {}
+                let waitStr = 'a moment';
+                if (retryAfter) {
+                    const secs = parseInt(retryAfter, 10);
+                    waitStr = secs >= 3600 ? `~${Math.round(secs / 3600)}h` : secs >= 60 ? `~${Math.round(secs / 60)}m` : `${secs}s`;
+                }
+                const quotaNote = reason === 'QUOTA_EXCEEDED' ? " This is a quota limit (not a quick rate limit) — it needs real time to reset." : "";
+                throw new Error(`Rate limited by Spotify. Wait ${waitStr} and try again.${quotaNote}`);
+            }
             if (!res.ok) { 
                 let errMsg = `Spotify Error ${res.status}`;
                 try {
@@ -598,6 +613,7 @@
         let isHostMode = false;
         let hostBroadcastInterval = null;
         let isFetchingTracks = false;
+        let eraQueue = []; // eras left to sample this game; refilled+reshuffled when empty, so fetches stay small but still cover all eras over a game
         
         // Client variables
         let hostConnection = null; 
@@ -623,8 +639,39 @@
             try {
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
                 document.getElementById('host-email-display').innerText = userData.email || 'Ready';
-            } catch (err) {}
+            } catch (err) {
+                console.error(err);
+                if (err.message) showMessage(err.message, "error");
+            }
         }
+
+        // Pulls one era at a time (reshuffling/refilling once exhausted) so each fetch only makes 1 Spotify call
+        // instead of hammering all 5 eras in parallel every time — keeps a test/short game cheap on API calls,
+        // while a longer game still ends up sampling every era as it keeps refilling.
+        function getNextEra() {
+            if (eraQueue.length === 0) {
+                eraQueue = shuffleArray(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']);
+            }
+            return eraQueue.pop();
+        }
+
+        // Curated, era-appropriate artist anchors for modes where a plain genre/keyword tag surfaced too many
+        // obscure results. Searching by a well-known artist name (still combined with the era filter) reliably
+        // returns recognizable songs without pinning every game to the same handful of biggest hits.
+        const CLASSIC_MIX_ARTISTS = {
+            '1960-1979': ['The Beatles', 'Elvis Presley', 'Queen', 'ABBA', 'Fleetwood Mac', 'Bee Gees', 'Stevie Wonder'],
+            '1980-1989': ['Michael Jackson', 'Madonna', 'Whitney Houston', 'Prince', 'Duran Duran', 'U2', 'Bon Jovi'],
+            '1990-1999': ['Nirvana', 'Mariah Carey', 'Backstreet Boys', 'Spice Girls', 'Radiohead', 'TLC', 'Celine Dion'],
+            '2000-2009': ['Beyoncé', 'Rihanna', 'Coldplay', 'Eminem', 'Kanye West', 'Amy Winehouse', 'Black Eyed Peas'],
+            '2010-2024': ['Ed Sheeran', 'Taylor Swift', 'Bruno Mars', 'Dua Lipa', 'The Weeknd', 'Billie Eilish', 'Harry Styles']
+        };
+        const HEBREW_ARTISTS = {
+            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלום חנוך', 'להקת הנחל'],
+            '1980-1989': ['זוהר ארגוב', 'יהודית רביץ', 'אריק איינשטיין', 'משינה'],
+            '1990-1999': ['אביב גפן', 'משינה', 'טיפקס', 'שלמה ארצי'],
+            '2000-2009': ['עברי לידר', 'הדג נחש', 'שלמה ארצי', 'סאבלימינל'],
+            '2010-2024': ['עומר אדם', 'נועה קירל', 'סטטיק ובן אל תבורי', 'עדן בן זקן', 'עידן רייכל']
+        };
 
         async function fetchTracksFromSpotify() {
             if (isFetchingTracks || !accessToken) return;
@@ -642,17 +689,22 @@
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     if (data.items) rawItems.push(...data.items);
                 } else {
-                    let genreQuery = "";
-                    if (currentMusicMode === 'hitster_rock') genreQuery = "%20genre:rock";
-                    if (currentMusicMode === 'hitster_pop') genreQuery = "%20genre:pop";
-                    if (currentMusicMode === 'hitster_hiphop') genreQuery = "%20genre:hiphop";
-                    if (currentMusicMode === 'hitster_hebrew') genreQuery = "%20genre:israeli";
+                    const era = getNextEra(); // one era per fetch — keeps each call light
+                    let searchQuery = `year:${era}`;
 
-                    // The Exact Verified Working Logic used in v1.16, just ensuring it runs smoothly
-                    const eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    const fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=10&offset=${Math.floor(Math.random() * 50)}`));
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
+                    if (currentMusicMode === 'hitster_rock') searchQuery += ' genre:rock';
+                    else if (currentMusicMode === 'hitster_pop') searchQuery += ' genre:pop';
+                    else if (currentMusicMode === 'hitster_hiphop') searchQuery += ' genre:hiphop';
+                    else if (currentMusicMode === 'hitster_hebrew') {
+                        const artists = HEBREW_ARTISTS[era] || HEBREW_ARTISTS['2010-2024'];
+                        searchQuery += ` artist:"${artists[Math.floor(Math.random() * artists.length)]}"`;
+                    } else if (currentMusicMode === 'hitster_classic') {
+                        const artists = CLASSIC_MIX_ARTISTS[era] || CLASSIC_MIX_ARTISTS['2010-2024'];
+                        searchQuery += ` artist:"${artists[Math.floor(Math.random() * artists.length)]}"`;
+                    }
+
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=10&offset=${Math.floor(Math.random() * 20)}`);
+                    if (data.tracks && data.tracks.items) rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                 }
 
                 let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
@@ -670,6 +722,7 @@
                 if (tracks.length === 0 && currentHostTrack === null) throw new Error("No valid tracks found.");
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
+                showMessage(err.message || "Couldn't fetch songs from Spotify.", "error");
             }
             
             isFetchingTracks = false;
@@ -694,6 +747,8 @@
             turnIndex = 0;
             gameState = 'IDLE';
             tracks = [];
+            isFetchingTracks = false;
+            eraQueue = [];
             currentHostTrack = null;
             isPlaying = false;
             currentGuesses = {}; 
@@ -1004,9 +1059,10 @@
             document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
-        function loadTurn() {
+        async function loadTurn() {
             if (tracks.length < 15) {
-                fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
+                await fetchTracksFromSpotify();
+                updateHostPlayerList();
             }
 
             if (tracks.length === 0) return showMessage("Out of songs! Please restart.", "error");
@@ -1655,3 +1711,4 @@
     </script>
 </body>
 </html>
+
