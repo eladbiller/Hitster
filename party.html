@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.29.0">
+    <meta name="app-version" content="1.33.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -24,1303 +24,1740 @@
             font-family: 'Rubik', sans-serif; 
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); 
             color: #f8fafc; 
-            position: fixed;
-            inset: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            touch-action: none; /* Prevent pull-to-refresh */
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
         }
+        .spotify-green { background-color: #1DB954; }
+        .spotify-green:hover { background-color: #1ed760; }
         
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .timeline-scroll-container {
-            display: flex;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-            padding: 10px 40px; /* Padding to allow scrolling past edges */
-            align-items: center;
-            height: 100%;
-            gap: 12px;
-        }
-
-        .card-slot {
-            flex: 0 0 100px;
-            height: 140px;
-            border: 2px dashed rgba(99, 102, 241, 0.4);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            position: relative;
-            background: rgba(30, 41, 59, 0.3);
-        }
-        .card-slot:hover, .card-slot.active-slot {
-            background: rgba(99, 102, 241, 0.2);
-            border-color: #818cf8;
-            transform: scale(1.05);
-        }
-
-        .timeline-card {
-            flex: 0 0 120px;
-            height: 160px;
-            background: linear-gradient(to bottom, #334155, #1e293b);
-            border-radius: 12px;
-            border: 1px solid #475569;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 8px;
-            text-align: center;
-            position: relative;
-            z-index: 10;
-        }
-        .timeline-card .year {
-            font-size: 28px;
-            font-weight: 800;
-            color: #fbbf24;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-
-        /* Animations */
-        @keyframes popIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        .pulse-border { animation: pulseBorder 1.5s infinite; }
-        @keyframes pulseBorder {
-            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        ::-webkit-scrollbar { height: 8px; width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+
+        /* Orientation Enforcer for Player Game Mode */
+        #portrait-blocker { display: none; }
+        @media screen and (orientation: portrait) and (max-width: 768px) {
+            .landscape-mode #portrait-blocker { display: flex !important; }
+            .landscape-mode #player-game-ui { display: none !important; }
         }
+
+        /* Large Font / Accessibility Mode */
+        .text-scaled .timeline-card { width: 8.5rem !important; height: 11.5rem !important; }
+        .text-scaled .timeline-card-year { font-size: 2.25rem !important; }
+        .text-scaled .timeline-card-title { font-size: 0.75rem !important; line-height: 1.1 !important; }
+        .text-scaled .gap-slot { width: 4.5rem !important; }
+        .text-scaled #p-ui-title { font-size: 1.25rem !important; }
+        .text-scaled #p-ui-desc { font-size: 0.85rem !important; }
     </style>
 </head>
-<body class="antialiased select-none">
+<body class="flex flex-col items-center justify-start relative w-full h-full">
 
-    <!-- Global Toast Messages -->
-    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+    <!-- Bulletproof No-Sleep Video Hack (Invisible) -->
+    <video id="nosleep-video" loop muted playsinline style="display:none; width:1px; height:1px; position:absolute; opacity:0; pointer-events:none;">
+        <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAGzABAHAAABthAwwgQQQAA=" type="video/mp4">
+    </video>
 
-    <!-- Portrait Blocker (Forces Landscape) -->
-    <div id="portrait-blocker" class="hidden fixed inset-0 w-full h-[100dvh] bg-slate-950 z-[9999] flex-col items-center justify-center p-6 text-center space-y-4">
+    <!-- Screen Controls -->
+    <div class="fixed bottom-3 left-3 z-[1000] flex flex-col gap-3">
+        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
+            A
+        </button>
+        <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
+            <i class="fa-solid fa-expand" id="fs-icon"></i>
+        </button>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+    <!-- HOST DISCONNECT MODAL -->
+    <div id="host-disconnect-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
+        <div class="bg-slate-900 border-2 border-red-500/80 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+            <div class="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-3xl mx-auto">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <h3 class="text-xl font-black text-white">Player Disconnected</h3>
+            <p id="disconnect-modal-text" class="text-xs text-slate-300 leading-relaxed">
+                <span id="disconnect-player-name" class="font-bold text-red-400">Player</span> dropped offline.
+            </p>
+            <div class="flex flex-col gap-2 pt-2">
+                <button onclick="pauseGameForDisconnect()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-pause"></i> Pause Room & Wait
+                </button>
+                <button onclick="kickDisconnectedPlayer()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-minus"></i> Kick Player & Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENT DISCONNECT OVERLAY -->
+    <div id="client-disconnect-overlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] hidden flex-col items-center justify-center p-6 text-center">
+        <i class="fa-solid fa-wifi text-6xl text-red-500 mb-4 animate-pulse"></i>
+        <h2 class="text-2xl font-black text-white mb-2">Connection Lost</h2>
+        <p class="text-sm text-slate-400 mb-8 max-w-xs">We lost contact with the Host DJ. This usually happens if your screen turns off or the Host's connection drops.</p>
+        <button onclick="window.location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> Reload & Rejoin
+        </button>
+    </div>
+
+    <!-- PORTRAIT ORIENTATION BLOCKER FOR PLAYERS -->
+    <div id="portrait-blocker" class="fixed inset-0 bg-slate-900/95 z-[9000] flex-col items-center justify-center p-6 text-center space-y-4">
         <i class="fa-solid fa-mobile-screen text-5xl text-indigo-400 animate-pulse" style="transform: rotate(90deg);"></i>
         <h2 class="text-2xl font-black text-white">Turn Device Sideways</h2>
         <p class="text-xs text-slate-400 max-w-xs">Rotate your phone to landscape mode to play and view full timeline.</p>
     </div>
 
-    <!-- MAIN CONTAINERS -->
-    <div id="app-wrapper" class="w-full h-full relative">
+    <!-- MAIN SETUP CONTAINER -->
+    <div id="setup-container" class="w-full max-w-sm bg-slate-800/90 rounded-2xl p-6 shadow-2xl border border-slate-700 flex flex-col items-center justify-center gap-5 relative overflow-y-auto max-h-[92vh] mt-12 mb-12">
         
-        <!-- ================= SETUP / LOBBY ================= -->
-        <div id="setup-container" class="absolute inset-0 flex flex-col items-center justify-center p-4 z-50">
-            <div class="bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl shadow-2xl border border-slate-700 w-full max-w-md text-center max-h-full overflow-y-auto hide-scroll">
-                
-                <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">HITSTER</h1>
-                <p class="text-slate-400 text-sm mb-6 font-semibold tracking-widest uppercase">Multiplayer</p>
-
-                <!-- Step 1: Spotify Auth (Host Only, but shown initially) -->
-                <div id="view-auth" class="space-y-4 hidden">
-                    <i class="fa-brands fa-spotify text-6xl text-green-500 mb-2 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]"></i>
-                    <p class="text-sm text-slate-300">To host a game, you need a Spotify Premium account to play the tracks.</p>
-                    <button onclick="loginSpotify()" class="w-full bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-lg">
-                        Connect Spotify
-                    </button>
-                    <button onclick="switchSetupView('view-roles')" class="text-sm text-slate-400 underline mt-4">I just want to join a game</button>
-                </div>
-
-                <!-- Step 2: Choose Role -->
-                <div id="view-roles" class="space-y-4">
-                    <button onclick="switchRole('host')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3 text-lg border border-indigo-400/30">
-                        <i class="fa-solid fa-crown text-yellow-400"></i> Host a New Game
-                    </button>
-                    <div class="relative py-2">
-                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-600"></div></div>
-                        <div class="relative flex justify-center"><span class="bg-slate-800 px-4 text-xs text-slate-400">OR</span></div>
+        <div class="w-full flex flex-col items-center justify-center text-center shrink-0">
+            <i class="fa-solid fa-users text-green-400 text-4xl mb-2 block"></i>
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-200 mb-1 leading-tight">
+                Hitster Party
+            </h1>
+            <p class="text-slate-400 text-xs mt-0.5">Live multiplayer via local hotspot.</p>
+        </div>
+        
+        <!-- View 1: Role Selection -->
+        <div id="view-roles" class="flex flex-col gap-3 w-full items-center shrink-0">
+            <!-- Resume Saved Game Container -->
+            <div id="resume-game-container" class="hidden w-full border-b border-slate-600 pb-3 mb-1">
+                <button onclick="resumeHostGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    <div class="text-left flex-1">
+                        <div class="text-base font-extrabold leading-tight">Resume Game</div>
+                        <div class="text-[10px] text-orange-200 font-normal" id="resume-pin-text">Recover dropped session</div>
                     </div>
-                    <button onclick="switchRole('join')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3 text-lg border border-slate-500/30">
-                        <i class="fa-solid fa-users"></i> Join a Game
-                    </button>
-                </div>
-
-                <!-- Step 3: Host Lobby -->
-                <div id="view-host-lobby" class="space-y-4 hidden flex-col items-center">
-                    <h3 class="font-bold text-lg text-indigo-300">Your Game Room</h3>
-                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 w-full relative">
-                        <p class="text-xs text-slate-400 mb-1 uppercase font-bold">Room Code</p>
-                        <h2 id="display-room-code" class="text-4xl font-black tracking-widest text-white select-all">----</h2>
-                        <button onclick="copyRoomCode()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
-                    </div>
-                    
-                    <div class="w-full text-left mt-2">
-                        <label class="text-xs text-slate-400 uppercase font-bold ml-1">Music Category</label>
-                        <select id="host-music-mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 mt-1">
-                            <option value="hitster_original">Global Hits (All Time)</option>
-                            <option value="hitster_hebrew">Israeli / Hebrew Hits</option>
-                            <option value="hitster_80s">80s Classics</option>
-                            <option value="hitster_90s">90s Nostalgia</option>
-                            <option value="hitster_2000s">2000s Pop & R&B</option>
-                        </select>
-                    </div>
-
-                    <div class="w-full text-left mt-2">
-                        <p class="text-xs text-slate-400 uppercase font-bold mb-2 ml-1">Players (<span id="host-player-count">1</span>/10)</p>
-                        <ul id="host-lobby-players" class="bg-slate-900/50 rounded-lg p-2 min-h-[80px] max-h-[120px] overflow-y-auto space-y-1 text-sm border border-slate-700/50">
-                            <!-- Populated by JS -->
-                        </ul>
-                    </div>
-
-                    <button id="btn-start-game" onclick="startHostGame()" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-lg mt-4 opacity-50 cursor-not-allowed" disabled>
-                        Start Game
-                    </button>
-                </div>
-
-                <!-- Step 4: Join Lobby -->
-                <div id="view-join-lobby" class="space-y-4 hidden flex-col items-center w-full">
-                    <button onclick="switchSetupView('view-roles')" class="self-start text-slate-400 hover:text-white text-sm mb-2"><i class="fa-solid fa-arrow-left mr-1"></i> Back</button>
-                    
-                    <div class="w-full space-y-3">
-                        <div>
-                            <label class="block text-left text-xs text-slate-400 uppercase font-bold mb-1 ml-1">Your Name</label>
-                            <input type="text" id="join-name" placeholder="Enter name..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 text-center font-bold text-lg" maxlength="12">
-                        </div>
-                        <div>
-                            <label class="block text-left text-xs text-slate-400 uppercase font-bold mb-1 ml-1">Room Code</label>
-                            <input type="text" id="join-code" placeholder="XXXX" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 text-center font-black text-2xl tracking-widest uppercase" maxlength="4">
-                        </div>
-                    </div>
-                    
-                    <button id="btn-join-room" onclick="joinGame()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-lg mt-4">
-                        Join Game
-                    </button>
-                    
-                    <div id="join-status" class="text-sm text-yellow-400 hidden animate-pulse mt-2">Connecting...</div>
-                </div>
-
+                </button>
             </div>
+
+            <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+                <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
+                <div class="text-left flex-1">
+                    <div class="text-base font-extrabold leading-tight">Create Room</div>
+                    <div class="text-[10px] text-indigo-200 font-normal">Host DJ + Player</div>
+                </div>
+            </button>
+            <button onclick="showPlayerJoin()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3 border border-slate-600">
+                <i class="fa-solid fa-mobile-screen text-green-400 text-xl"></i>
+                <div class="text-left flex-1">
+                    <div class="text-base font-extrabold leading-tight">Join Room</div>
+                    <div class="text-[10px] text-slate-300 font-normal">Player Remote</div>
+                </div>
+            </button>
         </div>
 
-        <!-- ================= HOST GAME VIEW ================= -->
-        <div id="host-game-container" class="absolute inset-0 flex hidden">
-            <!-- Host Sidebar -->
-            <div class="w-64 bg-slate-900 border-r border-slate-700 flex flex-col z-20">
-                <div class="p-4 border-b border-slate-800 bg-slate-800/50">
-                    <h2 class="font-black text-indigo-400 text-lg">HOST CONTROLS</h2>
-                    <p class="text-xs text-slate-400">Room: <span id="in-game-room-code" class="font-bold text-white"></span></p>
-                </div>
-                
-                <!-- Player List -->
-                <div class="flex-1 overflow-y-auto p-2">
-                    <h3 class="text-[10px] text-slate-500 uppercase font-bold ml-2 mb-2 tracking-wider">Turn Queue</h3>
-                    <ul id="host-ingame-players" class="space-y-1">
-                        <!-- Populated dynamically -->
-                    </ul>
-                </div>
-
-                <!-- Global Controls -->
-                <div class="p-3 border-t border-slate-800 bg-slate-900 space-y-2">
-                    <button onclick="endHostGame()" class="w-full bg-red-900/30 hover:bg-red-800/50 text-red-400 border border-red-800/50 py-2 rounded-lg text-xs font-bold transition">End Game</button>
-                </div>
+        <!-- View 2: Spotify Login (Host Only) -->
+        <div id="view-spotify-login" class="hidden flex-col items-center w-full gap-4 shrink-0">
+            <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center text-3xl mb-1">
+                <i class="fa-brands fa-spotify"></i>
             </div>
-
-            <!-- Host Main Area -->
-            <div class="flex-1 flex flex-col relative bg-slate-900/90">
-                <!-- Top Status Bar -->
-                <div class="h-14 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between px-6 z-10 backdrop-blur-sm">
-                    <div id="host-status-text" class="font-bold text-lg text-white">Initializing...</div>
-                    <div class="flex items-center gap-4">
-                        <div id="host-token-info" class="text-sm text-yellow-400 font-bold hidden"><i class="fa-solid fa-coins mr-1"></i> <span id="host-token-count">0</span></div>
-                        <div class="text-xs text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-700"><span id="host-round-counter">Round 1</span></div>
-                    </div>
-                </div>
-
-                <!-- Center Play Area -->
-                <div class="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                    
-                    <!-- Background Logo / Decor -->
-                    <i class="fa-solid fa-music absolute text-[20vw] text-slate-800/30 -rotate-12 z-0"></i>
-
-                    <!-- Active Song Card (Host sees details) -->
-                    <div id="host-active-card" class="bg-gradient-to-br from-indigo-900 to-slate-900 border-2 border-indigo-500/50 rounded-2xl p-6 w-80 shadow-[0_0_30px_rgba(99,102,241,0.2)] z-10 flex flex-col items-center text-center hidden animate-pop">
-                        <div class="w-full flex justify-between items-start mb-2">
-                            <span class="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Current Track</span>
-                            <span class="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded border border-indigo-500/30"><i class="fa-brands fa-spotify"></i></span>
-                        </div>
-                        
-                        <!-- Track Info (Hidden until reveal) -->
-                        <div id="host-track-details" class="w-full flex flex-col items-center justify-center py-4 opacity-10 transition-opacity duration-500 filter blur-sm">
-                            <h3 id="host-track-title" class="font-black text-xl text-white mb-1 line-clamp-2">Song Title</h3>
-                            <p id="host-track-artist" class="text-sm text-slate-400 mb-3">Artist Name</p>
-                            <div class="bg-slate-950/50 border border-slate-700 px-4 py-2 rounded-lg">
-                                <span class="text-xs text-slate-500 uppercase block mb-1">Release Year</span>
-                                <span id="host-track-year" class="font-black text-4xl text-yellow-400">YYYY</span>
-                            </div>
-                        </div>
-
-                        <!-- Reveal Button -->
-                        <button id="btn-host-reveal" onclick="revealHostCard()" class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-full text-sm shadow-lg transition">
-                            <i class="fa-solid fa-eye mr-2"></i>Reveal to Self
-                        </button>
-                    </div>
-
-                    <!-- Host Spotify Controls -->
-                    <div id="host-music-controls" class="mt-8 flex items-center gap-4 z-10 hidden bg-slate-800/80 p-3 rounded-full border border-slate-700 backdrop-blur-sm">
-                        <button onclick="handlePlayerAction('TOGGLE_PLAY', HOST_PLAYER_ID)" class="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center text-xl transition shadow-md">
-                            <i id="host-play-icon" class="fa-solid fa-play ml-1"></i>
-                        </button>
-                        <div class="w-48 bg-slate-900 h-2 rounded-full overflow-hidden relative">
-                            <div id="host-progress-bar" class="absolute top-0 left-0 h-full bg-indigo-500 w-0 transition-all duration-1000"></div>
-                        </div>
-                    </div>
-
-                </div>
+            <div class="text-center">
+                <h2 class="text-xl font-bold">Host requires Spotify</h2>
+                <p class="text-xs text-slate-400 mt-1">Premium is required to stream music directly to this browser tab.</p>
             </div>
             
-            <!-- Host Winner Overlay -->
-            <div id="host-winner-overlay" class="absolute inset-0 bg-slate-950/90 z-50 hidden flex-col items-center justify-center backdrop-blur-md">
-                <i class="fa-solid fa-trophy text-7xl text-yellow-400 mb-6 drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]"></i>
-                <h1 class="text-5xl font-black text-white mb-2">GAME OVER</h1>
-                <p id="host-winner-text" class="text-xl text-indigo-300 font-bold mb-8">Player Name wins!</p>
-                <button onclick="resetApp()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-lg">Back to Lobby</button>
-            </div>
+            <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
+                <i class="fa-solid fa-bolt"></i> Login with Spotify
+            </button>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
         </div>
 
-        <!-- ================= PLAYER GAME VIEW ================= -->
-        <div id="player-game-container" class="absolute inset-0 flex flex-col hidden bg-slate-900">
-            <!-- Player Header -->
-            <div class="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4 shrink-0 shadow-md z-20">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-inner border border-indigo-400/50" id="player-avatar">P</div>
-                    <div>
-                        <div class="text-xs text-slate-400 uppercase font-bold" id="player-role-badge">Player</div>
-                        <div class="font-bold text-white text-sm" id="player-name-display">Name</div>
-                    </div>
-                </div>
-                
-                <div class="flex gap-3">
-                    <!-- Bonus Tokens -->
-                    <div class="flex items-center gap-1 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
-                        <i class="fa-solid fa-coins text-yellow-500 text-sm drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]"></i>
-                        <span id="player-token-count" class="font-black text-white">0</span>
-                    </div>
-                </div>
+        <!-- View 3: Host Setup -->
+        <div id="view-host-setup" class="hidden flex-col items-center w-full gap-2 shrink-0">
+            <div class="bg-slate-900/80 border border-slate-700 rounded-lg p-2.5 w-full text-xs text-slate-300 flex items-center justify-between mb-1">
+                <span><i class="fa-solid fa-user-check text-green-400 mr-1"></i> DJ Connected:</span>
+                <span id="host-email-display" class="font-mono text-green-300 font-bold">Ready</span>
             </div>
+            
+            <input type="text" id="host-player-name" placeholder="Host Name (e.g. Host DJ)" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-sm focus:outline-none focus:border-indigo-500 mb-2" maxlength="12" value="Host DJ">
 
-            <!-- Player Main Area -->
-            <div class="flex-1 flex flex-col relative overflow-hidden">
+            <h2 class="text-xs font-bold text-white pt-1 w-full text-left">Choose Music Source</h2>
+            
+            <!-- Cleaned Up Categorized Menu -->
+            <div class="w-full flex flex-col gap-3 max-h-[45vh] overflow-y-auto pr-1 pb-2">
                 
-                <!-- Action / Turn Banner -->
-                <div id="player-turn-banner" class="absolute top-0 left-0 w-full p-3 z-30 transition-all duration-300 transform -translate-y-full bg-indigo-600 text-center shadow-lg">
-                    <h2 id="player-turn-header" class="text-xl font-black text-white shadow-sm">Your Turn</h2>
-                    <div id="player-active-turn-info" class="text-sm text-indigo-100 font-semibold mt-0.5"></div>
-                </div>
-
-                <!-- Opponents Mini-List (when not my turn) -->
-                <div id="player-opponents-bar" class="absolute top-0 right-0 w-full bg-slate-800/90 backdrop-blur-sm border-b border-slate-700 p-2 z-20 flex gap-2 overflow-x-auto hide-scroll transition-opacity duration-300 opacity-0 pointer-events-none">
-                    <!-- Populated dynamically -->
-                </div>
-
-                <!-- Timeline Area -->
-                <div class="flex-1 relative w-full flex flex-col mt-12 mb-20">
-                    <div class="absolute inset-x-0 top-1/2 h-1 bg-slate-700 -translate-y-1/2 z-0"></div>
-                    <div id="player-timeline-scroll" class="timeline-scroll-container relative z-10 w-full">
-                        <!-- Populated by JS: Slots and Cards -->
-                    </div>
-                </div>
-
-                <!-- Bottom Controls (My Turn) -->
-                <div id="player-controls-bottom" class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-slate-950 to-transparent z-30 flex flex-col items-center gap-3 transition-transform duration-300 translate-y-full">
-                    <!-- Tokens Use -->
-                    <div id="token-actions" class="flex gap-2 mb-1 hidden">
-                        <button onclick="sendPlayerAction('USE_TOKEN_ARTIST')" class="bg-slate-800 hover:bg-slate-700 text-xs text-white px-3 py-1.5 rounded-full border border-yellow-500/50 flex items-center gap-1 transition">
-                            <i class="fa-solid fa-microphone text-yellow-400"></i> Artist (1)
-                        </button>
-                        <button onclick="sendPlayerAction('USE_TOKEN_TITLE')" class="bg-slate-800 hover:bg-slate-700 text-xs text-white px-3 py-1.5 rounded-full border border-yellow-500/50 flex items-center gap-1 transition">
-                            <i class="fa-solid fa-music text-yellow-400"></i> Title (1)
-                        </button>
-                    </div>
-
-                    <!-- Play/Pause -->
-                    <button onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-16 h-16 rounded-full bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] flex items-center justify-center text-2xl active:scale-90 transition border-2 border-indigo-400">
-                        <i id="player-play-icon" class="fa-solid fa-play ml-1"></i>
+                <!-- Main Mix -->
+                <div>
+                    <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50 shrink-0">
+                        <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> The Classic Mix</span>
+                        <span class="text-[10px] text-purple-200 font-normal">All decades bridging 1960 to 2024</span>
                     </button>
                 </div>
 
-                <!-- Bottom Hint Display (When token used) -->
-                <div id="player-hint-display" class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-800/90 border border-yellow-500/50 rounded-xl px-4 py-2 text-center z-40 hidden shadow-xl backdrop-blur-sm whitespace-nowrap">
-                    <span class="text-[10px] uppercase text-yellow-500 font-bold block mb-0.5" id="hint-label">Hint</span>
-                    <span class="text-white font-bold" id="hint-value">Value</span>
+                <!-- Genres Categories -->
+                <div>
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Genres & Regions</h3>
+                    <div class="grid grid-cols-2 gap-2 shrink-0">
+                        <button onclick="startHostGame('hitster_hebrew')" class="col-span-2 w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs shrink-0">
+                            <i class="fa-solid fa-star-of-david text-cyan-200"></i> Israeli / Hebrew Hits 🇮🇱
+                        </button>
+                        <button onclick="startHostGame('hitster_pop')" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                            <i class="fa-solid fa-microphone-lines"></i> Pop
+                        </button>
+                        <button onclick="startHostGame('hitster_rock')" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                            <i class="fa-solid fa-guitar"></i> Rock
+                        </button>
+                        <button onclick="startHostGame('hitster_hiphop')" class="col-span-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                            <i class="fa-solid fa-record-vinyl"></i> Hip-Hop
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Waiting Overlay -->
-                <div id="player-waiting-overlay" class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center hidden">
-                    <i class="fa-solid fa-hourglass-half text-4xl text-indigo-400 mb-4 animate-pulse"></i>
-                    <h3 id="player-waiting-text" class="text-lg font-bold text-white text-center px-6">Waiting for Host...</h3>
+                <!-- Personal -->
+                <div>
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Personal</h3>
+                    <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs shrink-0">
+                        <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
+                    </button>
                 </div>
+            </div>
 
-                <!-- Round Result Modal -->
-                <div id="player-result-modal" class="absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 hidden">
-                    <div id="result-icon" class="text-6xl mb-4 transform scale-0 transition-transform duration-500 ease-out"></div>
-                    <h2 id="result-title" class="text-3xl font-black text-white mb-2 text-center">Result</h2>
-                    <p id="result-desc" class="text-slate-300 text-center mb-6 max-w-xs"></p>
-                    
-                    <div id="result-bonus-action" class="mt-4"></div>
-                </div>
+            <button onclick="logoutSpotify()" class="text-xs text-red-400 hover:text-white underline mt-2 mb-1">Logout Spotify</button>
+        </div>
 
+        <!-- View 4: Player Join Form -->
+        <div id="view-player-join" class="hidden flex-col items-center w-full gap-3 shrink-0">
+            <input type="number" id="join-pin" placeholder="PIN" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-center text-indigo-400 font-black text-3xl focus:outline-none focus:border-indigo-500 tracking-widest">
+            <input type="text" id="join-name" placeholder="Your Name" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-center text-white text-base focus:outline-none focus:border-indigo-500" maxlength="12">
+            
+            <button id="btn-connect" onclick="joinRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-1">
+                <i class="fa-solid fa-right-to-bracket"></i> Connect
+            </button>
+            <div id="player-status" class="text-sm text-slate-400 hidden animate-pulse">Connecting to network...</div>
+            <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
+        </div>
+
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.33.0</p>
+    </div>
+
+    <!-- HOST DJ BACKGROUND UI -->
+    <div id="host-game-ui" class="hidden w-full max-w-sm flex-col items-center space-y-3 mt-4 mb-auto">
+        <div class="w-full flex justify-between items-center bg-slate-800/80 p-3 rounded-xl border border-slate-700 shadow-md">
+            <span class="text-xs font-bold text-indigo-400"><i class="fa-solid fa-crown mr-1"></i> DJ Speaker</span>
+            <button onclick="switchHostToPlayerView()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-gamepad"></i> Play as Host
+            </button>
+            <div class="text-right">
+                <h2 class="text-[9px] font-bold text-slate-400">PIN</h2>
+                <div id="host-pin-display-game" class="text-lg font-black text-white tracking-widest">----</div>
             </div>
         </div>
 
+        <div class="w-full bg-slate-900 rounded-2xl p-4 border-2 border-indigo-500 text-center shadow-xl relative min-h-[180px] flex flex-col justify-between">
+            <div id="host-loading-info" class="flex flex-col items-center justify-center h-full space-y-2 text-slate-400 py-3">
+                <i class="fa-solid fa-compact-disc fa-spin text-3xl text-indigo-500"></i>
+                <p class="text-xs font-bold" id="host-loading-text">Loading Audio Engine...</p>
+            </div>
+
+            <div id="host-active-info" class="hidden flex-col items-center w-full py-1 space-y-2">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lobby Status</div>
+                <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">In Lobby</div>
+                <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYERS TO JOIN</div>
+                
+                <!-- Start Game Button (In Lobby) -->
+                <button id="host-start-game-btn" onclick="hostStartGameFromLobby()" class="mt-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-slate-950 font-black py-3 px-8 rounded-xl shadow-lg text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-play"></i> Start Game
+                </button>
+
+                <!-- Direct Play Button for Host when it's their turn -->
+                <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
+                    <i class="fa-solid fa-play mr-1"></i> Start Song
+                </button>
+
+                <!-- Direct Pass Steal Button for Host on DJ screen -->
+                <button id="dj-direct-pass-btn" onclick="sendPlayerAction('PASS_STEAL')" class="hidden mt-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-full shadow-lg text-xs transition border border-slate-600">
+                    <i class="fa-solid fa-forward mr-1"></i> Pass Steal (Host)
+                </button>
+            </div>
+        </div>
+        
+        <div class="w-full bg-slate-900 rounded-lg p-3 border border-slate-700 text-left">
+            <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                <span>Connected Players:</span>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="forceBackgroundFetch()" title="Force Refetch Songs" class="bg-indigo-600/50 hover:bg-indigo-500 text-indigo-200 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-500/30 transition">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refetch
+                    </button>
+                    <span id="host-refetch-status" class="text-[10px] text-yellow-400 hidden bg-yellow-900/30 px-2 py-0.5 rounded-full"><i class="fa-solid fa-spin fa-spinner"></i></span>
+                    <span id="host-track-count" class="text-indigo-400 font-mono">0 Songs</span>
+                </div>
+            </h3>
+            <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
+        </div>
+        <button onclick="endGameSession()" class="text-xs text-red-400 hover:text-red-300 underline font-bold mt-1">End Game Session</button>
+    </div>
+
+    <!-- PLAYER REMOTE UI (Added pt-10 to push UI down from mobile status bars) -->
+    <div id="player-game-ui" class="hidden w-full h-[100dvh] flex-col items-center p-2 pt-10 md:p-4 max-w-5xl mx-auto overflow-hidden">
+        <!-- Top Bar -->
+        <div class="w-full flex flex-wrap justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-y-2 gap-x-2">
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <div class="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 border border-indigo-500/30">
+                    <i class="fa-solid fa-user"></i> <span id="p-ui-name">Me</span>
+                </div>
+                <!-- Host Mode Switch Button -->
+                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1 shrink-0">
+                    <i class="fa-solid fa-crown"></i> DJ
+                </button>
+            </div>
+
+            <!-- View Toggle Button -->
+            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5 shrink-0 ml-auto md:ml-0">
+                <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
+            </button>
+
+            <!-- Score & Tokens protected in their own box -->
+            <div class="flex items-center gap-3 shrink-0 bg-slate-900/50 px-2.5 py-1.5 rounded-lg border border-slate-700 ml-auto">
+                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                    <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">0</span>
+                </div>
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                    <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Header & Player Controls -->
+        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2">
+            <div class="text-left flex-1 min-w-0">
+                <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate">Loading...</h2>
+                <p id="p-ui-desc" class="text-[11px] text-slate-400 truncate">Syncing with Host</p>
+            </div>
+            
+            <!-- Music Controls for Active Player -->
+            <div id="p-music-controls" class="hidden flex-shrink-0">
+                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-play"></i> Start Song
+                </button>
+            </div>
+
+            <!-- Pass Steal Control for Stealers -->
+            <div id="p-steal-pass-control" class="hidden flex-shrink-0">
+                <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5 border border-slate-600">
+                    <i class="fa-solid fa-forward"></i> Pass (No Steal)
+                </button>
+            </div>
+        </div>
+
+        <!-- Full Horizontal Scrollable Timeline -->
+        <div class="w-full flex-grow bg-slate-900/50 rounded-2xl border border-slate-700 shadow-inner relative overflow-hidden flex items-center">
+            <div id="p-ui-timeline" class="w-full h-full flex flex-row items-center overflow-x-auto overflow-y-hidden gap-1 px-4 py-2 hide-scrollbar scroll-smooth snap-x">
+                <!-- Javascript injects timeline cards -->
+            </div>
+        </div>
+        
+        <!-- Result Overlay -->
+        <div id="p-ui-overlay" class="absolute inset-0 bg-slate-900/95 z-50 hidden flex-col items-center justify-center text-center p-4 backdrop-blur-sm overflow-y-auto">
+            <div id="p-overlay-icon" class="text-5xl mb-2"><i class="fa-solid fa-check-circle text-green-400"></i></div>
+            <h2 id="p-overlay-title" class="text-2xl font-black text-white mb-1">Result</h2>
+            <p id="p-overlay-desc" class="text-sm text-slate-300 mb-4">Description here.</p>
+            
+            <div id="p-bonus-container" class="hidden flex flex-col items-center mb-4"></div>
+
+            <p id="p-reveal-waiting" class="text-xs text-slate-400 mb-4 hidden font-bold animate-pulse"></p>
+
+            <button id="p-btn-next-round" onclick="sendPlayerAction('NEXT_TURN')" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition text-sm flex items-center gap-2">
+                <i class="fa-solid fa-forward"></i> <span id="p-btn-next-text">Next Round</span>
+            </button>
+        </div>
     </div>
 
     <script>
-        // ==========================================
-        // GLOBALS & CONSTANTS
-        // ==========================================
-        const HOST_PLAYER_ID = 'HOST';
-        let myPeer = null;
-        let myPeerId = null;
-        let hostConnection = null; // Used by players to talk to host
-        let isHost = false;
-        
-        // --- Host State ---
-        let roomCode = "";
-        let players = {}; // id -> { id, name, peerConn, timeline, bonusTokens, hasPlayed, ... }
-        let turnQueue = []; // array of player IDs
-        let activePlayerId = null;
-        let gameState = 'LOBBY'; // LOBBY, PLAYING, EVALUATING, GAME_OVER
-        let currentHostTrack = null;
-        let deck = [];
-        let hostBroadcastInterval = null;
-        
-        // Spotify
-        let accessToken = null;
-        let spotifyPlayer = null;
-        let webDeviceId = null;
-        let isPlaying = false;
-        let currentMusicMode = 'hitster_original';
-
-        // --- Player State ---
-        let myPlayerId = null;
-        let myName = "";
-        let localTimelineState = [];
-        let localActivePlayerId = null;
-        let selectedSlotIdx = null;
-
-        // ==========================================
-        // UI HELPERS
-        // ==========================================
-        function showMessage(msg, type = "info") {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            let colorClass = 'bg-slate-800 border-slate-600 text-white';
-            let icon = '<i class="fa-solid fa-circle-info text-blue-400"></i>';
-            
-            if (type === 'error') {
-                colorClass = 'bg-red-900/90 border-red-500 text-red-100';
-                icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>';
-            } else if (type === 'success') {
-                colorClass = 'bg-green-900/90 border-green-500 text-green-100';
-                icon = '<i class="fa-solid fa-check text-green-400"></i>';
-            }
-
-            toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border ${colorClass} text-sm font-semibold transition-all duration-300 translate-y-[-20px] opacity-0`;
-            toast.innerHTML = `${icon} <span>${msg}</span>`;
-            
-            container.appendChild(toast);
-            
-            // Animate in
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-y-[-20px]', 'opacity-0');
-            });
-
-            // Remove after 3s
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'scale-95');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+        // --- UI TOGGLES ---
+        let isLargeFont = false;
+        function toggleFontSize() {
+            isLargeFont = !isLargeFont;
+            if (isLargeFont) document.body.classList.add('text-scaled');
+            else document.body.classList.remove('text-scaled');
         }
 
-        function switchContainer(containerId) {
-            ['setup-container', 'host-game-container', 'player-game-container'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
+        function toggleFullScreen() {
+            const doc = window.document;
+            const docEl = doc.documentElement;
+            const icon = document.getElementById('fs-icon');
+
+            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                if (requestFullScreen) requestFullScreen.call(docEl);
+                if (icon) { icon.classList.remove('fa-expand'); icon.classList.add('fa-compress'); }
+            } else {
+                if (cancelFullScreen) cancelFullScreen.call(doc);
+                if (icon) { icon.classList.remove('fa-compress'); icon.classList.add('fa-expand'); }
+            }
+        }
+
+        // --- WAKE LOCK API & VIDEO HACK ---
+        let wakeLock = null;
+        async function requestWakeLock() {
+            const vid = document.getElementById('nosleep-video');
+            if (vid) vid.play().catch(e => console.log("Video auto-play blocked."));
+
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => { console.log('Screen Wake Lock released'); });
+                }
+            } catch (err) {}
+        }
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') { await requestWakeLock(); }
+        });
+
+        // --- SPOTIFY OAUTH ---
+        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        let accessToken = localStorage.getItem('party_spotify_token') || null;
+
+        window.addEventListener('load', async () => {
+            document.body.classList.remove('landscape-mode');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            
+            const savedName = localStorage.getItem('party_player_name');
+            if (savedName) document.getElementById('join-name').value = savedName;
+
+            if (code) {
+                try {
+                    const res = await fetch('https://accounts.spotify.com/api/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ 
+                            client_id: CLIENT_ID, grant_type: 'authorization_code', 
+                            code: code, redirect_uri: REDIRECT_URI, 
+                            code_verifier: localStorage.getItem('party_code_verifier') 
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.access_token) {
+                        accessToken = data.access_token;
+                        localStorage.setItem('party_spotify_token', accessToken);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        
+                        // Auto-Resume Magic
+                        const savedStateStr = localStorage.getItem('party_host_state');
+                        if (savedStateStr) {
+                            checkSpotifyAuthAndInitHost();
+                            resumeHostGame();
+                            return;
+                        }
+                        
+                        checkSpotifyAuthAndInitHost();
+                    }
+                } catch (e) { showMessage("Spotify login failed. Please reconnect.", "error"); }
+            } else {
+                // Check for saved state on normal load
+                const savedStateStr = localStorage.getItem('party_host_state');
+                if (savedStateStr) {
+                    try {
+                        const savedState = JSON.parse(savedStateStr);
+                        if (savedState.pin) {
+                            document.getElementById('resume-game-container').classList.remove('hidden');
+                            document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                        }
+                    } catch(e){}
+                }
+            }
+        });
+
+        const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
+        const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+        const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+        async function loginSpotify() {
+            const verifier = generateRandomString(64);
+            localStorage.setItem('party_code_verifier', verifier);
+            const hashed = await sha256(verifier);
+            const codeChallenge = base64encode(hashed);
+            const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
+            const params = new URLSearchParams({ 
+                response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
+                code_challenge_method: 'S256', code_challenge: codeChallenge, 
+                redirect_uri: REDIRECT_URI, show_dialog: 'true'
             });
-            document.getElementById(containerId).classList.remove('hidden');
+            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        }
+
+        function logoutSpotify() {
+            localStorage.removeItem('party_spotify_token');
+            accessToken = null;
+            window.location.replace(window.location.pathname);
+        }
+
+        async function safeSpotifyFetch(url, options = {}) {
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
+            const res = await fetch(url, options);
+            if (res.status === 401) { 
+                saveHostState(); // Save room state before redirecting to login to allow auto-resume
+                localStorage.removeItem('party_spotify_token');
+                accessToken = null;
+                loginSpotify(); // Auto bounce to login
+                throw new Error("Spotify Session expired. Redirecting..."); 
+            }
+            if (res.status === 204) return {};
+            if (!res.ok) { 
+                let errMsg = `Spotify Error ${res.status}`;
+                try {
+                    const errData = await res.json();
+                    if (errData.error && errData.error.message) errMsg += `: ${errData.error.message}`;
+                } catch(e) {}
+                throw new Error(errMsg); 
+            }
+            return await res.json();
+        }
+
+        // --- UTILS ---
+        function showMessage(msg, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-600 border-red-500' : (type === 'info' ? 'bg-blue-600 border-blue-500' : 'bg-emerald-600 border-emerald-500');
+            toast.className = `${bgColor} border text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-semibold flex items-start gap-3 transition-all duration-300 z-[9999]`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : (type === 'info' ? 'fa-bell' : 'fa-circle-check')} text-xl mt-0.5"></i> <div class="flex-1">${msg}</div>`;
+            container.appendChild(toast);
+            toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0';
+            requestAnimationFrame(() => { toast.style.transform = 'translateY(0)'; toast.style.opacity = '1'; });
+            setTimeout(() => { toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 4000); }, 4000);
+        }
+
+        // Aggressive cleaner for strict deduplication
+        function getTrackKey(t) {
+            if (!t || !t.t) return '';
+            let title = t.t.toLowerCase();
+            // Remove (feat. X), [Remastered], - Live, etc.
+            title = title.split('-')[0].split('(')[0].split('[')[0].trim();
+            let artist = t.a ? t.a.toLowerCase().trim() : '';
+            return title + '|' + artist;
+        }
+
+        function switchContainer(id) {
+            ['setup-container', 'host-game-ui', 'player-game-ui'].forEach(c => {
+                const el = document.getElementById(c);
+                if(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+            });
+            const target = document.getElementById(id);
+            if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
+
+            if (id === 'player-game-ui') {
+                document.body.classList.add('landscape-mode');
+            } else {
+                document.body.classList.remove('landscape-mode');
+            }
         }
 
         function switchSetupView(viewId) {
-            ['view-auth', 'view-roles', 'view-host-lobby', 'view-join-lobby'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-                document.getElementById(id).classList.remove('flex');
+            ['view-roles', 'view-spotify-login', 'view-host-setup', 'view-player-join'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { el.classList.add('hidden'); el.classList.remove('flex'); }
             });
-            const v = document.getElementById(viewId);
-            v.classList.remove('hidden');
-            if(viewId === 'view-host-lobby' || viewId === 'view-join-lobby') {
-                v.classList.add('flex');
+            const target = document.getElementById(viewId);
+            if(target) { target.classList.remove('hidden'); target.classList.add('flex'); }
+        }
+
+        // HARD RESET FIX: Wipe memory and reload cleanly
+        function endGameSession() {
+            if (confirm("End the game session and clear all saved data?")) {
+                localStorage.removeItem('party_host_state');
+                window.location.replace(window.location.pathname);
             }
         }
 
-        // ==========================================
-        // SPOTIFY AUTH & PLAYER
-        // ==========================================
-        function generateRandomString(length) {
-            let text = '';
-            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            for (let i = 0; i < length; i++) {
-                text += possible.charAt(Math.floor(Math.random() * possible.length));
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
-            return text;
+            return array;
         }
 
-        function loginSpotify() {
-            const clientId = '92b0c345eb6a43c683b566580f1e8bc2'; // Ideally replace with a real public Client ID configured for implicit grant
-            // NOTE: For a fully standalone HTML file without backend, we MUST use Implicit Grant flow.
-            // Since I don't control the redirect URI, I'll use a widely accepted trick or assume it's running locally.
-            // For production, the redirect_uri MUST be registered in the Spotify Developer Dashboard.
-            const redirectUri = window.location.href.split('#')[0].split('?')[0]; 
-            const state = generateRandomString(16);
-            const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
+        // Global Track History for deduplication across sessions (1000 song memory)
+        let globalTrackHistory = JSON.parse(localStorage.getItem('party_track_history') || '[]');
 
-            let url = 'https://accounts.spotify.com/authorize';
-            url += '?response_type=token';
-            url += '&client_id=' + encodeURIComponent(clientId);
-            url += '&scope=' + encodeURIComponent(scope);
-            url += '&redirect_uri=' + encodeURIComponent(redirectUri);
-            url += '&state=' + encodeURIComponent(state);
-
-            window.location = url;
-        }
-
-        function checkSpotifyAuth() {
-            const hash = window.location.hash;
-            if (hash) {
-                const params = new URLSearchParams(hash.substring(1));
-                const token = params.get('access_token');
-                if (token) {
-                    accessToken = token;
-                    window.location.hash = ''; // Clear hash
-                    showMessage("Spotify Authenticated!", "success");
-                    return true;
+        function popTrack() {
+            if (tracks.length > 0) {
+                const t = tracks.pop();
+                const trackKey = getTrackKey(t);
+                
+                // Add to global history memory if not already there
+                if (!globalTrackHistory.includes(trackKey)) {
+                    globalTrackHistory.push(trackKey);
+                    if(globalTrackHistory.length > 1000) globalTrackHistory.shift();
+                    localStorage.setItem('party_track_history', JSON.stringify(globalTrackHistory));
                 }
+                return t;
             }
-            return false;
+            return { y: 2024, t: "Out of Songs! Wait for Refill.", a: "System", c: "" };
         }
 
-        function loadSpotifyWebPlayer() {
-            if (!accessToken) return;
+        // --- GLOBAL STATE ---
+        const PEER_PREFIX = 'hitster-party-v1-'; 
+        const HOST_PLAYER_ID = 'host-local-player';
+        
+        const peerConfig = {
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        };
+
+        let myPeer = null; 
+        let currentRoomPin = null;
+        
+        let players = {}; 
+        let turnOrder = [];
+        let turnIndex = 0;
+        let gameState = 'IDLE'; 
+        let previousStateBeforePause = 'READY_TO_PLAY';
+        let pendingDisconnectPlayerId = null;
+        
+        let currentGuesses = {}; 
+        let stealDecisions = {}; 
+        let stealEndTime = 0; 
+        let isHostInPlayerView = false; 
+        
+        let currentWinnerId = null;
+        let bonusTokenClaimed = false;
+
+        let tracks = [];
+        let currentHostTrack = null;
+        let currentMusicMode = 'hitster_classic';
+        let isPlaying = false;
+        let spotifyPlayer = null;
+        let webDeviceId = null;
+        let isHostMode = false;
+        let hostBroadcastInterval = null;
+        let isFetchingTracks = false;
+        
+        // Client variables
+        let hostConnection = null; 
+        let myPlayerName = "";
+        let myId = "";
+        let viewingOwnTimeline = false; 
+        let lastHostContact = Date.now();
+        let clientWatchdog = null;
+
+        // ==========================================
+        //               HOST LOGIC
+        // ==========================================
+        
+        async function checkSpotifyAuthAndInitHost() {
+            if (!accessToken) { switchSetupView('view-spotify-login'); return; }
+            switchSetupView('view-host-setup');
             
-            // Check if already loaded
-            if (window.Spotify && window.Spotify.Player) {
-                initializeSpotifyPlayer();
+            const saved = localStorage.getItem('party_saved_game');
+            if (saved) {
+                document.getElementById('resume-game-container').classList.remove('hidden');
+            }
+
+            try {
+                const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
+                document.getElementById('host-email-display').innerText = userData.email || 'Ready';
+            } catch (err) {}
+        }
+
+        function forceBackgroundFetch() {
+            if (!isFetchingTracks) {
+                fetchTracksFromSpotify().then(() => updateHostPlayerList());
+            }
+        }
+
+        // DRIP FEED FETCHING: Drip feed 4 songs per era sequentially to avoid API 429 lockout
+        async function fetchTracksFromSpotify() {
+            if (isFetchingTracks || !accessToken) return;
+            isFetchingTracks = true;
+            
+            const refetchIcon = document.getElementById('host-refetch-status');
+            if (refetchIcon) refetchIcon.classList.remove('hidden');
+
+            try {
+                let rawItems = [];
+                let genreQuery = "";
+                let eras = [];
+
+                if (currentMusicMode === 'liked') {
+                    const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
+                    const total = initData.total || 50;
+                    let offset = Math.floor(Math.random() * Math.min(total - 20, 950)); 
+                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=20&offset=${offset}`);
+                    if (data.items) rawItems.push(...data.items);
+                } 
+                else if (currentMusicMode === 'hitster_hebrew') {
+                    genreQuery = " genre:israeli";
+                    eras = ['1970-1989', '1990-2009', '2010-2024', '2000-2020', '1980-2000'];
+                }
+                else {
+                    if (currentMusicMode === 'hitster_classic') eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    if (currentMusicMode === 'hitster_pop') { genreQuery = " genre:pop"; eras = ['1980-1999', '1990-2009', '2000-2015', '2010-2024', '2020-2024']; }
+                    if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1960-1979', '1970-1989', '1980-1999', '1990-2009', '2000-2020']; }
+                    if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1980-1999', '1990-2005', '2000-2015', '2010-2024', '2015-2024']; }
+                }
+
+                if (currentMusicMode !== 'liked') {
+                    // Drip-Feed: Fetch sequentially (no Promise.all burst). 
+                    // Pulls a modest amount (4 per era = 20 total) to avoid wasting limits when opening/closing games.
+                    const searchLimit = 4; 
+                    for (const era of eras) {
+                        const randomOffset = Math.floor(Math.random() * 800); // deep fetch
+                        const query = encodeURIComponent(`year:${era}${genreQuery}`.trim());
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=${searchLimit}&offset=${randomOffset}`);
+                        if (data.tracks && data.tracks.items) {
+                            rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                        }
+                    }
+                }
+
+                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
+                    u: i.track.uri,
+                    t: i.track.name,
+                    a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
+                    y: parseInt(i.track.album.release_date.substring(0, 4)),
+                    c: i.track.album.images?.[0]?.url.split('/').pop() || ''
+                }));
+
+                // STRICT Deduplication: Active Table + Global History
+                const activeKeys = new Set();
+                tracks.forEach(t => activeKeys.add(getTrackKey(t)));
+                if (currentHostTrack) activeKeys.add(getTrackKey(currentHostTrack));
+                Object.values(players).forEach(p => {
+                    p.timeline.forEach(t => activeKeys.add(getTrackKey(t)));
+                });
+                
+                let newTracks = mappedTracks.filter(t => {
+                    const key = getTrackKey(t);
+                    if (activeKeys.has(key)) return false;
+                    activeKeys.add(key);
+                    return true;
+                });
+
+                // Filter against history
+                let finalTracks = newTracks.filter(t => !globalTrackHistory.includes(getTrackKey(t)));
+                
+                // Fallback: If history blocked literally every single track we found, wipe history to unfreeze the game
+                if (finalTracks.length === 0 && newTracks.length > 0) {
+                    globalTrackHistory = [];
+                    localStorage.removeItem('party_track_history');
+                    finalTracks = newTracks;
+                }
+
+                tracks = tracks.concat(shuffleArray(finalTracks));
+
+            } catch (err) {
+                console.error("Fetch/Refill failed:", err);
+            }
+            
+            isFetchingTracks = false;
+            if (refetchIcon) refetchIcon.classList.add('hidden');
+            updateHostPlayerList(); 
+        }
+
+        async function startHostGame(mode) {
+            // Guard against starting a game without refreshing if SDK already loaded
+            if (spotifyPlayer) {
+                localStorage.removeItem('party_host_state');
+                window.location.replace(window.location.pathname);
                 return;
             }
 
-            window.onSpotifyWebPlaybackSDKReady = () => {
-                initializeSpotifyPlayer();
+            const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
+            currentRoomPin = null; 
+            players = {};
+            players[HOST_PLAYER_ID] = {
+                id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
+                tokens: 2, score: 0, lastPongAt: Date.now(), timeline: []
             };
-
-            const script = document.createElement("script");
-            script.src = "https://sdk.scdn.co/spotify-player.js";
-            script.async = true;
-            document.body.appendChild(script);
+            turnOrder = [HOST_PLAYER_ID];
+            turnIndex = 0;
+            gameState = 'IDLE';
+            tracks = [];
+            currentHostTrack = null;
+            isPlaying = false;
+            currentGuesses = {}; 
+            stealDecisions = {}; 
+            stealEndTime = 0; 
+            currentWinnerId = null;
+            bonusTokenClaimed = false;
+            pendingDisconnectPlayerId = null;
+            
+            currentMusicMode = mode;
+            switchContainer('host-game-ui');
+            isHostMode = true;
+            isHostInPlayerView = false;
+            document.getElementById('host-loading-text').innerText = "Fetching Songs...";
+            requestWakeLock(); 
+            
+            try {
+                await fetchTracksFromSpotify();
+                document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
+                initSpotifyWebPlayer(false);
+            } catch (err) {
+                console.error(err);
+                resetApp();
+            }
         }
 
-        function initializeSpotifyPlayer() {
-            if (spotifyPlayer) {
-                spotifyPlayer.disconnect();
+        function resumeHostGame() {
+            if (!accessToken) {
+                showMessage("Please log in with Spotify to resume your game.", "info");
+                switchSetupView('view-spotify-login');
+                return;
             }
+            
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (!savedStateStr) return;
+            
+            try {
+                const savedState = JSON.parse(savedStateStr);
+                currentRoomPin = savedState.pin;
+                players = savedState.players || {};
+                turnOrder = savedState.turnOrder || [];
+                turnIndex = savedState.turnIndex || 0;
+                gameState = savedState.gameState || 'READY_TO_PLAY';
+                currentHostTrack = savedState.currentHostTrack;
+                isPlaying = false; 
+                currentGuesses = savedState.currentGuesses || {};
+                stealDecisions = savedState.stealDecisions || {};
+                stealEndTime = savedState.stealEndTime || 0;
+                currentWinnerId = savedState.currentWinnerId;
+                bonusTokenClaimed = savedState.bonusTokenClaimed;
+                tracks = savedState.tracks || [];
 
-            const player = new window.Spotify.Player({
-                name: 'Hitster Web Player',
-                getOAuthToken: cb => { cb(accessToken); },
-                volume: 0.5
-            });
+                Object.values(players).forEach(p => {
+                    p.conn = null;
+                    p.online = (p.id === HOST_PLAYER_ID); 
+                    p.lastPongAt = Date.now();
+                });
 
-            player.addListener('ready', ({ device_id }) => {
-                console.log('Ready with Device ID', device_id);
+                switchContainer('host-game-ui');
+                isHostMode = true;
+                isHostInPlayerView = false;
+                document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                requestWakeLock(); 
+
+                initSpotifyWebPlayer(true); 
+            } catch(err) {
+                showMessage("Corrupted save file. Starting fresh.", "error");
+                localStorage.removeItem('party_host_state');
+            }
+        }
+
+        function saveHostState() {
+            if (!isHostMode || gameState === 'IDLE') return; 
+            const stateToSave = {
+                pin: currentRoomPin, players: {},
+                turnOrder, turnIndex, gameState,
+                currentHostTrack, isPlaying, 
+                currentGuesses, stealDecisions, stealEndTime,
+                currentWinnerId, bonusTokenClaimed, tracks
+            };
+            for (const [id, p] of Object.entries(players)) {
+                stateToSave.players[id] = { ...p, conn: null, online: false }; 
+            }
+            localStorage.setItem('party_host_state', JSON.stringify(stateToSave));
+        }
+
+        function initSpotifyWebPlayer(isResuming = false) {
+            spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
+
+            spotifyPlayer.addListener('ready', ({ device_id }) => {
                 webDeviceId = device_id;
-                showMessage("Spotify Connected!", "success");
-                
-                // FORCE TRANSFER PLAYBACK IMMEDIATELY
                 fetch('https://api.spotify.com/v1/me/player', {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
-                }).catch(e => console.log("Transfer playback error:", e));
+                }).catch(e => console.log(e));
+                initHostNetwork(isResuming); 
             });
 
-            player.addListener('not_ready', ({ device_id }) => {
-                console.log('Device ID has gone offline', device_id);
-            });
-
-            player.addListener('player_state_changed', state => {
+            spotifyPlayer.addListener('player_state_changed', state => {
                 if (!state) return;
                 isPlaying = !state.paused;
-                // Update host UI
-                const icon = document.getElementById('host-play-icon');
-                if (icon) {
-                    icon.className = isPlaying ? "fa-solid fa-pause ml-0" : "fa-solid fa-play ml-1";
-                }
-                
-                // If track ended naturally, maybe host wants to do something.
-                if (state.position === 0 && state.paused && state.restrictions.disallow_resuming_reasons) {
-                    // Track ended
-                }
-                
-                // Broadcast play state to all players
-                broadcastToPlayers({ type: 'SYNC_PLAY_STATE', isPlaying });
+                broadcastSync();
             });
 
-            player.addListener('initialization_error', ({ message }) => { showMessage(message, "error"); });
-            player.addListener('authentication_error', ({ message }) => { showMessage("Spotify Auth Error. Try logging in again.", "error"); });
-            player.addListener('account_error', ({ message }) => { showMessage("Premium required.", "error"); });
+            spotifyPlayer.addListener('authentication_error', () => {
+                saveHostState(); // Save room state before redirecting to login to allow auto-resume
+                showMessage("Spotify Auth Error. Log back in.", "error");
+                logoutSpotify();
+            });
 
-            spotifyPlayer = player;
-            player.connect();
+            spotifyPlayer.connect();
         }
 
-        // ==========================================
-        // SETUP & PEERJS
-        // ==========================================
-        function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let res = '';
-            for(let i=0; i<4; i++) res += chars.charAt(Math.floor(Math.random()*chars.length));
-            return res;
-        }
-
-        function switchRole(role) {
-            isHost = (role === 'host');
-            if (isHost) {
-                if (!accessToken) {
-                    switchSetupView('view-auth');
-                } else {
-                    startHostServer();
-                }
-            } else {
-                switchSetupView('view-join-lobby');
+        function initHostNetwork(isResuming = false) {
+            let pin = currentRoomPin;
+            if (!isResuming) {
+                pin = Math.floor(1000 + Math.random() * 9000);
+                currentRoomPin = pin;
             }
-        }
+            document.getElementById('host-pin-display-game').innerText = pin;
+            
+            if (!isResuming) {
+                const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
+                myId = HOST_PLAYER_ID;
+                myPlayerName = hostName;
 
-        function startHostServer() {
-            roomCode = generateRoomCode();
-            myPeerId = 'hitster-' + roomCode;
+                // Ensure Host is always in players array
+                players[HOST_PLAYER_ID] = {
+                    id: HOST_PLAYER_ID, name: hostName, conn: null, online: true,
+                    tokens: 2, score: 0, lastPongAt: Date.now(),
+                    timeline: [] 
+                };
+                turnOrder = [HOST_PLAYER_ID];
+                gameState = 'IDLE'; 
+            } else {
+                myId = HOST_PLAYER_ID;
+                if (players[HOST_PLAYER_ID]) {
+                    myPlayerName = players[HOST_PLAYER_ID].name;
+                    players[HOST_PLAYER_ID].online = true;
+                    players[HOST_PLAYER_ID].lastPongAt = Date.now();
+                }
+            }
+
+            myPeer = new Peer(PEER_PREFIX + pin, peerConfig);
             
-            myPeer = new Peer(myPeerId);
-            
-            myPeer.on('open', (id) => {
-                switchSetupView('view-host-lobby');
-                document.getElementById('display-room-code').innerText = roomCode;
-                document.getElementById('in-game-room-code').innerText = roomCode;
+            myPeer.on('open', () => {
+                document.getElementById('host-loading-info').classList.add('hidden');
+                document.getElementById('host-active-info').classList.remove('hidden');
+                document.getElementById('host-active-info').classList.add('flex');
                 
-                // Setup Host as Player 1 automatically
-                setupNewPlayer({peer: HOST_PLAYER_ID}, {name: 'Host'});
-                
-                loadSpotifyWebPlayer();
+                hostBroadcastInterval = setInterval(() => { 
+                    const now = Date.now();
+                    if (gameState === 'STEALING') {
+                        const remaining = Math.ceil((stealEndTime - now) / 1000);
+                        if (remaining <= 0) {
+                            evaluateAndScoreRound();
+                        }
+                    }
+                    
+                    Object.values(players).forEach(p => {
+                        if (p.id !== HOST_PLAYER_ID && p.online) {
+                            if (p.conn && p.conn.open) {
+                                p.conn.send({ type: 'PING' });
+                            }
+                            
+                            if (now - p.lastPongAt > 15000) {
+                                p.online = false;
+                                p.conn = null;
+                                showMessage(`${p.name} dropped offline.`, 'error');
+                                updateHostPlayerList();
+                                if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                                    triggerDisconnectPrompt(p.id, p.name);
+                                }
+                            }
+                        }
+                    });
+
+                    broadcastSync(); 
+                    saveHostState();
+                }, 1000);
+
+                if (!isResuming) {
+                    updateHostPlayerList();
+                    broadcastSync();
+                }
             });
 
             myPeer.on('connection', (conn) => {
-                conn.on('data', (data) => {
-                    handleMessageFromPlayer(conn, data);
-                });
-                conn.on('close', () => {
-                    if (players[conn.peer]) {
-                        delete players[conn.peer];
-                        updateHostPlayerList();
+                conn.on('open', () => {
+                    const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase(); 
+                    
+                    if (players[stableId]) {
+                        players[stableId].conn = conn;
+                        players[stableId].online = true;
+                        players[stableId].lastPongAt = Date.now();
+                        showMessage(`${pName} reconnected!`, 'success');
+                        
+                        if (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId === stableId) {
+                            closeDisconnectModal();
+                            gameState = previousStateBeforePause;
+                            pendingDisconnectPlayerId = null;
+                        }
+                    } else {
+                        players[stableId] = {
+                            id: stableId, name: pName, conn: conn, online: true,
+                            tokens: 2, score: 0,
+                            lastPongAt: Date.now(),
+                            timeline: gameState !== 'IDLE' ? [popTrack()] : []
+                        };
+                        if (!turnOrder.includes(stableId)) turnOrder.push(stableId);
+                        showMessage(`${pName} joined!`, 'success');
                     }
-                });
-            });
+                    
+                    updateHostPlayerList();
+                    broadcastSync();
 
-            myPeer.on('error', (err) => {
-                if (err.type === 'unavailable-id') {
-                    // Collision, try again
-                    startHostServer();
-                } else {
-                    showMessage("Connection error: " + err.type, "error");
-                    resetApp();
-                }
+                    conn.on('data', (data) => handlePlayerAction(stableId, data));
+                });
+
+                conn.on('close', () => {
+                    const pName = conn.metadata.playerName || "Unknown";
+                    const stableId = pName.trim().toLowerCase();
+                    
+                    if (players[stableId]) {
+                        players[stableId].online = false;
+                        players[stableId].conn = null;
+                        showMessage(`${pName} disconnected.`, 'error');
+                        
+                        if (gameState !== 'IDLE' && gameState !== 'GAME_OVER') {
+                            triggerDisconnectPrompt(stableId, pName);
+                        }
+                    }
+                    updateHostPlayerList();
+                    broadcastSync();
+                });
             });
         }
 
-        function joinGame() {
-            const name = document.getElementById('join-name').value.trim();
-            const code = document.getElementById('join-code').value.trim().toUpperCase();
+        function hostStartGameFromLobby() {
+            if (turnOrder.length === 0) return showMessage("No players in room!", "error");
             
-            if (!name) { showMessage("Enter your name", "error"); return; }
-            if (code.length !== 4) { showMessage("Enter 4-digit code", "error"); return; }
-
-            myName = name;
-            document.getElementById('btn-join-room').classList.add('hidden');
-            document.getElementById('join-status').classList.remove('hidden');
-
-            myPeer = new Peer();
-            myPeer.on('open', (id) => {
-                myPlayerId = id;
-                hostConnection = myPeer.connect('hitster-' + code, { reliable: true });
-                
-                hostConnection.on('open', () => {
-                    // Send Join Request
-                    hostConnection.send({ type: 'JOIN_REQ', name: myName });
-                });
-
-                hostConnection.on('data', (data) => {
-                    handleMessageFromHost(data);
-                });
-
-                hostConnection.on('close', () => {
-                    showMessage("Disconnected from Host", "error");
-                    resetApp();
-                });
+            Object.values(players).forEach(p => {
+                p.timeline = [popTrack()];
+                p.score = 0;
+                p.tokens = 2;
             });
 
-            myPeer.on('error', (err) => {
-                showMessage("Failed to connect", "error");
+            turnIndex = Math.floor(Math.random() * turnOrder.length);
+            loadTurn();
+        }
+
+        function triggerDisconnectPrompt(pId, pName) {
+            pendingDisconnectPlayerId = pId;
+            document.getElementById('disconnect-player-name').innerText = pName;
+            document.getElementById('host-disconnect-modal').classList.remove('hidden');
+            document.getElementById('host-disconnect-modal').classList.add('flex');
+            
+            if (gameState !== 'PAUSED_DISCONNECT') {
+                previousStateBeforePause = gameState;
+                gameState = 'PAUSED_DISCONNECT';
+                broadcastSync();
+            }
+        }
+
+        function closeDisconnectModal() {
+            document.getElementById('host-disconnect-modal').classList.add('hidden');
+            document.getElementById('host-disconnect-modal').classList.remove('flex');
+        }
+
+        function pauseGameForDisconnect() {
+            closeDisconnectModal();
+        }
+
+        function kickDisconnectedPlayer() {
+            closeDisconnectModal();
+            const kId = pendingDisconnectPlayerId;
+            pendingDisconnectPlayerId = null;
+            
+            if (!kId || !players[kId]) return;
+
+            const wasActivePlayer = (turnOrder[turnIndex] === kId);
+            
+            delete players[kId];
+            turnOrder = turnOrder.filter(id => id !== kId);
+
+            if (turnOrder.length === 0) {
                 resetApp();
-            });
-        }
-
-        function copyRoomCode() {
-            navigator.clipboard.writeText(roomCode);
-            showMessage("Copied!", "success");
-        }
-
-        function resetApp() {
-            if (myPeer) { myPeer.destroy(); myPeer = null; }
-            if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
-            webDeviceId = null; // Fix for Device Not Found on reconnect
-            if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
-            switchContainer('setup-container');
-            switchSetupView('view-roles');
-            
-            // reset UI
-            document.getElementById('join-name').value = '';
-            document.getElementById('join-code').value = '';
-            document.getElementById('btn-join-room').classList.remove('hidden');
-            document.getElementById('join-status').classList.add('hidden');
-            
-            players = {};
-            turnQueue = [];
-            deck = [];
-        }
-
-        // ==========================================
-        // HOST LOGIC
-        // ==========================================
-        function setupNewPlayer(conn, data) {
-            if (Object.keys(players).length >= 10) {
-                if(conn.send) conn.send({ type: 'JOIN_REJECT', reason: 'Lobby full (Max 10)' });
                 return;
             }
-            
-            players[conn.peer] = {
-                id: conn.peer,
-                name: data.name,
-                conn: conn.peer === HOST_PLAYER_ID ? null : conn,
-                timeline: [], // Array of track objects
-                bonusTokens: 2,
-                hasPlayed: false
-            };
-            
-            if (conn.send) conn.send({ type: 'JOIN_ACCEPT', id: conn.peer });
+
+            if (gameState === 'PAUSED_DISCONNECT') {
+                gameState = previousStateBeforePause;
+            }
+
+            if (wasActivePlayer) {
+                turnIndex = turnIndex % turnOrder.length;
+                loadTurn();
+            } else {
+                if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
+                    evaluateAndScoreRound();
+                } else {
+                    broadcastSync();
+                }
+            }
             updateHostPlayerList();
         }
 
         function updateHostPlayerList() {
-            const list = document.getElementById('host-lobby-players');
-            const inGameList = document.getElementById('host-ingame-players');
-            list.innerHTML = '';
-            inGameList.innerHTML = '';
-            
-            const pIds = Object.keys(players);
-            document.getElementById('host-player-count').innerText = pIds.length;
-            
-            document.getElementById('btn-start-game').disabled = pIds.length < 1;
-            document.getElementById('btn-start-game').classList.toggle('opacity-50', pIds.length < 1);
-            document.getElementById('btn-start-game').classList.toggle('cursor-not-allowed', pIds.length < 1);
-
-            pIds.forEach(id => {
-                const p = players[id];
-                const li = document.createElement('li');
-                li.className = "flex items-center justify-between text-white bg-slate-800 p-2 rounded";
-                li.innerHTML = `<span>${p.name} ${id === HOST_PLAYER_ID ? '<i class="fa-solid fa-crown text-yellow-500 text-xs ml-1"></i>' : ''}</span>`;
-                list.appendChild(li);
+            const ul = document.getElementById('host-game-player-list');
+            ul.innerHTML = '';
+            const pArr = Object.values(players);
+            pArr.forEach((p, idx) => {
+                const turnIdxOfP = turnOrder.indexOf(p.id);
+                const isTurn = (gameState !== 'IDLE' && turnIdxOfP === turnIndex);
+                const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
+                
+                ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon} (Score: ${p.score})</span>
+                    <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
+                </li>`;
             });
 
-            // Update in-game sidebar
-            turnQueue.forEach(id => {
-                const p = players[id];
-                if (!p) return;
-                const li = document.createElement('li');
-                const isTurn = (id === activePlayerId);
-                li.className = `p-2 rounded text-sm font-semibold flex items-center transition-colors ${isTurn ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800/50'}`;
-                
-                let statusIcon = '';
-                if (gameState === 'EVALUATING' && isTurn) {
-                    statusIcon = '<i class="fa-solid fa-spinner fa-spin text-yellow-400"></i>';
-                }
-                
-                const scoreText = `(Cards: ${p.timeline.length}/10)`;
-
-                li.innerHTML = `<span class="truncate max-w-[120px] inline-block align-bottom">${isTurn ? '➔ ' : ''}${p.name} ${id === HOST_PLAYER_ID ? '(Host)' : ''}</span> 
-                                <span class="text-xs text-slate-400 ml-1">${scoreText}</span>
-                                <span class="ml-auto flex items-center gap-2">${statusIcon}</span>`;
-                inGameList.appendChild(li);
-            });
+            const trackCounter = document.getElementById('host-track-count');
+            if (trackCounter) trackCounter.innerText = `${tracks.length} Songs Left`;
         }
 
-        async function fetchTracksFromSpotify() {
-            if (!accessToken) return;
-            
-            showMessage("Building music deck...", "info");
-            
-            currentMusicMode = document.getElementById('host-music-mode').value;
-            let genreQuery = "";
-            let eras = [];
-            
-            if (currentMusicMode === 'hitster_80s') eras = ['1980-1989'];
-            else if (currentMusicMode === 'hitster_90s') eras = ['1990-1999'];
-            else if (currentMusicMode === 'hitster_2000s') eras = ['2000-2009'];
-            else if (currentMusicMode === 'hitster_hebrew') {
-                eras = ['1980-2023'];
-                genreQuery = "%20genre:israeli-pop%20OR%20genre:mizrahi";
-            }
-            else {
-                // Global Hits
-                eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2023'];
+        function loadTurn() {
+            // Because we only fetch ~20 at a time, we trigger the background refill at < 10 songs.
+            if (tracks.length < 10) {
+                fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
             }
 
-            const safeSpotifyFetch = async (url) => {
-                try {
-                    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-                    if(res.ok) {
-                        const data = await res.json();
-                        return data.tracks.items;
-                    }
-                } catch(e) {}
-                return [];
-            };
-
-            let allTracks = [];
-            
-            // Deeper pool: limit=20, offset up to 150
-            const fetchPromises = eras.map(era => 
-                safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}${genreQuery}&type=track&limit=20&offset=${Math.floor(Math.random() * 150)}`)
-            );
-
-            const results = await Promise.all(fetchPromises);
-            results.forEach(items => {
-                items.forEach(t => {
-                    if (t.preview_url || true) { // We use full playback now, so preview_url not strictly needed if premium
-                        // Parse year from release_date
-                        let year = t.album.release_date ? parseInt(t.album.release_date.split('-')[0]) : null;
-                        if (year) {
-                            allTracks.push({
-                                id: t.id,
-                                title: t.name,
-                                artist: t.artists.map(a=>a.name).join(', '),
-                                year: year,
-                                u: t.uri // Full track URI for web playback
-                            });
-                        }
-                    }
+            if (tracks.length === 0) {
+                fetchTracksFromSpotify().then(() => {
+                    currentHostTrack = popTrack();
+                    broadcastSync();
                 });
-            });
-
-            // Shuffle
-            allTracks.sort(() => Math.random() - 0.5);
-            deck = allTracks;
-            console.log(`Deck built with ${deck.length} tracks.`);
-        }
-
-        async function startHostGame() {
-            if (!webDeviceId) {
-                showMessage("Spotify Web Player not ready yet. Please wait.", "error");
-                return;
+                return showMessage("Out of songs! Refetching from Spotify...", "info");
             }
-
-            await fetchTracksFromSpotify();
-            if (deck.length < Object.keys(players).length * 10) {
-                showMessage("Not enough tracks found for this category.", "error");
-                return;
-            }
-
-            turnQueue = Object.keys(players);
             
-            // Give every player 1 starting card
-            turnQueue.forEach(id => {
-                players[id].timeline = [deck.pop()];
-            });
-
-            switchContainer('host-game-container');
+            gameState = 'READY_TO_PLAY';
+            currentGuesses = {};
+            stealDecisions = {};
+            stealEndTime = 0;
+            currentWinnerId = null;
+            bonusTokenClaimed = false;
+            currentHostTrack = popTrack();
+            isPlaying = false;
             
-            // Start sync loop
-            hostBroadcastInterval = setInterval(broadcastGameState, 1000);
-
-            nextTurn();
+            updateHostPlayerList();
+            broadcastSync();
         }
 
         function nextTurn() {
-            if (gameState === 'GAME_OVER') return;
+            if (turnOrder.length === 0) return;
             
-            if (activePlayerId === null) {
-                activePlayerId = turnQueue[0];
-            } else {
-                const idx = turnQueue.indexOf(activePlayerId);
-                activePlayerId = turnQueue[(idx + 1) % turnQueue.length];
+            turnIndex = (turnIndex + 1) % turnOrder.length;
+            
+            let attempts = 0;
+            while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
+                turnIndex = (turnIndex + 1) % turnOrder.length;
+                attempts++;
             }
 
-            gameState = 'PLAYING';
-            currentHostTrack = deck.pop();
-            
-            // Reset host UI
-            document.getElementById('host-status-text').innerText = `${players[activePlayerId].name}'s Turn`;
-            document.getElementById('host-active-card').classList.add('hidden');
-            document.getElementById('host-track-details').classList.add('opacity-10', 'blur-sm');
-            document.getElementById('host-music-controls').classList.add('hidden');
-            
-            updateHostPlayerList();
-            
-            // Auto-play the track for the host
-            handlePlayerAction('TOGGLE_PLAY', HOST_PLAYER_ID, true);
-            
-            broadcastGameState();
+            if (attempts >= turnOrder.length) return showMessage("Everyone is offline!", "error");
+
+            loadTurn();
         }
 
-        function handleMessageFromPlayer(conn, data) {
-            const pId = conn.peer;
-            if (data.type === 'JOIN_REQ') {
-                setupNewPlayer(conn, data);
-            } else if (data.type === 'PLAYER_ACTION') {
-                handlePlayerAction(data.action, pId, data.payload);
-            }
-        }
-
-        function handlePlayerAction(action, pId, payload = null) {
-            if (action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
-                if (!currentHostTrack) return;
-                
-                if (isPlaying) {
-                    spotifyPlayer.pause().catch(e => console.error(e));
-                } else {
-                    if (!webDeviceId) {
-                        showMessage("Spotify device not ready.", "error");
-                        return;
-                    }
-                    
-                    fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uris: [currentHostTrack.u] })
-                    }).then(async (res) => {
-                        if (!res.ok) {
-                            // Retry transfer if device not found
-                            fetch('https://api.spotify.com/v1/me/player', {
-                                method: 'PUT',
-                                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ device_ids: [webDeviceId], play: true })
-                            });
-                        }
-                    }).catch(e => console.error(e));
-                }
-            } 
-            else if (action === 'USE_TOKEN_ARTIST' && pId === activePlayerId) {
-                if (players[pId].bonusTokens > 0) {
-                    players[pId].bonusTokens--;
-                    sendToPlayer(pId, { type: 'SHOW_HINT', hintType: 'Artist', value: currentHostTrack.artist });
-                    broadcastGameState();
-                }
-            }
-            else if (action === 'USE_TOKEN_TITLE' && pId === activePlayerId) {
-                if (players[pId].bonusTokens > 0) {
-                    players[pId].bonusTokens--;
-                    sendToPlayer(pId, { type: 'SHOW_HINT', hintType: 'Title', value: currentHostTrack.title });
-                    broadcastGameState();
-                }
-            }
-            else if (action === 'PLACE_CARD' && pId === activePlayerId) {
-                // Pause music when placing
-                if(isPlaying) spotifyPlayer.pause();
-                
-                const insertIdx = payload.index; // index where to insert
-                gameState = 'EVALUATING';
-                broadcastGameState();
-                
-                // Show Host UI Card
-                const card = document.getElementById('host-active-card');
-                card.classList.remove('hidden');
-                document.getElementById('host-track-title').innerText = currentHostTrack.title;
-                document.getElementById('host-track-artist').innerText = currentHostTrack.artist;
-                document.getElementById('host-track-year').innerText = currentHostTrack.year;
-                
-                // Automatically reveal and evaluate after short delay (or wait for manual reveal)
-                // We'll let the host manually click "Reveal" to build suspense.
-            }
-            else if (action === 'CLAIM_BONUS_TOKEN') {
-                // Used during EVALUATING if exact year was guessed or similar rule
-                if (players[pId] && gameState === 'EVALUATING') {
-                     players[pId].bonusTokens++;
-                     broadcastGameState();
-                }
-            }
-        }
-
-        function revealHostCard() {
-            if (gameState !== 'EVALUATING') return;
+        function checkAllStealsSubmitted() {
+            const activePlayerId = turnOrder[turnIndex];
+            const otherPlayers = turnOrder.filter(id => id !== activePlayerId && players[id]);
             
-            const details = document.getElementById('host-track-details');
-            details.classList.remove('opacity-10', 'blur-sm');
-            details.classList.add('opacity-100', 'blur-none');
-            
-            // Wait 2 seconds for people to react, then evaluate
-            setTimeout(() => {
-                evaluateAndScoreRound();
-            }, 2000);
-        }
+            if (otherPlayers.length === 0) return true; 
 
-        function evaluateAndScoreRound() {
-            const aId = activePlayerId;
-            const p = players[aId];
-            
-            // The frontend sends the insert index. We need to check if it's correct.
-            // In multiplayer, the frontend just tells us WHERE they placed it.
-            // We sent them the timeline. We can check locally.
-            
-            // Since we didn't store the exact insertion index from the payload easily across functions, 
-            // let's ask the frontend logic to do the validation, or we store the payload globally.
-            // Wait, we need the payload.index from PLACE_CARD.
-            // Let's refactor `handlePlayerAction` slightly to store it.
-        }
-
-        // Refactored evaluation
-        let pendingPlacementIdx = null;
-        const originalHandleAction = handlePlayerAction;
-        handlePlayerAction = function(action, pId, payload) {
-            if (action === 'PLACE_CARD') pendingPlacementIdx = payload.index;
-            originalHandleAction(action, pId, payload);
-        };
-
-        function evaluateAndScoreRound() {
-            const aId = activePlayerId;
-            const p = players[aId];
-            const insertIdx = pendingPlacementIdx;
-            
-            const tl = p.timeline;
-            let isCorrect = true;
-            
-            // Check left
-            if (insertIdx > 0) {
-                if (tl[insertIdx - 1].year > currentHostTrack.year) isCorrect = false;
-            }
-            // Check right
-            if (insertIdx < tl.length) {
-                if (tl[insertIdx].year < currentHostTrack.year) isCorrect = false;
-            }
-
-            if (isCorrect) {
-                // Insert it
-                players[aId].timeline.splice(insertIdx, 0, currentHostTrack);
-                
-                // Check Win
-                const winnerId = turnQueue.find(id => players[id].timeline.length >= 10);
-                if (winnerId) {
-                    gameState = 'GAME_OVER';
-                    broadcastToPlayers({ 
-                        type: 'ROUND_RESULT', 
-                        isWinner: true, 
-                        correctYear: currentHostTrack.year,
-                        trackTitle: currentHostTrack.title,
-                        artistName: currentHostTrack.artist,
-                        isActivePlayer: true
-                    });
-                    hostShowWinner(winnerId);
-                    return;
-                }
-            }
-
-            // Send Result Modal
-            broadcastToPlayers({ 
-                type: 'ROUND_RESULT', 
-                isWinner: isCorrect, 
-                correctYear: currentHostTrack.year,
-                trackTitle: currentHostTrack.title,
-                artistName: currentHostTrack.artist,
-                isActivePlayer: (aId === myPlayerId) // wait, broadcast sends to all. Need to let players know who was active
+            return otherPlayers.every(id => {
+                const p = players[id];
+                if (!p || !p.online) return true; 
+                if (p.tokens <= 0) return true; 
+                if (id === HOST_PLAYER_ID && !isHostInPlayerView) return true; 
+                return stealDecisions[id] !== undefined; 
             });
-
-            // Move to next turn after delay
-            setTimeout(() => {
-                nextTurn();
-            }, 5000);
         }
 
-        function hostShowWinner(wId) {
-            document.getElementById('host-winner-overlay').classList.remove('hidden');
-            document.getElementById('host-winner-overlay').classList.add('flex');
-            const w = players[wId];
-            document.getElementById('host-winner-text').innerText = `${w.name} wins with 10 cards!`;
-            
-            // Send Game Over
-            broadcastToPlayers({ type: 'GAME_OVER', winnerName: w.name });
-        }
+        function handlePlayerAction(pId, data) {
+            const activePlayerId = turnOrder[turnIndex];
 
-        function endHostGame() {
-            if(confirm("Are you sure you want to end the game?")) {
-                resetApp();
+            if (data.action === 'PONG') {
+                if (players[pId]) players[pId].lastPongAt = Date.now();
+                return;
             }
+
+            if (data.action === 'REQUEST_SYNC') {
+                sendTargetedSync(pId);
+                return;
+            }
+
+            if (data.action === 'CLAIM_BONUS_TOKEN' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
+                if (pId === activePlayerId && pId === currentWinnerId && !bonusTokenClaimed) {
+                    players[pId].tokens++;
+                    bonusTokenClaimed = true;
+                    updateHostPlayerList();
+                    broadcastSync();
+                }
+                return;
+            }
+
+            if (data.action === 'NEXT_TURN' && gameState === 'REVEAL') {
+                if (pId === activePlayerId || pId === HOST_PLAYER_ID) {
+                    nextTurn();
+                }
+                return;
+            }
+
+            if (data.action === 'RESTART_GAME' && gameState === 'GAME_OVER') {
+                const startNewRound = () => {
+                    Object.values(players).forEach(p => {
+                        p.score = 0;
+                        p.tokens = 2;
+                        p.timeline = [popTrack()];
+                    });
+                    turnIndex = Math.floor(Math.random() * turnOrder.length);
+                    loadTurn();
+                };
+
+                // Guard against empty deck before restarting
+                if (tracks.length < (Object.keys(players).length + 5)) {
+                    fetchTracksFromSpotify().then(startNewRound);
+                } else {
+                    startNewRound();
+                }
+                return;
+            }
+
+            if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
+                if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
+                    if (isPlaying) {
+                        spotifyPlayer.pause();
+                    } else {
+                        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uris: [currentHostTrack.u] })
+                        }).then(async (res) => {
+                            if (!res.ok) {
+                                const err = await res.json();
+                                showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
+                            }
+                        }).catch(e => showMessage("Network error playing track.", "error"));
+                        gameState = 'PLAYING';
+                    }
+                    broadcastSync();
+                }
+            }
+            else if (data.action === 'GUESS' && pId === activePlayerId) {
+                currentGuesses[pId] = data.index;
+                gameState = 'STEALING';
+                stealDecisions = {}; 
+                stealEndTime = Date.now() + 15000; 
+                
+                if (spotifyPlayer) spotifyPlayer.pause();
+                
+                if (checkAllStealsSubmitted()) {
+                    evaluateAndScoreRound();
+                } else {
+                    broadcastSync();
+                }
+            }
+            else if (data.action === 'STEAL' && gameState === 'STEALING') {
+                if (pId === activePlayerId) return;
+                const player = players[pId];
+                if (!player || player.tokens <= 0) return;
+                if (Object.values(currentGuesses).includes(data.index)) return; 
+                
+                player.tokens--;
+                currentGuesses[pId] = data.index;
+                stealDecisions[pId] = 'STEAL';
+                updateHostPlayerList();
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
+            }
+            else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
+                if (pId === activePlayerId) return;
+                stealDecisions[pId] = 'PASS';
+                
+                if (checkAllStealsSubmitted()) evaluateAndScoreRound();
+                else broadcastSync();
+            }
+            else if (data.action === 'FORCE_EVALUATE_ROUND' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
+                if (gameState === 'STEALING') evaluateAndScoreRound();
+            }
+        }
+
+        function evaluateAndScoreRound() {
+            stealEndTime = 0;
+            gameState = 'REVEAL';
+            const activePlayerId = turnOrder[turnIndex];
+            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
+            const targetYear = currentHostTrack.y;
+            
+            let winnerId = null;
+
+            const isCorrect = (idx) => {
+                const prevY = idx > 0 ? activeTimeline[idx - 1].y : -Infinity;
+                const nextY = idx < activeTimeline.length ? activeTimeline[idx].y : Infinity;
+                return targetYear >= prevY && targetYear <= nextY;
+            };
+
+            if (currentGuesses[activePlayerId] !== undefined && isCorrect(currentGuesses[activePlayerId])) {
+                winnerId = activePlayerId;
+            } else {
+                for (const [sId, sIdx] of Object.entries(currentGuesses)) {
+                    if (sId !== activePlayerId && isCorrect(sIdx)) {
+                        winnerId = sId;
+                        break;
+                    }
+                }
+            }
+
+            currentWinnerId = winnerId;
+
+            if (winnerId && players[winnerId]) {
+                const winnerTimeline = players[winnerId].timeline;
+                
+                let insertIdx = 0;
+                while(insertIdx < winnerTimeline.length && winnerTimeline[insertIdx].y <= targetYear) {
+                    insertIdx++;
+                }
+                
+                winnerTimeline.splice(insertIdx, 0, currentHostTrack);
+                players[winnerId].score++;
+            }
+
+            if (winnerId && players[winnerId].score >= 10) {
+                gameState = 'GAME_OVER';
+            }
+
+            updateHostPlayerList();
+            broadcastSync();
         }
 
         function buildSyncObj(pId) {
-            const p = players[pId];
-            const activePlayer = players[activePlayerId];
+            const activePlayerId = turnOrder[turnIndex];
+            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
+            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
             
-            // Strip exact years from active track to prevent cheating
-            let safeTrack = null;
-            if (currentHostTrack) {
-                safeTrack = { id: currentHostTrack.id }; // just ID, no year/title
+            const guessNameMap = {};
+            for (const [gId, slot] of Object.entries(currentGuesses)) { 
+                if (players[gId]) guessNameMap[slot] = players[gId].name; 
             }
 
-            // Prepare opponent info
-            const opponents = turnQueue.filter(id => id !== pId).map(id => ({
-                id: id,
-                name: players[id].name,
-                cards: players[id].timeline.length,
-                isActive: id === activePlayerId
-            }));
+            const allStealsDone = checkAllStealsSubmitted();
+            const p = players[pId];
+            
+            const waitingOn = [];
+            if (gameState === 'STEALING') {
+                const otherPlayers = turnOrder.filter(id => id !== activePlayerId && players[id]);
+                otherPlayers.forEach(id => {
+                    const op = players[id];
+                    if (op && op.online && op.tokens > 0 && stealDecisions[id] === undefined) {
+                        if (!(id === HOST_PLAYER_ID && !isHostInPlayerView)) {
+                            waitingOn.push(op.name);
+                        }
+                    }
+                });
+            }
 
-            return {
-                type: 'SYNC_STATE',
-                gameState: gameState,
-                isMyTurn: pId === activePlayerId,
-                activePlayerName: activePlayer ? activePlayer.name : '',
-                activePlayerScore: activePlayer ? activePlayer.timeline.length : 1,
-                myTokens: p ? p.bonusTokens : 0,
-                myScore: p ? p.timeline.length : 1,
-                // Send timeline (if it's my turn, send MY timeline, otherwise send ACTIVE PLAYER'S timeline)
-                timeline: (pId === activePlayerId) ? (p ? p.timeline : []) : (activePlayer ? activePlayer.timeline : []),
-                currentTrack: safeTrack,
-                isPlaying: isPlaying,
-                opponents: opponents
+            const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
+
+            const syncObj = {
+                type: 'SYNC', state: gameState, isPlaying: isPlaying,
+                activePlayerName: activePlayerName, isActivePlayer: p ? p.id === activePlayerId : false,
+                timeline: activeTimeline, ownTimeline: p ? p.timeline : [],
+                guesses: guessNameMap,
+                hasPassedSteal: p ? stealDecisions[p.id] === 'PASS' : false,
+                hasStealed: p ? stealDecisions[p.id] === 'STEAL' : false,
+                allStealsDone: allStealsDone,
+                waitingOn: waitingOn,
+                stealTimeLeft: remainingTime,
+                myScore: p ? p.score : 0, myTokens: p ? p.tokens : 0,
+                correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
+                trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? cleanTrackTitle(currentHostTrack.t) : null,
+                artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
+                
+                isWinner: p ? (p.id === currentWinnerId) : false,
+                bonusTokenClaimed: bonusTokenClaimed,
+                overallWinnerName: (gameState === 'GAME_OVER' && currentWinnerId) ? players[currentWinnerId].name : null,
+                winnerName: currentWinnerId ? players[currentWinnerId].name : null,
+                pausedPlayerName: (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId && players[pendingDisconnectPlayerId]) ? players[pendingDisconnectPlayerId].name : 'a player'
             };
+
+            return syncObj;
         }
 
-        function broadcastGameState() {
-            turnQueue.forEach(id => {
-                const syncData = buildSyncObj(id);
-                if (id === HOST_PLAYER_ID) {
-                    // Update host own player UI in the background if they were playing
-                    if(document.getElementById('player-game-container').classList.contains('hidden') === false) {
-                        updatePlayerUI(syncData);
+        function sendTargetedSync(pId) {
+            const p = players[pId];
+            if (!p) return;
+            if (gameState === 'IDLE') {
+                const lobbyPlayers = Object.values(players).map(pl => pl.name);
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens });
+                return;
+            }
+            const syncObj = buildSyncObj(pId);
+
+            if (pId === HOST_PLAYER_ID) {
+                handlePlayerSync(syncObj);
+            } else {
+                if (p.conn && p.online) p.conn.send(syncObj);
+            }
+        }
+
+        function broadcastSync() {
+            if (turnOrder.length === 0) return;
+            const activePlayerId = turnOrder[turnIndex];
+            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "In Lobby";
+            const badge = document.getElementById('host-status-badge');
+            
+            const remainingTime = Math.max(0, Math.ceil((stealEndTime - Date.now()) / 1000));
+
+            document.getElementById('host-turn-player-name').innerText = activePlayerName;
+            
+            if (gameState === 'IDLE') {
+                badge.innerText = "LOBBY: WAITING FOR PLAYERS TO JOIN";
+                document.getElementById('host-start-game-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('host-start-game-btn').classList.add('hidden');
+                if (gameState === 'READY_TO_PLAY') badge.innerText = "WAITING FOR PLAYER TO START MUSIC";
+                else if (gameState === 'PLAYING') badge.innerText = "MUSIC PLAYING 🎵";
+                else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${remainingTime}s)`;
+                else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
+                else if (gameState === 'PAUSED_DISCONNECT') badge.innerText = "GAME PAUSED (PLAYER DISCONNECTED)";
+                else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
+            }
+
+            const djPlayBtn = document.getElementById('dj-direct-play-btn');
+            if (djPlayBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && activePlayerId === HOST_PLAYER_ID) {
+                djPlayBtn.classList.remove('hidden');
+                if (isPlaying) {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-pause mr-1"></i> Pause Song`;
+                    djPlayBtn.className = "mt-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                } else {
+                    djPlayBtn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Start Song`;
+                    djPlayBtn.className = "mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition";
+                }
+            } else if (djPlayBtn) {
+                djPlayBtn.classList.add('hidden');
+            }
+
+            const djPassBtn = document.getElementById('dj-direct-pass-btn');
+            if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
+                djPassBtn.classList.remove('hidden');
+            } else if (djPassBtn) {
+                djPassBtn.classList.add('hidden');
+            }
+
+            Object.keys(players).forEach(pId => sendTargetedSync(pId));
+        }
+
+        function switchHostToPlayerView() {
+            isHostInPlayerView = true;
+            switchContainer('player-game-ui');
+            document.getElementById('p-btn-host-back').classList.remove('hidden');
+            broadcastSync();
+        }
+
+        function switchPlayerToHostView() {
+            isHostInPlayerView = false;
+            switchContainer('host-game-ui');
+            broadcastSync();
+        }
+
+        window.addEventListener('orientationchange', () => {
+            if (isHostMode) {
+                if (window.orientation === 90 || window.orientation === -90) switchHostToPlayerView();
+                else switchPlayerToHostView();
+            }
+        });
+
+        // ==========================================
+        //               PLAYER LOGIC
+        // ==========================================
+        
+        function showPlayerJoin() { switchSetupView('view-player-join'); }
+
+        function joinRoom() {
+            const pinInput = document.getElementById('join-pin').value.trim();
+            myPlayerName = document.getElementById('join-name').value.trim();
+
+            if (pinInput.length !== 4) return showMessage("Enter a 4-digit PIN.");
+            if (!myPlayerName) return showMessage("Enter your name.");
+
+            localStorage.setItem('party_player_name', myPlayerName);
+
+            document.getElementById('btn-connect').classList.add('hidden');
+            document.getElementById('player-status').classList.remove('hidden');
+
+            const delay = Math.floor(Math.random() * 800); 
+            
+            setTimeout(() => {
+                myPeer = new Peer(peerConfig);
+                myPeer.on('open', (id) => {
+                    myId = id;
+                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
+                    
+                    let connTimeout = setTimeout(() => {
+                        if (!hostConnection || !hostConnection.open) {
+                            document.getElementById('btn-connect').classList.remove('hidden');
+                            document.getElementById('player-status').classList.add('hidden');
+                            showMessage("Connection timed out. Check PIN.", "error");
+                            if (myPeer) { myPeer.destroy(); myPeer = null; }
+                        }
+                    }, 15000); 
+
+                    hostConnection.on('open', () => { 
+                        clearTimeout(connTimeout);
+                        switchContainer('player-game-ui'); 
+                        lastHostContact = Date.now();
+                        requestWakeLock(); 
+                        
+                        if(clientWatchdog) clearInterval(clientWatchdog);
+                        clientWatchdog = setInterval(() => {
+                            if (hostConnection && hostConnection.open) {
+                                hostConnection.send({ action: 'PONG' }); 
+                            }
+
+                            if (Date.now() - lastHostContact > 8000) { 
+                                document.getElementById('client-disconnect-overlay').classList.remove('hidden');
+                                document.getElementById('client-disconnect-overlay').classList.add('flex');
+                            } else {
+                                document.getElementById('client-disconnect-overlay').classList.add('hidden');
+                                document.getElementById('client-disconnect-overlay').classList.remove('flex');
+                            }
+                        }, 2000);
+
+                        hostConnection.send({ action: 'REQUEST_SYNC' });
+                    });
+                    
+                    hostConnection.on('data', (data) => { 
+                        lastHostContact = Date.now();
+                        if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                        if (data.type === 'SYNC') handlePlayerSync(data); 
+                    });
+                    
+                    hostConnection.on('close', () => { 
+                        document.getElementById('client-disconnect-overlay').classList.remove('hidden');
+                        document.getElementById('client-disconnect-overlay').classList.add('flex');
+                    });
+                });
+                myPeer.on('error', (err) => {
+                    document.getElementById('btn-connect').classList.remove('hidden');
+                    document.getElementById('player-status').classList.add('hidden');
+                    showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
+                });
+            }, delay);
+        }
+
+        let cachedSyncData = null;
+
+        function togglePlayerTimelineView() {
+            viewingOwnTimeline = !viewingOwnTimeline;
+            if (cachedSyncData) handlePlayerSync(cachedSyncData);
+        }
+
+        function handlePlayerSync(data) {
+            if (!data) return;
+            cachedSyncData = data;
+            
+            const pNameEl = document.getElementById('p-ui-name');
+            const pScoreEl = document.getElementById('p-ui-score');
+            const pTokensEl = document.getElementById('p-ui-tokens');
+            
+            if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
+            if (pScoreEl) pScoreEl.innerText = data.myScore !== undefined ? data.myScore : 0;
+            if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
+            
+            document.getElementById('p-ui-overlay').classList.add('hidden');
+
+            const musicBox = document.getElementById('p-music-controls');
+            const passStealBox = document.getElementById('p-steal-pass-control');
+            const playBtn = document.getElementById('p-btn-play');
+            const viewToggleBtn = document.getElementById('p-btn-toggle-view');
+
+            if (data.state === 'IDLE') {
+                if (musicBox) musicBox.classList.add('hidden');
+                if (passStealBox) passStealBox.classList.add('hidden');
+                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
+                
+                const playersListStr = data.lobbyPlayers ? data.lobbyPlayers.join(', ') : '';
+                setPlayerHeader('bg-slate-800 border-slate-600', 'In Room Lobby 🟢', `Players: ${playersListStr}. Waiting for Host to start...`, 'text-green-400');
+                const container = document.getElementById('p-ui-timeline');
+                if (container) container.innerHTML = '';
+                return;
+            }
+
+            if (data.state === 'PAUSED_DISCONNECT') {
+                if (musicBox) musicBox.classList.add('hidden');
+                if (passStealBox) passStealBox.classList.add('hidden');
+                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
+                setPlayerHeader('bg-red-950 border-red-500', 'Game Paused ⏸️', `Waiting for ${data.pausedPlayerName || 'player'} to reconnect or Host decision...`, 'text-red-400');
+                return;
+            }
+
+            if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
+                viewToggleBtn.classList.remove('hidden');
+                if (viewingOwnTimeline) {
+                    document.getElementById('toggle-view-text').innerText = "View Active Player";
+                    document.getElementById('toggle-view-icon').className = "fa-solid fa-crosshairs";
+                } else {
+                    document.getElementById('toggle-view-text').innerText = "View My Timeline";
+                    document.getElementById('toggle-view-icon').className = "fa-solid fa-eye";
+                }
+            } else {
+                viewToggleBtn.classList.add('hidden');
+                viewingOwnTimeline = false; 
+            }
+
+            if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
+                passStealBox.classList.add('hidden');
+                if (data.isActivePlayer) {
+                    musicBox.classList.remove('hidden');
+                    if (data.isPlaying) {
+                        playBtn.className = "bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
+                        playBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Song`;
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Music Playing! 🎵', 'Tap a + slot below to place your card.', 'text-indigo-300');
+                    } else {
+                        playBtn.className = "spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
+                        playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Play Song`;
+                        setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the track.', 'text-indigo-300');
                     }
                 } else {
-                    sendToPlayer(id, syncData);
+                    musicBox.classList.add('hidden');
+                    const subText = viewingOwnTimeline ? "Inspecting your timeline." : (data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.");
+                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, subText, 'text-slate-300');
                 }
-            });
-
-            // Update Host UI strictly
-            if (isHost && document.getElementById('host-game-container').classList.contains('hidden') === false) {
-                 const ap = players[activePlayerId];
-                 if(ap) document.getElementById('host-status-text').innerText = `${ap.name}'s Turn`;
-                 
-                 // Show music controls only if evaluating is not happening
-                 const controls = document.getElementById('host-music-controls');
-                 if (gameState === 'PLAYING') controls.classList.remove('hidden');
-                 else controls.classList.add('hidden');
-            }
-        }
-
-        function sendToPlayer(pId, data) {
-            const p = players[pId];
-            if (p && p.conn) {
-                p.conn.send(data);
-            }
-        }
-
-        function broadcastToPlayers(data) {
-            turnQueue.forEach(id => {
-                if (id !== HOST_PLAYER_ID) sendToPlayer(id, data);
-            });
-            // Handle for host if host is playing
-            if (isHost && data.type === 'ROUND_RESULT') {
-                handleRoundResult(data, activePlayerId === HOST_PLAYER_ID);
-            }
-        }
-
-
-        // ==========================================
-        // PLAYER LOGIC
-        // ==========================================
-        function handleMessageFromHost(data) {
-            if (data.type === 'JOIN_ACCEPT') {
-                switchContainer('player-game-container');
-                document.getElementById('player-name-display').innerText = myName;
-                document.getElementById('player-avatar').innerText = myName.charAt(0).toUpperCase();
-                
-                // Initially show waiting
-                document.getElementById('player-waiting-overlay').classList.remove('hidden');
-            }
-            else if (data.type === 'JOIN_REJECT') {
-                showMessage(data.reason, "error");
-                resetApp();
-            }
-            else if (data.type === 'SYNC_STATE') {
-                document.getElementById('player-waiting-overlay').classList.add('hidden');
-                updatePlayerUI(data);
-            }
-            else if (data.type === 'SYNC_PLAY_STATE') {
-                const icon = document.getElementById('player-play-icon');
-                if (icon) {
-                    icon.className = data.isPlaying ? "fa-solid fa-pause ml-0" : "fa-solid fa-play ml-1";
-                }
-            }
-            else if (data.type === 'SHOW_HINT') {
-                const hd = document.getElementById('player-hint-display');
-                hd.classList.remove('hidden');
-                document.getElementById('hint-label').innerText = data.hintType;
-                document.getElementById('hint-value').innerText = data.value;
-                setTimeout(() => hd.classList.add('hidden'), 5000);
-            }
-            else if (data.type === 'ROUND_RESULT') {
-                // Determine if I am the active player based on sync state
-                handleRoundResult(data, data.isActivePlayer);
-            }
-            else if (data.type === 'GAME_OVER') {
-                // Using existing result modal for game over
-                const modal = document.getElementById('player-result-modal');
-                modal.classList.remove('hidden');
-                document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-trophy text-yellow-400"></i>';
-                document.getElementById('result-title').innerText = "Game Over!";
-                document.getElementById('result-desc').innerHTML = `<span class="font-black text-xl text-white">${data.winnerName}</span> won the game!`;
-                document.getElementById('result-bonus-action').innerHTML = '<button onclick="resetApp()" class="mt-4 bg-slate-700 text-white px-6 py-2 rounded-lg">Exit</button>';
-            }
-        }
-
-        function sendPlayerAction(action, payload = null) {
-            if (isHost) {
-                handlePlayerAction(action, HOST_PLAYER_ID, payload);
-            } else {
-                if (hostConnection) {
-                    hostConnection.send({ type: 'PLAYER_ACTION', action, payload });
-                }
-            }
-        }
-
-        let currentTlState = [];
-        let isMyTurnCache = false;
-
-        function updatePlayerUI(data) {
-            isMyTurnCache = data.isMyTurn;
-            document.getElementById('player-token-count').innerText = data.myTokens;
-            
-            const banner = document.getElementById('player-turn-banner');
-            const controls = document.getElementById('player-controls-bottom');
-            const oppBar = document.getElementById('player-opponents-bar');
-            
-            if (data.isMyTurn) {
-                banner.classList.remove('-translate-y-full');
-                banner.classList.replace('bg-slate-800', 'bg-indigo-600');
-                document.getElementById('player-turn-header').innerHTML = `Your Timeline (Cards: <span class="text-yellow-400 font-black">${data.myScore}</span>/10)`;
-                document.getElementById('player-active-turn-info').innerHTML = "Listen and place the track";
-                
-                if (data.gameState === 'PLAYING') {
-                    controls.classList.remove('translate-y-full');
-                    document.getElementById('token-actions').classList.remove('hidden');
+            } else if (data.state === 'STEALING') {
+                musicBox.classList.add('hidden');
+                if (data.isActivePlayer) {
+                    passStealBox.classList.add('hidden');
+                    const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                    const statusText = data.allStealsDone ? "Evaluating..." : `Waiting for: ${waitList} (${data.stealTimeLeft}s)`;
+                    setPlayerHeader('bg-slate-800 border-slate-600', 'Guess Locked In! ⏳', statusText, 'text-slate-400');
                 } else {
-                    controls.classList.add('translate-y-full');
+                    if (data.hasPassedSteal) {
+                        passStealBox.classList.add('hidden');
+                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-slate-400');
+                    } else if (data.hasStealed) {
+                        passStealBox.classList.add('hidden');
+                        const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300');
+                    } else {
+                        passStealBox.classList.remove('hidden');
+                        setPlayerHeader('bg-yellow-950 border-yellow-500', `Steal Mode! 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400');
+                    }
                 }
-                
-                oppBar.classList.add('opacity-0');
-                oppBar.classList.remove('pointer-events-auto');
-            } else {
-                banner.classList.remove('-translate-y-full');
-                banner.classList.replace('bg-indigo-600', 'bg-slate-800');
-                document.getElementById('player-turn-header').innerText = "Waiting...";
-                document.getElementById('player-active-turn-info').innerHTML = `<span class="font-bold text-indigo-300">${data.activePlayerName}</span>'s Timeline (Cards: <span class="text-yellow-400 font-black">${data.activePlayerScore}</span>/10)`;
-                
-                controls.classList.add('translate-y-full');
-                document.getElementById('token-actions').classList.add('hidden');
-
-                // Render Opponents
-                oppBar.classList.remove('opacity-0');
-                oppBar.classList.add('pointer-events-auto');
-                oppBar.innerHTML = data.opponents.map(o => `
-                    <div class="flex-shrink-0 bg-slate-900 rounded border ${o.isActive ? 'border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'border-slate-700'} px-3 py-1 flex items-center gap-2">
-                        <span class="text-xs font-bold text-white">${o.name}</span>
-                        <span class="text-[10px] bg-slate-800 px-1.5 rounded text-slate-300">${o.cards}/10</span>
-                    </div>
-                `).join('');
+            } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
+                musicBox.classList.add('hidden');
+                passStealBox.classList.add('hidden');
+                showRevealOverlay(data);
+                return;
             }
-
-            // Sync Timeline
-            // Only rebuild if length changed to prevent flickering, OR if turn changed
-            if (JSON.stringify(currentTlState) !== JSON.stringify(data.timeline)) {
-                currentTlState = data.timeline;
-                renderPlayerTimeline(data.timeline, data.isMyTurn && data.gameState === 'PLAYING');
-            }
+            
+            renderPlayerTimeline(data);
         }
 
-        function renderPlayerTimeline(timeline, interactive) {
-            const container = document.getElementById('player-timeline-scroll');
+        function setPlayerHeader(bgClass, title, desc, titleColor) {
+            const h = document.getElementById('p-ui-header');
+            h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
+            document.getElementById('p-ui-title').innerText = title;
+            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColor} truncate`;
+            document.getElementById('p-ui-desc').innerText = desc;
+        }
+
+        function renderPlayerTimeline(data) {
+            const container = document.getElementById('p-ui-timeline');
+            if (!container) return;
             container.innerHTML = '';
             
-            // Render Slots & Cards
+            const timeline = (viewingOwnTimeline && data.ownTimeline) ? data.ownTimeline : (data.timeline || []);
+            
             for (let i = 0; i <= timeline.length; i++) {
-                // Render Slot (before the card)
-                if (interactive) {
-                    const slot = document.createElement('div');
-                    slot.className = "card-slot flex-shrink-0";
-                    slot.innerHTML = '<i class="fa-solid fa-plus text-indigo-400/50 text-2xl"></i>';
-                    slot.onclick = () => confirmPlacement(i);
-                    container.appendChild(slot);
-                } else {
-                    // Small spacer
-                    const spacer = document.createElement('div');
-                    spacer.className = "w-4 flex-shrink-0";
-                    container.appendChild(spacer);
+                const gap = document.createElement('div');
+                gap.className = "gap-slot flex flex-col justify-center px-1 snap-center w-14 items-center shrink-0 h-full min-h-[160px]";
+                
+                const guesserName = data.guesses ? data.guesses[i] : null;
+                
+                if (!viewingOwnTimeline && guesserName) {
+                    gap.innerHTML = `<div class="bg-indigo-600 border border-indigo-400 text-white text-[9px] font-bold py-1.5 px-1 rounded-lg text-center w-full shadow-[0_0_10px_rgba(79,70,229,0.5)] break-words leading-tight animate-pulse"><i class="fa-solid fa-crosshairs mb-0.5"></i><br>${guesserName}</div>`;
+                } 
+                else if (!viewingOwnTimeline && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') && data.isActivePlayer) {
+                    gap.innerHTML = `<button onclick="sendPlayerAction('GUESS', ${i})" class="w-11 h-28 bg-indigo-500/20 border-2 border-dashed border-indigo-500 hover:bg-indigo-500/40 text-indigo-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-plus text-sm mb-1"></i><span>Place</span></button>`;
+                } 
+                else if (!viewingOwnTimeline && data.state === 'STEALING' && !data.isActivePlayer && !data.hasPassedSteal && !data.hasStealed && data.myTokens > 0) {
+                    gap.innerHTML = `<button onclick="sendPlayerAction('STEAL', ${i})" class="w-11 h-28 bg-yellow-500/20 border-2 border-dashed border-yellow-500 hover:bg-yellow-500/40 text-yellow-300 rounded-xl flex flex-col items-center justify-center text-[10px] transition"><i class="fa-solid fa-coins mb-1 text-xs"></i><span>Steal</span></button>`;
+                } 
+                else {
+                    gap.innerHTML = `<div class="w-full h-full flex items-center justify-center"><div class="h-full border-r-2 border-dashed border-slate-700/50"></div></div>`;
                 }
-
-                // Render Card (if exists)
+                
+                container.appendChild(gap);
+                
                 if (i < timeline.length) {
                     const t = timeline[i];
+                    let imgUrl = t.c ? (t.c.startsWith('http') ? t.c : `https://i.scdn.co/image/${t.c}`) : '';
                     const card = document.createElement('div');
-                    card.className = "timeline-card flex-shrink-0";
+                    card.className = "timeline-card w-28 h-36 bg-slate-900 border border-slate-600 rounded-xl p-1.5 flex flex-col items-center shadow-lg shrink-0 snap-center justify-center transition-all duration-300";
                     card.innerHTML = `
-                        <div class="text-[10px] text-slate-400 truncate w-full text-center mb-1">${t.artist}</div>
-                        <div class="text-xs font-bold text-white truncate w-full text-center leading-tight mb-2 px-1">${t.title}</div>
-                        <div class="year">${t.year}</div>
+                        <div class="timeline-card-year text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-300 drop-shadow-md mb-1 leading-none">${t.y}</div>
+                        ${imgUrl ? `<img src="${imgUrl}" class="w-12 h-12 rounded object-cover shadow border border-slate-700 mb-1">` : `<div class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-slate-600 mb-1"><i class="fa-solid fa-music"></i></div>`}
+                        <div class="timeline-card-title text-[9px] font-bold text-white text-center w-full leading-tight line-clamp-2">${t.t}</div>
                     `;
                     container.appendChild(card);
                 }
             }
-            
-            // Scroll to center initially
-            setTimeout(() => {
-                container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-            }, 100);
-        }
 
-        function confirmPlacement(index) {
-            if(confirm("Place track here?")) {
-                sendPlayerAction('PLACE_CARD', { index });
+            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer && !data.allStealsDone) {
+                const revealTriggerBtn = document.createElement('button');
+                const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
+                revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
+                revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Force Reveal (Skip ${namesList})`;
+                revealTriggerBtn.onclick = () => { if(confirm("Force round end and skip remaining stealers?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
+                container.appendChild(revealTriggerBtn);
             }
         }
 
-        function handleRoundResult(data, isMe) {
-            const modal = document.getElementById('player-result-modal');
-            const icon = document.getElementById('result-icon');
-            const title = document.getElementById('result-title');
-            const desc = document.getElementById('result-desc');
-            const bonusContainer = document.getElementById('result-bonus-action');
+        function sendPlayerAction(actionType, index) {
+            if (isHostMode && myId === HOST_PLAYER_ID) {
+                handlePlayerAction(HOST_PLAYER_ID, { action: actionType, index: index });
+            } else {
+                if (!hostConnection || !hostConnection.open) return;
+                hostConnection.send({ action: actionType, index: index });
+            }
+        }
+
+        function showRevealOverlay(data) {
+            const overlay = document.getElementById('p-ui-overlay');
+            const icon = document.getElementById('p-overlay-icon');
+            const title = document.getElementById('p-overlay-title');
+            const desc = document.getElementById('p-overlay-desc');
+            const bonusContainer = document.getElementById('p-bonus-container');
+            const nextBtn = document.getElementById('p-btn-next-round');
+            const waitingText = document.getElementById('p-reveal-waiting');
+            const nextText = document.getElementById('p-btn-next-text');
             
-            bonusContainer.innerHTML = '';
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
             
-            if (data.isWinner) {
-                icon.innerHTML = `<i class="fa-solid fa-circle-check text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]"></i>`;
-                title.innerText = `${isMe ? 'You' : data.activePlayerName || 'They'} got it!`;
+            if (data.state === 'GAME_OVER') {
+                icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400 text-6xl animate-bounce"></i>`;
+                title.innerText = `${data.overallWinnerName} WINS!`;
+                desc.innerHTML = `Reached 10 cards!`;
+                nextText.innerText = "Play Again";
+                nextBtn.classList.remove('hidden');
+                waitingText.classList.add('hidden');
+                nextBtn.onclick = () => sendPlayerAction('RESTART_GAME');
+                bonusContainer.classList.add('hidden');
+                return;
+            }
+
+            nextText.innerText = "Next Round";
+            nextBtn.onclick = () => sendPlayerAction('NEXT_TURN');
+
+            if (data.isActivePlayer) {
+                nextBtn.classList.remove('hidden');
+                waitingText.classList.add('hidden');
+            } else {
+                nextBtn.classList.add('hidden');
+                waitingText.innerText = `Waiting for ${data.activePlayerName} to start next round...`;
+                waitingText.classList.remove('hidden');
+            }
+
+            if (data.winnerName) {
+                icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
+                title.innerText = `${data.winnerName} got it!`;
                 desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-yellow-400 text-xl">${data.correctYear}</span>.`;
             } else {
                 icon.innerHTML = `<i class="fa-solid fa-skull-crossbones text-red-500"></i>`;
@@ -1328,43 +1765,16 @@
                 desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
             }
 
-            modal.classList.remove('hidden');
-            
-            // Animate icon pop
-            requestAnimationFrame(() => {
-                icon.classList.remove('scale-0');
-                icon.classList.add('scale-100');
-            });
-
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                icon.classList.remove('scale-100');
-                icon.classList.add('scale-0');
-            }, 4500);
-        }
-
-        // ==========================================
-        // INIT
-        // ==========================================
-        window.onload = () => {
-            checkSpotifyAuth();
-            checkOrientation();
-            window.addEventListener('resize', checkOrientation);
-        };
-
-        function checkOrientation() {
-            const blocker = document.getElementById('portrait-blocker');
-            // Show only on mobile devices in portrait
-            const isMobile = window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
-            if (isMobile && window.innerHeight > window.innerWidth) {
-                blocker.classList.remove('hidden');
-                blocker.classList.add('flex');
+            if (data.isActivePlayer && data.isWinner && !data.bonusTokenClaimed) {
+                bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed the Artist & Title! (+1 Token)</button>`;
+                bonusContainer.classList.remove('hidden');
             } else {
-                blocker.classList.add('hidden');
-                blocker.classList.remove('flex');
+                bonusContainer.classList.add('hidden');
+                bonusContainer.innerHTML = '';
             }
         }
     </script>
 </body>
 </html>
+
 
