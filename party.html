@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.28.4">
+    <meta name="app-version" content="1.29.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -147,6 +147,17 @@
         
         <!-- View 1: Role Selection -->
         <div id="view-roles" class="flex flex-col gap-3 w-full items-center shrink-0">
+            <!-- Resume Saved Game Container -->
+            <div id="resume-game-container" class="hidden w-full border-b border-slate-600 pb-3 mb-1">
+                <button onclick="resumeHostGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    <div class="text-left flex-1">
+                        <div class="text-base font-extrabold leading-tight">Resume Game</div>
+                        <div class="text-[10px] text-orange-200 font-normal" id="resume-pin-text">Recover dropped session</div>
+                    </div>
+                </button>
+            </div>
+
             <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
                 <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
                 <div class="text-left flex-1">
@@ -194,29 +205,25 @@
                     <span class="text-[10px] text-purple-200 font-normal">All decades bridging 1960 to 2024</span>
                 </button>
 
-                <button onclick="startHostGame('hitster_70s')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-between text-xs shrink-0 border border-slate-600">
-                    <span><i class="fa-solid fa-record-vinyl mr-2 text-yellow-400"></i> 1970s Hits</span>
-                    <span class="text-[10px] text-slate-400">Disco & Rock</span>
-                </button>
+                <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 ml-1">Genres & Regions</h3>
 
-                <button onclick="startHostGame('hitster_80s')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-between text-xs shrink-0 border border-slate-600">
-                    <span><i class="fa-solid fa-bolt mr-2 text-pink-400"></i> 1980s Hits</span>
-                    <span class="text-[10px] text-slate-400">Pop & Synth</span>
-                </button>
-
-                <button onclick="startHostGame('hitster_90s')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-between text-xs shrink-0 border border-slate-600">
-                    <span><i class="fa-solid fa-radio mr-2 text-cyan-400"></i> 1990s Hits</span>
-                    <span class="text-[10px] text-slate-400">Grunge & Dance</span>
-                </button>
-
-                <button onclick="startHostGame('hitster_00s')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-between text-xs shrink-0 border border-slate-600">
-                    <span><i class="fa-solid fa-compact-disc mr-2 text-emerald-400"></i> 2000s Hits</span>
-                    <span class="text-[10px] text-slate-400">Millennial Jams</span>
-                </button>
-
-                <button onclick="startHostGame('hitster_hebrew')" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs shrink-0">
+                <button onclick="startHostGame('hitster_hebrew')" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs shrink-0 border border-cyan-400/30">
                     <i class="fa-solid fa-star-of-david text-cyan-200"></i> Israeli / Hebrew Hits 🇮🇱
                 </button>
+
+                <div class="grid grid-cols-2 gap-2 shrink-0">
+                    <button onclick="startHostGame('hitster_pop')" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                        <i class="fa-solid fa-microphone-lines"></i> Pop
+                    </button>
+                    <button onclick="startHostGame('hitster_rock')" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                        <i class="fa-solid fa-guitar"></i> Rock
+                    </button>
+                    <button onclick="startHostGame('hitster_hiphop')" class="col-span-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
+                        <i class="fa-solid fa-record-vinyl"></i> Hip-Hop & R&B
+                    </button>
+                </div>
+
+                <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 ml-1">Personal</h3>
 
                 <button onclick="startHostGame('liked')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs shrink-0">
                     <i class="fa-solid fa-heart text-red-400"></i> My Liked Songs
@@ -238,7 +245,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.28.3</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.29.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -424,6 +431,17 @@
             const savedName = localStorage.getItem('party_player_name');
             if (savedName) document.getElementById('join-name').value = savedName;
 
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (savedStateStr) {
+                try {
+                    const savedState = JSON.parse(savedStateStr);
+                    if (savedState.pin) {
+                        document.getElementById('resume-game-container').classList.remove('hidden');
+                        document.getElementById('resume-pin-text').innerText = "Recover Session PIN: " + savedState.pin;
+                    }
+                } catch(e){}
+            }
+
             if (code) {
                 try {
                     const res = await fetch('https://accounts.spotify.com/api/token', {
@@ -473,7 +491,11 @@
         async function safeSpotifyFetch(url, options = {}) {
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
-            if (res.status === 401) { logoutSpotify(); throw new Error("Spotify Session expired. Log in again."); }
+            if (res.status === 401) { 
+                saveHostState(); // Save room right before kicking out
+                logoutSpotify(); 
+                throw new Error("Spotify Session expired. Log in again."); 
+            }
             if (res.status === 204) return {};
             if (!res.ok) { 
                 let errMsg = `Spotify Error ${res.status}`;
@@ -543,11 +565,11 @@
         }
 
         function endGameSession() {
-            if (confirm("End the game session and return to lobby?")) {
+            if (confirm("End the game session and clear all saved data?")) {
+                localStorage.removeItem('party_host_state');
                 if (spotifyPlayer) {
                     try { spotifyPlayer.disconnect(); } catch(e) {}
                 }
-                localStorage.removeItem('party_host_state');
                 window.location.replace(window.location.pathname);
             }
         }
@@ -631,17 +653,15 @@
             if (!accessToken) return;
             try {
                 let rawItems = [];
-                let fetchPromises = [];
 
                 if (currentMusicMode === 'liked') {
                     const initData = await safeSpotifyFetch('https://api.spotify.com/v1/me/tracks?limit=1');
                     const total = initData.total || 50;
-                    let offset = Math.floor(Math.random() * Math.min(total - 50, 950)); 
+                    let offset = Math.floor(Math.random() * Math.max(0, total - 50)); 
                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`);
                     if (data.items) rawItems.push(...data.items);
                 } 
                 else if (currentMusicMode === 'hitster_hebrew') {
-                    // Refined search queries for iconic & recognizable Israeli / Hebrew hits
                     const hebrewQueries = [
                         'genre:israeli',
                         'israeli pop',
@@ -649,26 +669,31 @@
                         'israeli classics',
                         'mizrahi pop'
                     ];
-                    // Tighter offset (<=30) keeps results strictly in recognizable, popular territory
-                    fetchPromises = hebrewQueries.map(q => {
+                    // Sequential fetch to avoid 429 API lockout. Starts from 0 up to 30.
+                    for (const q of hebrewQueries) {
                         const offset = Math.floor(Math.random() * 30);
-                        return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=12&offset=${offset}`);
-                    });
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10&offset=${offset}`);
+                        if (data.tracks && data.tracks.items) {
+                            rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                        }
+                    }
                 }
                 else {
                     let eras = [];
+                    let genreQuery = "";
                     if (currentMusicMode === 'hitster_classic') eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
-                    else if (currentMusicMode === 'hitster_70s') eras = ['1970-1979', '1970-1979', '1970-1979'];
-                    else if (currentMusicMode === 'hitster_80s') eras = ['1980-1989', '1980-1989', '1980-1989'];
-                    else if (currentMusicMode === 'hitster_90s') eras = ['1990-1999', '1990-1999', '1990-1999'];
-                    else if (currentMusicMode === 'hitster_00s') eras = ['2000-2009', '2000-2009', '2000-2009'];
+                    else if (currentMusicMode === 'hitster_pop') { genreQuery = " genre:pop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2020', '2021-2024']; }
+                    else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
+                    else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Moderate offset (<=80) guarantees high recognizability with deeper variety
-                    fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${Math.floor(Math.random() * 80)}`));
-                    const results = await Promise.all(fetchPromises);
-                    results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
+                    // Sequential fetch to avoid 429 API lockout. Starts from 0 up to 80.
+                    for (const era of eras) {
+                        const offset = Math.floor(Math.random() * 80);
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
+                        if (data.tracks && data.tracks.items) {
+                            rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                        }
+                    }
                 }
 
                 let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
@@ -703,6 +728,7 @@
         async function startHostGame(mode) {
             const hostName = document.getElementById('host-player-name').value.trim() || 'Host DJ';
             resetApp(); 
+            localStorage.removeItem('party_host_state');
             
             currentMusicMode = mode;
             switchContainer('host-game-ui');
@@ -733,7 +759,69 @@
             }
         }
 
-        function initSpotifyWebPlayer() {
+        function saveHostState() {
+            if (!isHostMode || gameState === 'IDLE') return; 
+            const stateToSave = {
+                pin: currentRoomPin, players: {},
+                turnOrder, turnIndex, gameState,
+                currentHostTrack, isPlaying, 
+                currentGuesses, stealDecisions, stealEndTime,
+                currentWinnerId, bonusTokenClaimed, tracks,
+                currentMusicMode
+            };
+            for (const [id, p] of Object.entries(players)) {
+                stateToSave.players[id] = { ...p, conn: null, online: false }; 
+            }
+            localStorage.setItem('party_host_state', JSON.stringify(stateToSave));
+        }
+
+        function resumeHostGame() {
+            if (!accessToken) {
+                showMessage("Please log in with Spotify to resume your game.", "info");
+                switchSetupView('view-spotify-login');
+                return;
+            }
+            
+            const savedStateStr = localStorage.getItem('party_host_state');
+            if (!savedStateStr) return;
+            
+            try {
+                const savedState = JSON.parse(savedStateStr);
+                currentRoomPin = savedState.pin;
+                players = savedState.players || {};
+                turnOrder = savedState.turnOrder || [];
+                turnIndex = savedState.turnIndex || 0;
+                gameState = savedState.gameState || 'READY_TO_PLAY';
+                currentHostTrack = savedState.currentHostTrack;
+                isPlaying = false; 
+                currentGuesses = savedState.currentGuesses || {};
+                stealDecisions = savedState.stealDecisions || {};
+                stealEndTime = savedState.stealEndTime || 0;
+                currentWinnerId = savedState.currentWinnerId;
+                bonusTokenClaimed = savedState.bonusTokenClaimed;
+                tracks = savedState.tracks || [];
+                currentMusicMode = savedState.currentMusicMode || 'hitster_classic';
+
+                Object.values(players).forEach(p => {
+                    p.conn = null;
+                    p.online = (p.id === HOST_PLAYER_ID); 
+                    p.lastPongAt = Date.now();
+                });
+
+                switchContainer('host-game-ui');
+                isHostMode = true;
+                isHostInPlayerView = false;
+                document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                requestWakeLock(); 
+
+                initSpotifyWebPlayer(true); 
+            } catch(err) {
+                showMessage("Corrupted save file. Starting fresh.", "error");
+                localStorage.removeItem('party_host_state');
+            }
+        }
+
+        function initSpotifyWebPlayer(isResuming = false) {
             spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
 
             spotifyPlayer.addListener('ready', ({ device_id }) => {
@@ -743,7 +831,7 @@
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
                 }).catch(e => console.log(e));
-                initHostNetwork(); 
+                initHostNetwork(isResuming); 
             });
 
             spotifyPlayer.addListener('player_state_changed', state => {
@@ -753,6 +841,7 @@
             });
 
             spotifyPlayer.addListener('authentication_error', () => {
+                saveHostState(); // Ensure we save before Spotify fully logs us out
                 showMessage("Spotify Auth Error. Log back in.", "error");
                 logoutSpotify();
             });
@@ -760,8 +849,10 @@
             spotifyPlayer.connect();
         }
 
-        function initHostNetwork() {
-            currentRoomPin = Math.floor(1000 + Math.random() * 9000);
+        function initHostNetwork(isResuming = false) {
+            if (!isResuming) {
+                currentRoomPin = Math.floor(1000 + Math.random() * 9000);
+            }
             document.getElementById('host-pin-display-game').innerText = currentRoomPin;
 
             myPeer = new Peer(PEER_PREFIX + currentRoomPin, peerConfig);
@@ -798,7 +889,8 @@
                         }
                     });
 
-                    broadcastSync(); 
+                    broadcastSync();
+                    saveHostState(); // Continuously backup state for host reconnect
                 }, 1000);
 
                 updateHostPlayerList();
@@ -936,21 +1028,21 @@
                 const statusIcon = p.online ? '' : ' <span class="text-red-500 text-[10px]">(Offline)</span>';
                 
                 ul.innerHTML += `<li class="flex justify-between items-center py-0.5 ${isTurn ? 'text-green-400 font-bold' : ''} ${!p.online ? 'opacity-50' : ''}">
-                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon} (Cards: ${p.timeline.length})</span>
+                    <span>${isTurn ? '➔ ' : ''}${p.name} ${p.id === HOST_PLAYER_ID ? '(Host)' : ''}${statusIcon} (Cards: ${p.timeline ? p.timeline.length : 1})</span>
                     <span class="text-yellow-400 font-mono"><i class="fa-solid fa-coins"></i> ${p.tokens}</span>
                 </li>`;
             });
 
-            const trackCounter = document.getElementById('host-track-count');
-            if (trackCounter) trackCounter.innerText = `${tracks.length} Songs Left`;
+            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
+            // Because we only fetch ~20 songs sequentially, refill when deck gets low
             if (tracks.length < 15) {
                 fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
             }
 
-            if (tracks.length === 0) return showMessage("Out of songs! Please refresh.", "error");
+            if (tracks.length === 0) return showMessage("Out of songs! Please wait for refill.", "error");
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
@@ -1147,9 +1239,8 @@
 
         function buildSyncObj(pId) {
             const activePlayerId = turnOrder[turnIndex];
-            const activePlayer = players[activePlayerId];
-            const activeTimeline = activePlayer ? activePlayer.timeline : [];
-            const activePlayerName = activePlayer ? activePlayer.name : "Unknown";
+            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
+            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
             
             const guessNameMap = {};
             for (const [gId, slot] of Object.entries(currentGuesses)) { 
@@ -1185,10 +1276,9 @@
                 waitingOn: waitingOn,
                 stealTimeLeft: remainingTime,
                 myScore: p ? p.score : 0, 
-                myCardsCount: p ? p.timeline.length : 1,
-                activePlayerCardsCount: activeTimeline.length,
-                activePlayerTokens: activePlayer ? activePlayer.tokens : 0,
                 myTokens: p ? p.tokens : 0,
+                myCardsCount: p && p.timeline ? p.timeline.length : 1,
+                activePlayerCardsCount: activeTimeline.length,
                 correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
                 trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
                 artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
@@ -1208,7 +1298,7 @@
             if (!p) return;
             if (gameState === 'IDLE') {
                 const lobbyPlayers = Object.values(players).map(pl => pl.name);
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens, myCardsCount: p.timeline ? p.timeline.length : 1 });
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens });
                 return;
             }
             const syncObj = buildSyncObj(pId);
@@ -1380,7 +1470,7 @@
             const pScoreEl = document.getElementById('p-ui-score');
             const pTokensEl = document.getElementById('p-ui-tokens');
             
-            // Show stats for whichever timeline is currently being inspected
+            // Stats logic: Show relevant cards & name, but ALWAYS show YOUR tokens
             if (viewingOwnTimeline) {
                 if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
                 if (pScoreEl) pScoreEl.innerText = data.myCardsCount !== undefined ? data.myCardsCount : (data.ownTimeline ? data.ownTimeline.length : 1);
@@ -1388,8 +1478,7 @@
             } else {
                 if (pNameEl) pNameEl.innerText = data.isActivePlayer ? (myPlayerName || "Me") : (data.activePlayerName || "Active Player");
                 if (pScoreEl) pScoreEl.innerText = data.activePlayerCardsCount !== undefined ? data.activePlayerCardsCount : (data.timeline ? data.timeline.length : 1);
-                // Displays the token amount for the person whose timeline you are looking at
-                if (pTokensEl) pTokensEl.innerText = data.isActivePlayer ? (data.myTokens !== undefined ? data.myTokens : 2) : (data.activePlayerTokens !== undefined ? data.activePlayerTokens : 2);
+                if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
             }
             
             document.getElementById('p-ui-overlay').classList.add('hidden');
