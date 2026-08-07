@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.28.3">
+    <meta name="app-version" content="1.28.4">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -542,12 +542,12 @@
             switchSetupView('view-roles');
         }
 
-        // Clean hard reset for new session & prevents Spotify Web Player "Device Not Found" issue
         function endGameSession() {
             if (confirm("End the game session and return to lobby?")) {
                 if (spotifyPlayer) {
                     try { spotifyPlayer.disconnect(); } catch(e) {}
                 }
+                localStorage.removeItem('party_host_state');
                 window.location.replace(window.location.pathname);
             }
         }
@@ -651,7 +651,7 @@
                     ];
                     // Tighter offset (<=30) keeps results strictly in recognizable, popular territory
                     fetchPromises = hebrewQueries.map(q => {
-                        const offset = Math.floor(Math.random() * 25);
+                        const offset = Math.floor(Math.random() * 30);
                         return safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=12&offset=${offset}`);
                     });
                     const results = await Promise.all(fetchPromises);
@@ -665,8 +665,8 @@
                     else if (currentMusicMode === 'hitster_90s') eras = ['1990-1999', '1990-1999', '1990-1999'];
                     else if (currentMusicMode === 'hitster_00s') eras = ['2000-2009', '2000-2009', '2000-2009'];
 
-                    // Moderate offset (<=70) guarantees high recognizability with deep variety
-                    fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${Math.floor(Math.random() * 70)}`));
+                    // Moderate offset (<=80) guarantees high recognizability with deeper variety
+                    fetchPromises = eras.map(era => safeSpotifyFetch(`https://api.spotify.com/v1/search?q=year:${era}&type=track&limit=10&offset=${Math.floor(Math.random() * 80)}`));
                     const results = await Promise.all(fetchPromises);
                     results.forEach(res => { if (res.tracks && res.tracks.items) rawItems.push(...res.tracks.items.map(t => ({ track: t }))); });
                 }
@@ -941,7 +941,8 @@
                 </li>`;
             });
 
-            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
+            const trackCounter = document.getElementById('host-track-count');
+            if (trackCounter) trackCounter.innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
@@ -1146,8 +1147,9 @@
 
         function buildSyncObj(pId) {
             const activePlayerId = turnOrder[turnIndex];
-            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
+            const activePlayer = players[activePlayerId];
+            const activeTimeline = activePlayer ? activePlayer.timeline : [];
+            const activePlayerName = activePlayer ? activePlayer.name : "Unknown";
             
             const guessNameMap = {};
             for (const [gId, slot] of Object.entries(currentGuesses)) { 
@@ -1185,6 +1187,7 @@
                 myScore: p ? p.score : 0, 
                 myCardsCount: p ? p.timeline.length : 1,
                 activePlayerCardsCount: activeTimeline.length,
+                activePlayerTokens: activePlayer ? activePlayer.tokens : 0,
                 myTokens: p ? p.tokens : 0,
                 correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
                 trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
@@ -1385,7 +1388,8 @@
             } else {
                 if (pNameEl) pNameEl.innerText = data.isActivePlayer ? (myPlayerName || "Me") : (data.activePlayerName || "Active Player");
                 if (pScoreEl) pScoreEl.innerText = data.activePlayerCardsCount !== undefined ? data.activePlayerCardsCount : (data.timeline ? data.timeline.length : 1);
-                if (pTokensEl) pTokensEl.innerText = data.isActivePlayer ? (data.myTokens !== undefined ? data.myTokens : 2) : (data.myTokens !== undefined ? data.myTokens : 2);
+                // Displays the token amount for the person whose timeline you are looking at
+                if (pTokensEl) pTokensEl.innerText = data.isActivePlayer ? (data.myTokens !== undefined ? data.myTokens : 2) : (data.activePlayerTokens !== undefined ? data.activePlayerTokens : 2);
             }
             
             document.getElementById('p-ui-overlay').classList.add('hidden');
@@ -1605,4 +1609,5 @@
     </script>
 </body>
 </html>
+
 
