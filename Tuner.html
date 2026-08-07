@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster Spotify Tuner v7</title>
+    <title>Hitster Spotify Tuner v9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -24,9 +24,9 @@
         <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
             <div>
                 <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-center gap-2">
-                    <i class="fa-solid fa-filter text-green-400"></i> Spotify Tuner v7 (Hebrew Filter)
+                    <i class="fa-solid fa-layer-group text-green-400"></i> Spotify Tuner v9 (Deep Dig Engine)
                 </h1>
-                <p class="text-xs text-slate-400">Fetches general eras in the IL market, aggressively filtering out non-Hebrew tracks.</p>
+                <p class="text-xs text-slate-400">Scans hundreds of global tracks to extract only the Hebrew hits.</p>
             </div>
             
             <div id="auth-section">
@@ -60,6 +60,9 @@
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Search Queries (One per line)</label>
+                    <p class="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                        Pure decade searches exactly like the Classic Mix.
+                    </p>
                     <textarea id="input-queries" rows="5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre leading-relaxed"></textarea>
                 </div>
 
@@ -67,7 +70,7 @@
                 <div class="bg-slate-900 border border-slate-600 rounded-lg p-3 flex items-center justify-between">
                     <div>
                         <span class="text-sm font-bold text-white block">Require Hebrew Text (א-ת)</span>
-                        <span class="text-[9px] text-slate-400">Discards any song without Hebrew in the Artist or Title.</span>
+                        <span class="text-[9px] text-slate-400">Trashes any song without Hebrew characters.</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="input-require-hebrew" class="sr-only peer">
@@ -75,34 +78,24 @@
                     </label>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3 border-t border-slate-700 pt-3">
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Market Code</label>
-                        <input type="text" id="input-market" placeholder="e.g. IL" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 uppercase">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Start Offset</label>
+                        <input type="number" id="input-offset" value="0" min="0" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Offset Mode</label>
-                        <select id="input-offset-type" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
-                            <option value="random">Random (0 to Max)</option>
-                            <option value="exact">Exact Offset</option>
-                        </select>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Pages to Dig</label>
+                        <input type="number" id="input-pages" value="5" min="1" max="15" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                        <p class="text-[9px] text-slate-500 mt-1">1 page = 50 songs scanned.</p>
                     </div>
-                </div>
-
-                <div>
-                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Max Offset</span>
-                        <span id="offset-val" class="text-white">0</span>
-                    </label>
-                    <input type="range" id="input-offset" min="0" max="300" step="1" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500 mt-2">
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
                         <span>Min Pop Filter (0-100)</span>
-                        <span id="minpop-val" class="text-yellow-400 font-bold">15</span>
+                        <span id="minpop-val" class="text-yellow-400 font-bold">20</span>
                     </label>
-                    <input type="range" id="input-minpop" min="0" max="80" step="1" value="15" oninput="document.getElementById('minpop-val').innerText=this.value" class="w-full accent-yellow-500">
+                    <input type="range" id="input-minpop" min="0" max="80" step="1" value="20" oninput="document.getElementById('minpop-val').innerText=this.value" class="w-full accent-yellow-500">
                 </div>
 
                 <div>
@@ -133,7 +126,7 @@
                 <div class="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-700 p-4 min-h-[350px]">
                     <div id="player-placeholder" class="text-slate-500 flex flex-col items-center gap-2">
                         <i class="fa-solid fa-music text-4xl"></i>
-                        <p class="text-sm">Click "Test Fetch" to pull tracks</p>
+                        <p class="text-sm">Click "Test Fetch" to start digging</p>
                     </div>
                     
                     <div id="active-player" class="hidden w-full h-full flex flex-col items-center justify-between gap-4">
@@ -158,17 +151,15 @@
 
             <!-- RIGHT: EXPORT & LOGS -->
             <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit lg:max-h-[85vh] overflow-hidden">
-                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 shrink-0">3. Export Config</h2>
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 shrink-0">3. Log & Export</h2>
                 
-                <p class="text-xs text-slate-400 shrink-0">Copy this JSON and send it back to me when you like the song selection.</p>
-                
-                <textarea id="export-json" readonly rows="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
+                <textarea id="export-json" readonly rows="6" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
                 
                 <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-lg flex items-center justify-center gap-2 shrink-0">
                     <i class="fa-solid fa-copy"></i> Copy Config Payload
                 </button>
 
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-700 pb-1 shrink-0">Fetch Log & Ratings:</h3>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-700 pb-1 shrink-0">Deep Dig Analysis:</h3>
                 <ul id="fetch-list-log" class="text-[10px] space-y-1 text-slate-300 font-mono overflow-y-auto pr-2">
                     <li class="text-slate-500 italic">No songs fetched yet.</li>
                 </ul>
@@ -182,57 +173,52 @@
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('tuner_spotify_token') || null;
 
-        // Default Config
+        // V9 Config: Standard queries, deep page scanning.
         let masterConfig = {
             "hitster_hebrew": {
                 queries: [
-                    "year:1970-1989",
+                    "year:1980-1989",
                     "year:1990-1999",
                     "year:2000-2009",
                     "year:2010-2015",
                     "year:2016-2024"
                 ],
-                offsetValue: 50, // Let's look slightly deep, but since we are filtering, it's safe
-                offsetType: "random",
-                minPopularity: 15,
-                limit: 8,
-                market: "IL",
+                offsetValue: 0,
+                pagesToDig: 5, // Scans 250 songs per query
+                minPopularity: 20,
+                limit: 10,
                 requireHebrew: true
             },
             "hitster_classic": {
                 queries: ["year:1960-1979", "year:1980-1989", "year:1990-1999", "year:2000-2009", "year:2010-2024"],
-                offsetValue: 100,
-                offsetType: "random",
+                offsetValue: 0,
+                pagesToDig: 1,
                 minPopularity: 30,
                 limit: 10,
-                market: "",
                 requireHebrew: false
             },
             "hitster_pop": {
                 queries: ["year:1990-1999 genre:pop", "year:2000-2009 genre:pop", "year:2010-2015 genre:pop", "year:2016-2020 genre:pop", "year:2021-2024 genre:pop"],
-                offsetValue: 100,
-                offsetType: "random",
+                offsetValue: 0,
+                pagesToDig: 1,
                 minPopularity: 40,
                 limit: 8,
-                market: "",
                 requireHebrew: false
             },
             "hitster_rock": {
                 queries: ["year:1970-1985 genre:rock", "year:1986-1999 genre:rock", "year:2000-2009 genre:rock", "year:2010-2024 genre:rock"],
-                offsetValue: 100,
-                offsetType: "random",
+                offsetValue: 0,
+                pagesToDig: 1,
                 minPopularity: 35,
                 limit: 10,
-                market: "",
                 requireHebrew: false
             },
             "hitster_hiphop": {
                 queries: ["year:1990-1999 genre:hiphop", "year:2000-2009 genre:hiphop", "year:2010-2015 genre:hiphop", "year:2016-2024 genre:hiphop"],
-                offsetValue: 100,
-                offsetType: "random",
+                offsetValue: 0,
+                pagesToDig: 1,
                 minPopularity: 35,
                 limit: 10,
-                market: "",
                 requireHebrew: false
             }
         };
@@ -243,7 +229,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
-            const savedConfig = localStorage.getItem('tuner_v7_master_config');
+            const savedConfig = localStorage.getItem('tuner_v9_master_config');
             if (savedConfig) {
                 try { masterConfig = JSON.parse(savedConfig); } catch(e){}
             }
@@ -296,7 +282,7 @@
             localStorage.setItem('tuner_code_verifier', verifier);
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
-            const params = new URLSearchParams({ 
+            const params = newSearchParams({ 
                 response_type: 'code', client_id: CLIENT_ID, scope: '', 
                 code_challenge_method: 'S256', code_challenge: codeChallenge, 
                 redirect_uri: REDIRECT_URI, show_dialog: 'true'
@@ -330,14 +316,12 @@
             const config = masterConfig[catId];
             
             document.getElementById('input-queries').value = config.queries.join('\n');
-            document.getElementById('input-offset').value = config.offsetValue;
-            document.getElementById('offset-val').innerText = config.offsetValue;
-            document.getElementById('input-offset-type').value = config.offsetType;
+            document.getElementById('input-offset').value = config.offsetValue !== undefined ? config.offsetValue : 0;
+            document.getElementById('input-pages').value = config.pagesToDig || 1;
             document.getElementById('input-minpop').value = config.minPopularity !== undefined ? config.minPopularity : 20;
             document.getElementById('minpop-val').innerText = document.getElementById('input-minpop').value;
             document.getElementById('input-limit').value = config.limit;
             document.getElementById('limit-val').innerText = config.limit;
-            document.getElementById('input-market').value = config.market || '';
             document.getElementById('input-require-hebrew').checked = config.requireHebrew || false;
         }
 
@@ -346,23 +330,21 @@
             const queriesRaw = document.getElementById('input-queries').value;
             const queries = queriesRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
             const offsetVal = parseInt(document.getElementById('input-offset').value);
-            const offsetType = document.getElementById('input-offset-type').value;
+            const pagesToDig = parseInt(document.getElementById('input-pages').value);
             const minPop = parseInt(document.getElementById('input-minpop').value);
             const limit = parseInt(document.getElementById('input-limit').value);
-            const market = document.getElementById('input-market').value.trim().toUpperCase();
             const reqHebrew = document.getElementById('input-require-hebrew').checked;
             
             masterConfig[catId] = {
                 queries: queries,
                 offsetValue: offsetVal,
-                offsetType: offsetType,
+                pagesToDig: pagesToDig,
                 minPopularity: minPop,
                 limit: limit,
-                market: market,
                 requireHebrew: reqHebrew
             };
             
-            localStorage.setItem('tuner_v7_master_config', JSON.stringify(masterConfig));
+            localStorage.setItem('tuner_v9_master_config', JSON.stringify(masterConfig));
             updateExportBox();
             
             const btn = document.querySelector('button[onclick="saveCurrentToConfig()"]');
@@ -392,7 +374,7 @@
             saveCurrentToConfig();
             
             const btn = document.getElementById('btn-fetch');
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Fetching...`;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Digging...`;
             btn.disabled = true;
             
             const catId = document.getElementById('category-select').value;
@@ -402,28 +384,24 @@
             const logList = document.getElementById('fetch-list-log');
             logList.innerHTML = '';
             
-            // Regex to check for Hebrew characters (Aleph to Tav)
             const hebrewRegex = /[\u0590-\u05FF]/;
 
             try {
                 for (const query of config.queries) {
-                    let calculatedOffset = config.offsetType === 'random' ? Math.floor(Math.random() * config.offsetValue) : config.offsetValue;
-                    let marketParam = config.market ? `&market=${config.market}` : '';
-                    
                     let queryCollected = [];
-                    let attempts = 0;
-                    let currentOffset = calculatedOffset;
-
-                    // If requiring Hebrew, we fetch 50 at a time because we will be throwing away a LOT of English global hits.
-                    let fetchAmount = config.requireHebrew ? 50 : config.limit;
-
-                    while (queryCollected.length < config.limit && attempts < 6) { 
-                        const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${fetchAmount}&offset=${currentOffset}${marketParam}`;
+                    let totalScanned = 0;
+                    
+                    // Dig through the specified number of pages
+                    for (let p = 0; p < config.pagesToDig; p++) {
+                        let currentOffset = config.offsetValue + (p * 50);
+                        const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=50&offset=${currentOffset}`;
                         
                         const data = await safeSpotifyFetch(apiUrl);
+                        
                         if (data.tracks && data.tracks.items && data.tracks.items.length > 0) {
+                            totalScanned += data.tracks.items.length;
                             
-                            let rawPage = data.tracks.items.map(t => ({
+                            let mappedPage = data.tracks.items.map(t => ({
                                 id: t.id,
                                 u: t.uri,
                                 t: cleanTrackTitle(t.name).substring(0, 40),
@@ -434,29 +412,27 @@
                             })).filter(t => t.u && !isNaN(t.y) && !t.isLocal);
 
                             // Apply Popularity Filter
-                            let filteredPage = rawPage.filter(t => t.pop >= config.minPopularity);
+                            mappedPage = mappedPage.filter(t => t.pop >= config.minPopularity);
 
-                            // Apply Strict Hebrew Regex Filter (The Magic)
+                            // Apply Hebrew Regex Filter if requested
                             if (config.requireHebrew) {
-                                filteredPage = filteredPage.filter(t => hebrewRegex.test(t.t) || hebrewRegex.test(t.a));
+                                mappedPage = mappedPage.filter(t => hebrewRegex.test(t.t) || hebrewRegex.test(t.a));
                             }
 
-                            queryCollected.push(...filteredPage);
-                            logList.innerHTML += `<li class="text-green-400">✓ Page ${attempts+1} [${query}] | Found ${filteredPage.length} valid hits</li>`;
+                            queryCollected.push(...mappedPage);
                         } else {
-                            logList.innerHTML += `<li class="text-red-400">✗ Ended search early for [${query}]</li>`;
-                            break;
+                            break; // Reached end of Spotify results
                         }
-
-                        currentOffset += fetchAmount;
-                        attempts++;
-                        
-                        // If we don't need Hebrew filter, we got what we needed on page 1.
-                        if (!config.requireHebrew) break;
                     }
 
-                    // Only push up to the limit for this query
-                    finalTracks.push(...queryCollected.slice(0, config.limit));
+                    // Shuffle the hits we found for this query and take the limit
+                    queryCollected = shuffleArray(queryCollected).slice(0, config.limit);
+                    finalTracks.push(...queryCollected);
+                    
+                    logList.innerHTML += `<li class="text-emerald-400 border-b border-slate-700/50 pb-1">
+                        <strong>[${query}]</strong><br>
+                        <span class="text-slate-400">Scanned: ${totalScanned} songs</span> | <span class="text-white">Found: ${queryCollected.length} Hebrew hits</span>
+                    </li>`;
                 }
 
                 // Global Deduplicate
@@ -470,12 +446,12 @@
                 currentTestDeck = shuffleArray(finalTracks);
                 document.getElementById('deck-count').innerText = currentTestDeck.length;
                 
-                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2 font-bold mb-1">Passed Filters (${config.minPopularity}+ Pop): ${currentTestDeck.length}</li>`;
+                logList.innerHTML += `<li class="text-indigo-400 pt-1 font-bold mb-1">Total Hits Found: ${currentTestDeck.length}</li>`;
                 
-                // Print all tracks to log
+                // Print extracted tracks to log
                 currentTestDeck.forEach((t, i) => {
-                    let popColor = t.pop > 40 ? 'text-green-300' : (t.pop > 20 ? 'text-yellow-300' : 'text-red-400');
-                    logList.innerHTML += `<li class="truncate flex justify-between"><span>${i+1}. ${t.t} - ${t.a} (${t.y})</span> <span class="${popColor}">[Pop: ${t.pop}]</span></li>`;
+                    let popColor = t.pop > 50 ? 'text-green-300' : (t.pop > 25 ? 'text-yellow-300' : 'text-red-400');
+                    logList.innerHTML += `<li class="truncate flex justify-between text-[9px]"><span>${i+1}. ${t.t} - ${t.a} (${t.y})</span> <span class="${popColor}">Pop: ${t.pop}</span></li>`;
                 });
 
                 if (currentTestDeck.length > 0) {
@@ -484,7 +460,7 @@
                     document.getElementById('active-player').classList.add('flex');
                     nextTestSong();
                 } else {
-                    alert("Zero songs passed filters! Try lowering the Min Pop limit or Max Offset.");
+                    alert("Zero Hebrew songs found! Increase the 'Pages to Dig' slider so it scans deeper into the global list.");
                 }
 
             } catch (e) {
@@ -518,7 +494,7 @@
             
             const popEl = document.getElementById('test-track-pop');
             popEl.innerText = t.pop;
-            popEl.className = t.pop > 40 ? 'text-green-400 font-bold' : (t.pop > 20 ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold');
+            popEl.className = t.pop > 50 ? 'text-green-400 font-bold' : (t.pop > 25 ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold');
             
             document.getElementById('spotify-iframe').src = `https://open.spotify.com/embed/track/${t.id}?utm_source=generator&theme=0`;
         }
