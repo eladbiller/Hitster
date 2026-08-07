@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.35.0">
+    <meta name="app-version" content="1.36.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -147,7 +147,7 @@
         
         <!-- View 1: Role Selection -->
         <div id="view-roles" class="flex flex-col gap-3 w-full items-center shrink-0">
-            <!-- Dynamic Rejoin Buttons Injected Here -->
+            <!-- Dynamic Rejoin Buttons injected by JS -->
 
             <div id="resume-game-container" class="hidden w-full border-b border-slate-600 pb-3 mb-1">
                 <button onclick="resumeHostGame()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
@@ -242,7 +242,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.35.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -321,7 +321,7 @@
                 <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
             </button>
 
-            <!-- Score & Tokens protected in their own box (YOURS) -->
+            <!-- Score & Tokens protected in their own box (ALWAYS SHOWS YOUR INVENTORY) -->
             <div class="flex items-center gap-3 shrink-0 bg-slate-900/50 px-2.5 py-1.5 rounded-lg border border-slate-700 ml-auto">
                 <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">1</span>
@@ -335,8 +335,8 @@
         <!-- Dynamic Header & Player Controls -->
         <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2">
             <div class="text-left flex-1 min-w-0">
-                <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate">Loading...</h2>
-                <div id="p-ui-desc" class="text-[11px] text-slate-400 truncate">Syncing with Host</div>
+                <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate flex items-center">Loading...</h2>
+                <div id="p-ui-desc" class="text-[11px] text-slate-400 truncate mt-0.5">Syncing with Host</div>
             </div>
             
             <!-- Music Controls for Active Player -->
@@ -627,26 +627,27 @@
             return array;
         }
 
-        // --- HISTORY MEMORY (PREVENTS REPEATS) ---
-        const RECENT_KEY = 'hitster_played_history';
-        function markTrackPlayed(uri) {
-            if (!uri) return;
-            let history = [];
-            try { history = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e){}
-            if (!history.includes(uri)) {
-                history.push(uri);
-                if (history.length > 200) history.shift(); // Remember last 200 songs
-                localStorage.setItem(RECENT_KEY, JSON.stringify(history));
-            }
+        function popTrack() {
+            if (tracks.length > 0) return tracks.pop();
+            return { y: 2024, t: "Out of Songs! Click Refetch.", a: "System", c: "" };
         }
 
-        function popTrack() {
-            if (tracks.length > 0) {
-                const t = tracks.pop();
-                markTrackPlayed(t.u);
-                return t;
+        // --- NO REPEATS OFFSET MEMORY (Cross-Session Tracker) ---
+        function getNextOffset(mode, era) {
+            const key = `party_offsets_${mode}_${era}`;
+            let offsets = [];
+            try { offsets = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
+            
+            // Refill the pool with 15 random blocks of 10 songs if empty
+            if (!offsets || offsets.length === 0) {
+                offsets = [];
+                for(let i = 0; i < 15; i++) offsets.push(i * 10); 
+                offsets = shuffleArray(offsets);
             }
-            return { y: 2024, t: "Out of Songs! Click Refetch.", a: "System", c: "" };
+            
+            const offset = offsets.pop();
+            localStorage.setItem(key, JSON.stringify(offsets));
+            return offset;
         }
 
         // --- GLOBAL STATE ---
@@ -737,10 +738,10 @@
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Sequential fetch for deeper pool (offset up to 110)
+                    // Uses the Smart Memory Offset to ensure no repeats across sessions
                     for (const era of eras) {
-                        const offset = Math.floor(Math.random() * 110);
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=12&offset=${offset}`);
+                        const offset = getNextOffset(currentMusicMode, era);
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
@@ -755,25 +756,10 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                // Fetch played history to ban repeats
-                let history = [];
-                try { history = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e){}
-
-                // Filter out recently played tracks
-                let filteredTracks = mappedTracks.filter(t => !history.includes(t.u));
-
-                // Fallback: If we somehow burned through all top hits, wipe history and allow repeats
-                if (filteredTracks.length < 5) {
-                    filteredTracks = mappedTracks;
-                    localStorage.removeItem(RECENT_KEY);
-                }
-
-                // EXTREMELY STRICT DEDUPLICATION: Prevents Remasters and different album versions of the same track within the deck
+                // Strict Deduplication based on Title & Artist
                 const activeKeys = new Set();
                 const getDedupKey = (t, a) => {
-                    const cleanT = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const cleanA = a.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    return cleanT + '|' + cleanA;
+                    return (t.toLowerCase().replace(/[^a-z0-9]/g, '') + '|' + a.toLowerCase().replace(/[^a-z0-9]/g, ''));
                 };
 
                 tracks.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
@@ -782,15 +768,14 @@
                     p.timeline.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
                 });
                 
-                filteredTracks = filteredTracks.filter(t => {
+                mappedTracks = mappedTracks.filter(t => {
                     const key = getDedupKey(t.t, t.a);
                     if (activeKeys.has(key)) return false; 
                     activeKeys.add(key);
                     return true;
                 });
 
-                // Flattens the chance so Top 10 hits appear at the exact same rate as deeper hits
-                tracks = tracks.concat(shuffleArray(filteredTracks));
+                tracks = tracks.concat(shuffleArray(mappedTracks));
 
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
@@ -1217,22 +1202,8 @@
                             body: JSON.stringify({ uris: [currentHostTrack.u] })
                         }).then(async (res) => {
                             if (!res.ok) {
-                                const err = await res.json().catch(()=>({}));
-                                if(res.status === 404 || err.error?.reason === 'NO_ACTIVE_DEVICE' || res.status === 403) {
-                                    console.log("Device inactive. Forcing transfer...");
-                                    await fetch('https://api.spotify.com/v1/me/player', {
-                                        method: 'PUT',
-                                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ device_ids: [webDeviceId], play: true })
-                                    });
-                                    await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
-                                        method: 'PUT',
-                                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ uris: [currentHostTrack.u] })
-                                    });
-                                } else {
-                                    showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
-                                }
+                                const err = await res.json();
+                                showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
                             }
                         }).catch(e => showMessage("Network error playing track.", "error"));
                         gameState = 'PLAYING';
@@ -1621,15 +1592,19 @@
                 viewingOwnTimeline = false; 
             }
 
-            // DYNAMIC HEADER FOR ACTIVE PLAYER
+            // INJECT ACTIVE PLAYER STATS INTO THE HEADER (Matches your top right layout)
             let activePlayerStatsHTML = '';
-            if (!data.isActivePlayer) {
+            if (!data.isActivePlayer && data.state !== 'IDLE' && data.state !== 'PAUSED_DISCONNECT') {
                 const cCount = data.activePlayerCardsCount !== undefined ? data.activePlayerCardsCount : 1;
                 const tCount = data.activePlayerTokens !== undefined ? data.activePlayerTokens : 2;
                 activePlayerStatsHTML = `
-                    <div class="flex items-center justify-center md:justify-start gap-2 mt-1">
-                        <span class="bg-slate-900/80 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-700 shadow-inner flex items-center gap-1"><i class="fa-solid fa-layer-group"></i> ${cCount}</span>
-                        <span class="bg-yellow-900/40 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded border border-yellow-700/50 shadow-inner flex items-center gap-1"><i class="fa-solid fa-coins"></i> ${tCount}</span>
+                    <div class="inline-flex items-center gap-2 ml-2 bg-slate-900/50 px-2 py-0.5 rounded-lg border border-slate-700 align-middle shrink-0">
+                        <div class="text-[10px] font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-center">
+                            <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span>${cCount}</span>
+                        </div>
+                        <div class="bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold text-yellow-400 flex items-center gap-1">
+                            <i class="fa-solid fa-coins"></i> <span>${tCount}</span>
+                        </div>
                     </div>
                 `;
             }
@@ -1650,8 +1625,7 @@
                 } else {
                     musicBox.classList.add('hidden');
                     const subText = viewingOwnTimeline ? "Inspecting your timeline." : (data.isPlaying ? "Music is playing! Listen closely." : "Waiting for player to start music.");
-                    const descHTML = `<div class="text-[11px] text-slate-400">${subText}</div>${activePlayerStatsHTML}`;
-                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, descHTML, 'text-slate-300');
+                    setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎵`, subText, 'text-slate-300', activePlayerStatsHTML);
                 }
             } else if (data.state === 'STEALING') {
                 musicBox.classList.add('hidden');
@@ -1664,17 +1638,14 @@
                     if (data.hasPassedSteal) {
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        const descHTML = `<div class="text-[11px] text-slate-400">Waiting for: ${waitList} (${data.stealTimeLeft}s)</div>${activePlayerStatsHTML}`;
-                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', descHTML, 'text-slate-400');
+                        setPlayerHeader('bg-slate-800 border-slate-600', 'Passed Steal ⏩', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-slate-400', activePlayerStatsHTML);
                     } else if (data.hasStealed) {
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
-                        const descHTML = `<div class="text-[11px] text-indigo-300">Waiting for: ${waitList} (${data.stealTimeLeft}s)</div>${activePlayerStatsHTML}`;
-                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', descHTML, 'text-indigo-300');
+                        setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300', activePlayerStatsHTML);
                     } else {
                         passStealBox.classList.remove('hidden');
-                        const descHTML = `<div class="text-[11px] text-yellow-400">Tap a slot to Steal (1 Token) or tap Pass.</div>${activePlayerStatsHTML}`;
-                        setPlayerHeader('bg-yellow-950 border-yellow-500', `${data.activePlayerName}'s Turn 🎯 (${data.stealTimeLeft}s)`, descHTML, 'text-yellow-400');
+                        setPlayerHeader('bg-yellow-950 border-yellow-500', `${data.activePlayerName}'s Turn 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400', activePlayerStatsHTML);
                     }
                 }
             } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
@@ -1687,11 +1658,11 @@
             renderPlayerTimeline(data);
         }
 
-        function setPlayerHeader(bgClass, titleHTML, descHTML, titleColorClass) {
+        function setPlayerHeader(bgClass, titleHTML, descHTML, titleColorClass, activeStatsHTML = '') {
             const h = document.getElementById('p-ui-header');
             h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
-            document.getElementById('p-ui-title').innerHTML = titleHTML;
-            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColorClass} truncate`;
+            document.getElementById('p-ui-title').innerHTML = `<span>${titleHTML}</span>${activeStatsHTML}`;
+            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColorClass} truncate flex items-center`;
             document.getElementById('p-ui-desc').innerHTML = descHTML;
         }
 
