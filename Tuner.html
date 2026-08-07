@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster Spotify Tuner</title>
+    <title>Hitster Spotify Tuner v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -23,10 +23,10 @@
         <!-- Header & Auth -->
         <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
             <div>
-                <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
-                    <i class="fa-solid fa-sliders text-green-400"></i> Spotify Query Tuner
+                <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-green-400"></i> Spotify Query Tuner v2
                 </h1>
-                <p class="text-xs text-slate-400">Test and tune search parameters before putting them in the game.</p>
+                <p class="text-xs text-slate-400">Find the exact Spotify query formulas for 100% recognizable hits.</p>
             </div>
             
             <div id="auth-section">
@@ -45,10 +45,10 @@
             
             <!-- LEFT: CONTROLS -->
             <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit">
-                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">1. Parameters</h2>
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">1. Query Builder</h2>
                 
                 <div>
-                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category to Tune</label>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category</label>
                     <select id="category-select" onchange="loadSelectedCategory()" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
                         <option value="hitster_hebrew">Israeli / Hebrew Hits 🇮🇱</option>
                         <option value="hitster_classic">The Classic Mix 💿</option>
@@ -60,48 +60,50 @@
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Search Queries (One per line)</label>
-                    <p class="text-[10px] text-slate-500 mb-2">Example: <code class="bg-slate-950 px-1 text-pink-300">year:1980-1995 genre:israeli</code></p>
-                    <textarea id="input-queries" rows="5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre"></textarea>
+                    <p class="text-[10px] text-slate-500 mb-1.5">Tip: Mix artist names, Hebrew terms, or broader genre tags:</p>
+                    <textarea id="input-queries" rows="6" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre leading-relaxed"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Market Code</label>
-                        <input type="text" id="input-market" placeholder="e.g. IL, US, GB" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 uppercase">
-                        <p class="text-[9px] text-slate-500 mt-1">Leave blank for Global.</p>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Offset Type</label>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Offset Mode</label>
                         <select id="input-offset-type" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
-                            <option value="random">Random Up To Max</option>
-                            <option value="exact">Exact Number</option>
+                            <option value="random">Random (0 to Max)</option>
+                            <option value="exact">Exact Offset</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
+                            <span>Max Offset</span>
+                            <span id="offset-val" class="text-white">15</span>
+                        </label>
+                        <input type="range" id="input-offset" min="0" max="200" step="5" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500 mt-2">
+                    </div>
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Offset Value</span>
-                        <span id="offset-val" class="text-white">15</span>
+                        <span>Min Popularity Filter (0-100)</span>
+                        <span id="minpop-val" class="text-yellow-400 font-bold">25</span>
                     </label>
-                    <input type="range" id="input-offset" min="0" max="300" step="1" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500">
-                    <p class="text-[10px] text-slate-500 mt-1">Lower = Top hits. Higher = Deeper/Weirder variety.</p>
+                    <input type="range" id="input-minpop" min="0" max="80" step="5" value="25" oninput="document.getElementById('minpop-val').innerText=this.value" class="w-full accent-yellow-500">
+                    <p class="text-[9px] text-slate-500 mt-0.5">Songs below this Spotify rating will be auto-discarded.</p>
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Limit per Query</span>
-                        <span id="limit-val" class="text-white">8</span>
+                        <span>Songs Per Query</span>
+                        <span id="limit-val" class="text-white">10</span>
                     </label>
                     <input type="range" id="input-limit" min="1" max="50" step="1" oninput="document.getElementById('limit-val').innerText=this.value" class="w-full accent-indigo-500">
                 </div>
 
                 <div class="flex gap-2 pt-2 border-t border-slate-700">
                     <button onclick="saveCurrentToConfig()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-lg text-xs transition border border-slate-500">
-                        <i class="fa-solid fa-save"></i> Save Settings
+                        <i class="fa-solid fa-save"></i> Save Formula
                     </button>
                     <button onclick="fetchTestBatch()" id="btn-fetch" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-lg flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> Fetch Batch
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Test Fetch
                     </button>
                 </div>
             </div>
@@ -109,31 +111,31 @@
             <!-- MIDDLE: PLAYER & TESTER -->
             <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg">
                 <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 flex justify-between items-center">
-                    <span>2. Player Test</span>
-                    <span class="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 font-mono">Deck: <span id="deck-count" class="text-white">0</span></span>
+                    <span>2. Audition Player</span>
+                    <span class="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 font-mono">Deck Left: <span id="deck-count" class="text-white font-bold">0</span></span>
                 </h2>
                 
                 <div class="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-700 p-4 min-h-[350px]">
                     <div id="player-placeholder" class="text-slate-500 flex flex-col items-center gap-2">
                         <i class="fa-solid fa-music text-4xl"></i>
-                        <p class="text-sm">Click "Fetch Batch" then "Next Song"</p>
+                        <p class="text-sm">Click "Test Fetch" to pull tracks</p>
                     </div>
                     
                     <div id="active-player" class="hidden w-full h-full flex flex-col items-center justify-between gap-4">
-                        <div class="text-center w-full relative">
-                            <div class="absolute top-0 right-0 bg-slate-800 text-xs px-2 py-1 rounded text-slate-300 font-mono border border-slate-700 shadow" title="Spotify Popularity Score (0-100)">
-                                Pop: <span id="test-track-pop" class="text-yellow-400 font-bold">85</span>
+                        <div class="text-center w-full relative pt-2">
+                            <div class="absolute top-0 right-0 bg-slate-800 text-[11px] px-2.5 py-1 rounded-full text-slate-300 font-mono border border-slate-700 shadow" title="Spotify Popularity Rating">
+                                Score: <span id="test-track-pop" class="font-bold">85</span>
                             </div>
                             <div id="test-track-year" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">2024</div>
                             <h3 id="test-track-title" class="text-lg font-bold text-white line-clamp-2 leading-tight mt-1">Title</h3>
                             <p id="test-track-artist" class="text-sm text-slate-400 truncate">Artist</p>
                         </div>
                         
-                        <!-- Embedded Spotify Player for instant testing -->
+                        <!-- Embedded Spotify Player -->
                         <iframe id="spotify-iframe" src="" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" class="rounded-xl shadow-lg border border-slate-700"></iframe>
                         
                         <button onclick="nextTestSong()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-forward"></i> Next Song in Deck
+                            <i class="fa-solid fa-forward"></i> Next Song
                         </button>
                     </div>
                 </div>
@@ -143,15 +145,15 @@
             <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit lg:max-h-[85vh] overflow-hidden">
                 <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 shrink-0">3. Export Config</h2>
                 
-                <p class="text-xs text-slate-400 shrink-0">When you are happy with the results of all categories, copy this JSON and send it to the AI.</p>
+                <p class="text-xs text-slate-400 shrink-0">Copy this JSON and send it back to me when you like the song selection.</p>
                 
-                <textarea id="export-json" readonly rows="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
+                <textarea id="export-json" readonly rows="7" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
                 
-                <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg flex items-center justify-center gap-2 shrink-0">
-                    <i class="fa-solid fa-copy"></i> Copy Config for AI
+                <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-lg flex items-center justify-center gap-2 shrink-0">
+                    <i class="fa-solid fa-copy"></i> Copy Config Payload
                 </button>
 
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-700 pb-1 shrink-0">Fetch Log (Popularity Score):</h3>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-700 pb-1 shrink-0">Fetch Log & Popularity Ratings:</h3>
                 <ul id="fetch-list-log" class="text-[10px] space-y-1 text-slate-300 font-mono overflow-y-auto pr-2">
                     <li class="text-slate-500 italic">No songs fetched yet.</li>
                 </ul>
@@ -161,51 +163,53 @@
     </div>
 
     <script>
-        // --- SPOTIFY AUTH ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('tuner_spotify_token') || null;
 
-        // --- MASTER CONFIG OBJECT ---
+        // Tuned queries using diverse artist lists & multi-genre tags for recognizable Hebrew songs
         let masterConfig = {
             "hitster_hebrew": {
                 queries: [
-                    "year:1980-1999 genre:israeli",
-                    "year:2000-2015 genre:israeli",
-                    "year:2016-2024 genre:israeli"
+                    "genre:\"israeli pop\"",
+                    "genre:\"israeli rock\"",
+                    "genre:mizrahi",
+                    "artist:\"אריק איינשטיין\" OR artist:\"שלמה ארצי\" OR artist:\"כוורת\"",
+                    "artist:\"עומר אדם\" OR artist:\"אייל גולן\" OR artist:\"עדן חסון\"",
+                    "artist:\"טונה\" OR artist:\"רביד פלוטניק\" OR artist:\"עידן רייכל\""
                 ],
                 offsetValue: 10,
-                offsetType: "exact",
-                limit: 15,
-                market: "IL"
+                offsetType: "random",
+                minPopularity: 20,
+                limit: 10
             },
             "hitster_classic": {
                 queries: ["year:1960-1979", "year:1980-1989", "year:1990-1999", "year:2000-2009", "year:2010-2024"],
-                offsetValue: 110,
+                offsetValue: 100,
                 offsetType: "random",
-                limit: 8,
-                market: ""
+                minPopularity: 30,
+                limit: 10
             },
             "hitster_pop": {
                 queries: ["year:1990-1999 genre:pop", "year:2000-2009 genre:pop", "year:2010-2015 genre:pop", "year:2016-2020 genre:pop", "year:2021-2024 genre:pop"],
                 offsetValue: 100,
                 offsetType: "random",
-                limit: 8,
-                market: ""
+                minPopularity: 40,
+                limit: 8
             },
             "hitster_rock": {
                 queries: ["year:1970-1985 genre:rock", "year:1986-1999 genre:rock", "year:2000-2009 genre:rock", "year:2010-2024 genre:rock"],
                 offsetValue: 100,
                 offsetType: "random",
-                limit: 10,
-                market: ""
+                minPopularity: 35,
+                limit: 10
             },
             "hitster_hiphop": {
                 queries: ["year:1990-1999 genre:hiphop", "year:2000-2009 genre:hiphop", "year:2010-2015 genre:hiphop", "year:2016-2024 genre:hiphop"],
                 offsetValue: 100,
                 offsetType: "random",
-                limit: 10,
-                market: ""
+                minPopularity: 35,
+                limit: 10
             }
         };
 
@@ -297,8 +301,6 @@
             return array;
         }
 
-        // --- TUNER LOGIC ---
-
         function loadSelectedCategory() {
             const catId = document.getElementById('category-select').value;
             const config = masterConfig[catId];
@@ -307,9 +309,10 @@
             document.getElementById('input-offset').value = config.offsetValue;
             document.getElementById('offset-val').innerText = config.offsetValue;
             document.getElementById('input-offset-type').value = config.offsetType;
+            document.getElementById('input-minpop').value = config.minPopularity !== undefined ? config.minPopularity : 25;
+            document.getElementById('minpop-val').innerText = document.getElementById('input-minpop').value;
             document.getElementById('input-limit').value = config.limit;
             document.getElementById('limit-val').innerText = config.limit;
-            document.getElementById('input-market').value = config.market || '';
         }
 
         function saveCurrentToConfig() {
@@ -318,15 +321,15 @@
             const queries = queriesRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
             const offsetVal = parseInt(document.getElementById('input-offset').value);
             const offsetType = document.getElementById('input-offset-type').value;
+            const minPop = parseInt(document.getElementById('input-minpop').value);
             const limit = parseInt(document.getElementById('input-limit').value);
-            const market = document.getElementById('input-market').value.trim().toUpperCase();
             
             masterConfig[catId] = {
                 queries: queries,
                 offsetValue: offsetVal,
                 offsetType: offsetType,
-                limit: limit,
-                market: market
+                minPopularity: minPop,
+                limit: limit
             };
             
             localStorage.setItem('tuner_master_config', JSON.stringify(masterConfig));
@@ -371,7 +374,6 @@
 
             try {
                 for (const query of config.queries) {
-                    // Determine Offset
                     let calculatedOffset = 0;
                     if (config.offsetType === 'random') {
                         calculatedOffset = Math.floor(Math.random() * config.offsetValue);
@@ -379,9 +381,7 @@
                         calculatedOffset = config.offsetValue;
                     }
 
-                    // Build URL with optional market code
-                    let marketParam = config.market ? `&market=${config.market}` : '';
-                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${calculatedOffset}${marketParam}`;
+                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${calculatedOffset}`;
                     
                     const data = await safeSpotifyFetch(apiUrl);
                     if (data.tracks && data.tracks.items) {
@@ -393,15 +393,18 @@
                     }
                 }
 
-                // Map & Extract Popularity
-                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
-                    id: i.track.id,
-                    u: i.track.uri,
-                    t: cleanTrackTitle(i.track.name).substring(0, 32),
-                    a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
-                    y: parseInt(i.track.album.release_date.substring(0, 4)),
-                    pop: i.track.popularity || 0
-                }));
+                // Map & Filter by Min Popularity
+                let mappedTracks = rawItems
+                    .filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local)
+                    .map(i => ({
+                        id: i.track.id,
+                        u: i.track.uri,
+                        t: cleanTrackTitle(i.track.name).substring(0, 32),
+                        a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
+                        y: parseInt(i.track.album.release_date.substring(0, 4)),
+                        pop: i.track.popularity || 0
+                    }))
+                    .filter(t => t.pop >= (config.minPopularity || 0));
 
                 // Deduplicate
                 const activeUris = new Set();
@@ -414,11 +417,11 @@
                 currentTestDeck = shuffleArray(mappedTracks);
                 document.getElementById('deck-count').innerText = currentTestDeck.length;
                 
-                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2 font-bold mb-1">Total Unique Tracks: ${currentTestDeck.length}</li>`;
+                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2 font-bold mb-1">Passed Filters (${config.minPopularity}+ Pop): ${currentTestDeck.length}</li>`;
                 
-                // Print all tracks to log with popularity
+                // Print all tracks to log
                 currentTestDeck.forEach((t, i) => {
-                    let popColor = t.pop > 50 ? 'text-green-300' : (t.pop > 20 ? 'text-yellow-300' : 'text-red-400');
+                    let popColor = t.pop > 50 ? 'text-green-300' : (t.pop > 25 ? 'text-yellow-300' : 'text-red-400');
                     logList.innerHTML += `<li class="truncate flex justify-between"><span>${i+1}. ${t.t} - ${t.a} (${t.y})</span> <span class="${popColor}">[Pop: ${t.pop}]</span></li>`;
                 });
 
@@ -428,7 +431,7 @@
                     document.getElementById('active-player').classList.add('flex');
                     nextTestSong();
                 } else {
-                    alert("Zero songs returned! Check your query syntax or lower your offset.");
+                    alert("Zero songs passed filters! Lower the Min Popularity threshold or adjust queries.");
                 }
 
             } catch (e) {
@@ -436,7 +439,7 @@
                 alert("Fetch failed. See console.");
             }
             
-            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Fetch Batch`;
+            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Test Fetch`;
             btn.disabled = false;
         }
 
@@ -460,16 +463,13 @@
             document.getElementById('test-track-title').innerText = t.t;
             document.getElementById('test-track-artist').innerText = t.a;
             
-            // Show Popularity with color coding
             const popEl = document.getElementById('test-track-pop');
             popEl.innerText = t.pop;
-            popEl.className = t.pop > 50 ? 'text-green-400 font-bold' : (t.pop > 20 ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold');
+            popEl.className = t.pop > 50 ? 'text-green-400 font-bold' : (t.pop > 25 ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold');
             
-            // Load track into embedded player
             document.getElementById('spotify-iframe').src = `https://open.spotify.com/embed/track/${t.id}?utm_source=generator&theme=0`;
         }
     </script>
 </body>
 </html>
-
 
