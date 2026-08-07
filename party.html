@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.30.0">
+    <meta name="app-version" content="1.30.1">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -245,7 +245,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.30.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.30.1</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -292,7 +292,13 @@
         <div class="w-full bg-slate-900 rounded-lg p-3 border border-slate-700 text-left">
             <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
                 <span>Connected Players:</span>
-                <span id="host-track-count" class="text-indigo-400 font-mono">0 Songs</span>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="fetchTracksFromSpotify()" title="Force Refetch Songs" class="bg-indigo-600/50 hover:bg-indigo-500 text-indigo-200 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-500/30 transition">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refetch
+                    </button>
+                    <span id="host-refetch-status" class="text-[10px] text-yellow-400 hidden bg-yellow-900/30 px-2 py-0.5 rounded-full"><i class="fa-solid fa-spin fa-spinner"></i></span>
+                    <span id="host-track-count" class="text-indigo-400 font-mono">0 Songs</span>
+                </div>
             </h3>
             <ul id="host-game-player-list" class="text-xs text-slate-300 space-y-1"></ul>
         </div>
@@ -636,6 +642,7 @@
         let webDeviceId = null;
         let isHostMode = false;
         let hostBroadcastInterval = null;
+        let isFetchingTracks = false;
         
         // Client variables
         let hostConnection = null; 
@@ -659,7 +666,12 @@
         }
 
         async function fetchTracksFromSpotify() {
-            if (!accessToken) return;
+            if (isFetchingTracks || !accessToken) return;
+            isFetchingTracks = true;
+            
+            const refetchIcon = document.getElementById('host-refetch-status');
+            if (refetchIcon) refetchIcon.classList.remove('hidden');
+
             try {
                 let rawItems = [];
 
@@ -671,11 +683,11 @@
                     if (data.items) rawItems.push(...data.items);
                 } 
                 else if (currentMusicMode === 'hitster_hebrew') {
-                    // Specific decade chunks combined with genre:israeli, using extremely low offsets (<= 15) to guarantee iconic hits
+                    // Specific decade chunks combined with genre:israeli, using strictly limited offsets (<= 10) to guarantee iconic hits
                     const hebrewEras = ['1980-1995', '1996-2005', '2006-2015', '2016-2021', '2022-2024'];
                     
                     for (const era of hebrewEras) {
-                        const offset = Math.floor(Math.random() * 15);
+                        const offset = Math.floor(Math.random() * 10);
                         const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era} genre:israeli`)}&type=track&limit=8&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
@@ -690,9 +702,9 @@
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Sequential fetch for deeper pool (offset up to 150) without 429 lockout.
+                    // Sequential fetch for deeper pool (offset up to 110) without 429 lockout.
                     for (const era of eras) {
-                        const offset = Math.floor(Math.random() * 150);
+                        const offset = Math.floor(Math.random() * 110);
                         const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=8&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
@@ -727,6 +739,10 @@
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
             }
+
+            isFetchingTracks = false;
+            if (refetchIcon) refetchIcon.classList.add('hidden');
+            updateHostPlayerList();
         }
 
         async function startHostGame(mode) {
@@ -1037,13 +1053,14 @@
                 </li>`;
             });
 
-            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
+            const trackCounter = document.getElementById('host-track-count');
+            if (trackCounter) trackCounter.innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
             // Because we only fetch ~20 songs sequentially, refill when deck gets low
             if (tracks.length < 15) {
-                fetchTracksFromSpotify().then(() => updateHostPlayerList()).catch(e => console.log(e));
+                fetchTracksFromSpotify().catch(e => console.log(e));
             }
 
             if (tracks.length === 0) return showMessage("Out of songs! Please wait for refill.", "error");
