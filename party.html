@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.29.0">
+    <meta name="app-version" content="1.30.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -219,7 +219,7 @@
                         <i class="fa-solid fa-guitar"></i> Rock
                     </button>
                     <button onclick="startHostGame('hitster_hiphop')" class="col-span-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs">
-                        <i class="fa-solid fa-record-vinyl"></i> Hip-Hop & R&B
+                        <i class="fa-solid fa-record-vinyl"></i> Hip-Hop
                     </button>
                 </div>
 
@@ -245,7 +245,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.29.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.30.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -560,16 +560,25 @@
             currentGuesses = {}; stealDecisions = {}; stealEndTime = 0; currentWinnerId = null;
             bonusTokenClaimed = false; isHostMode = false; isHostInPlayerView = false;
             
+            document.getElementById('client-disconnect-overlay').classList.add('hidden');
+            document.getElementById('client-disconnect-overlay').classList.remove('flex');
+            
             switchContainer('setup-container');
             switchSetupView('view-roles');
         }
 
         function endGameSession() {
-            if (confirm("End the game session and clear all saved data?")) {
-                localStorage.removeItem('party_host_state');
+            if (confirm("End the game session and return to lobby?")) {
+                Object.values(players).forEach(p => {
+                    if (p.conn && p.online && p.id !== HOST_PLAYER_ID) {
+                        p.conn.send({ type: 'HOST_ENDED_GAME' });
+                    }
+                });
+                
                 if (spotifyPlayer) {
                     try { spotifyPlayer.disconnect(); } catch(e) {}
                 }
+                localStorage.removeItem('party_host_state');
                 window.location.replace(window.location.pathname);
             }
         }
@@ -662,17 +671,12 @@
                     if (data.items) rawItems.push(...data.items);
                 } 
                 else if (currentMusicMode === 'hitster_hebrew') {
-                    const hebrewQueries = [
-                        'genre:israeli',
-                        'israeli pop',
-                        'israeli rock',
-                        'israeli classics',
-                        'mizrahi pop'
-                    ];
-                    // Sequential fetch to avoid 429 API lockout. Starts from 0 up to 30.
-                    for (const q of hebrewQueries) {
-                        const offset = Math.floor(Math.random() * 30);
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10&offset=${offset}`);
+                    // Specific decade chunks combined with genre:israeli, using extremely low offsets (<= 15) to guarantee iconic hits
+                    const hebrewEras = ['1980-1995', '1996-2005', '2006-2015', '2016-2021', '2022-2024'];
+                    
+                    for (const era of hebrewEras) {
+                        const offset = Math.floor(Math.random() * 15);
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era} genre:israeli`)}&type=track&limit=8&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
@@ -686,10 +690,10 @@
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Sequential fetch to avoid 429 API lockout. Starts from 0 up to 80.
+                    // Sequential fetch for deeper pool (offset up to 150) without 429 lockout.
                     for (const era of eras) {
-                        const offset = Math.floor(Math.random() * 80);
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
+                        const offset = Math.floor(Math.random() * 150);
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=8&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
@@ -1239,8 +1243,9 @@
 
         function buildSyncObj(pId) {
             const activePlayerId = turnOrder[turnIndex];
-            const activeTimeline = players[activePlayerId] ? players[activePlayerId].timeline : [];
-            const activePlayerName = players[activePlayerId] ? players[activePlayerId].name : "Unknown";
+            const activePlayer = players[activePlayerId];
+            const activeTimeline = activePlayer ? activePlayer.timeline : [];
+            const activePlayerName = activePlayer ? activePlayer.name : "Unknown";
             
             const guessNameMap = {};
             for (const [gId, slot] of Object.entries(currentGuesses)) { 
@@ -1276,9 +1281,10 @@
                 waitingOn: waitingOn,
                 stealTimeLeft: remainingTime,
                 myScore: p ? p.score : 0, 
-                myTokens: p ? p.tokens : 0,
-                myCardsCount: p && p.timeline ? p.timeline.length : 1,
+                myCardsCount: p ? p.timeline.length : 1,
                 activePlayerCardsCount: activeTimeline.length,
+                activePlayerTokens: activePlayer ? activePlayer.tokens : 0,
+                myTokens: p ? p.tokens : 0,
                 correctYear: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.y : null,
                 trackTitle: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.t : null,
                 artistName: (gameState === 'REVEAL' || gameState === 'GAME_OVER') && currentHostTrack ? currentHostTrack.a : null,
@@ -1298,7 +1304,7 @@
             if (!p) return;
             if (gameState === 'IDLE') {
                 const lobbyPlayers = Object.values(players).map(pl => pl.name);
-                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens });
+                if (p.conn && p.online) p.conn.send({ type: 'SYNC', state: 'IDLE', lobbyPlayers: lobbyPlayers, myScore: p.score, myTokens: p.tokens, myCardsCount: p.timeline ? p.timeline.length : 1 });
                 return;
             }
             const syncObj = buildSyncObj(pId);
@@ -1440,6 +1446,10 @@
                         lastHostContact = Date.now();
                         if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
                         if (data.type === 'SYNC') handlePlayerSync(data); 
+                        if (data.type === 'HOST_ENDED_GAME') {
+                            showMessage("The Host ended the game.", "info");
+                            resetApp();
+                        }
                     });
                     
                     hostConnection.on('close', () => { 
@@ -1470,7 +1480,7 @@
             const pScoreEl = document.getElementById('p-ui-score');
             const pTokensEl = document.getElementById('p-ui-tokens');
             
-            // Stats logic: Show relevant cards & name, but ALWAYS show YOUR tokens
+            // Show stats for whichever timeline is currently being inspected
             if (viewingOwnTimeline) {
                 if (pNameEl) pNameEl.innerText = myPlayerName || "Me";
                 if (pScoreEl) pScoreEl.innerText = data.myCardsCount !== undefined ? data.myCardsCount : (data.ownTimeline ? data.ownTimeline.length : 1);
@@ -1478,6 +1488,7 @@
             } else {
                 if (pNameEl) pNameEl.innerText = data.isActivePlayer ? (myPlayerName || "Me") : (data.activePlayerName || "Active Player");
                 if (pScoreEl) pScoreEl.innerText = data.activePlayerCardsCount !== undefined ? data.activePlayerCardsCount : (data.timeline ? data.timeline.length : 1);
+                // Displays YOUR token amount so you know if you can steal from this player
                 if (pTokensEl) pTokensEl.innerText = data.myTokens !== undefined ? data.myTokens : 2;
             }
             
