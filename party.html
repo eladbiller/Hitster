@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.30.1">
+    <meta name="app-version" content="1.30.2">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -245,7 +245,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.30.1</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.30.2</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -293,6 +293,7 @@
             <h3 class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
                 <span>Connected Players:</span>
                 <div class="flex items-center gap-1.5">
+                    <!-- Manual Refetch Button Restored -->
                     <button onclick="fetchTracksFromSpotify()" title="Force Refetch Songs" class="bg-indigo-600/50 hover:bg-indigo-500 text-indigo-200 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-500/30 transition">
                         <i class="fa-solid fa-arrows-rotate"></i> Refetch
                     </button>
@@ -470,6 +471,11 @@
             }
         });
 
+        // Capture page reloads (F5) so we perfectly save state right before unload
+        window.addEventListener('beforeunload', () => {
+            if (isHostMode) saveHostState();
+        });
+
         const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
         const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
         const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -498,7 +504,7 @@
             options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
             const res = await fetch(url, options);
             if (res.status === 401) { 
-                saveHostState(); // Save room right before kicking out
+                saveHostState(); 
                 logoutSpotify(); 
                 throw new Error("Spotify Session expired. Log in again."); 
             }
@@ -683,11 +689,11 @@
                     if (data.items) rawItems.push(...data.items);
                 } 
                 else if (currentMusicMode === 'hitster_hebrew') {
-                    // Specific decade chunks combined with genre:israeli, using strictly limited offsets (<= 10) to guarantee iconic hits
+                    // Strict decade chunks with genre:israeli, clamped to Top 15 to prevent obscure songs
                     const hebrewEras = ['1980-1995', '1996-2005', '2006-2015', '2016-2021', '2022-2024'];
                     
                     for (const era of hebrewEras) {
-                        const offset = Math.floor(Math.random() * 10);
+                        const offset = Math.floor(Math.random() * 15);
                         const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era} genre:israeli`)}&type=track&limit=8&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
@@ -702,7 +708,7 @@
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Sequential fetch for deeper pool (offset up to 110) without 429 lockout.
+                    // General mix offset clamped to 110 for depth without getting too weird
                     for (const era of eras) {
                         const offset = Math.floor(Math.random() * 110);
                         const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=8&offset=${offset}`);
@@ -1053,17 +1059,15 @@
                 </li>`;
             });
 
-            const trackCounter = document.getElementById('host-track-count');
-            if (trackCounter) trackCounter.innerText = `${tracks.length} Songs Left`;
+            document.getElementById('host-track-count').innerText = `${tracks.length} Songs Left`;
         }
 
         function loadTurn() {
-            // Because we only fetch ~20 songs sequentially, refill when deck gets low
             if (tracks.length < 15) {
                 fetchTracksFromSpotify().catch(e => console.log(e));
             }
 
-            if (tracks.length === 0) return showMessage("Out of songs! Please wait for refill.", "error");
+            if (tracks.length === 0) return showMessage("Out of songs! Click Refetch or wait.", "error");
             
             gameState = 'READY_TO_PLAY';
             currentGuesses = {};
