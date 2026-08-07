@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitster Spotify Tuner v4</title>
+    <title>Hitster Spotify Tuner v6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -24,9 +24,9 @@
         <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
             <div>
                 <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 flex items-center gap-2">
-                    <i class="fa-solid fa-sliders text-green-400"></i> Spotify Tuner v4 (No Genre Tags)
+                    <i class="fa-solid fa-filter text-green-400"></i> Spotify Tuner v6 (Hebrew Filter)
                 </h1>
-                <p class="text-xs text-slate-400">Pure Hebrew keywords and artist searches — zero `genre:israeli` filters.</p>
+                <p class="text-xs text-slate-400">Fetches general eras, but aggressively filters out non-Hebrew tracks.</p>
             </div>
             
             <div id="auth-section">
@@ -60,15 +60,25 @@
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Search Queries (One per line)</label>
-                    <p class="text-[10px] text-slate-500 mb-1.5">No genre tags! Use pure Hebrew terms, artist names, or search phrases:</p>
-                    <textarea id="input-queries" rows="7" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre leading-relaxed"></textarea>
+                    <textarea id="input-queries" rows="5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre leading-relaxed"></textarea>
+                </div>
+
+                <!-- NEW: HEBREW FILTER TOGGLE -->
+                <div class="bg-slate-900 border border-slate-600 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                        <span class="text-sm font-bold text-white block">Require Hebrew Text (א-ת)</span>
+                        <span class="text-[9px] text-slate-400">Discards any song without Hebrew in the Artist or Title.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="input-require-hebrew" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Market Code</label>
                         <input type="text" id="input-market" placeholder="e.g. IL" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 uppercase">
-                        <p class="text-[9px] text-slate-500 mt-1">Try IL or leave blank.</p>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Offset Mode</label>
@@ -82,23 +92,22 @@
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
                         <span>Max Offset</span>
-                        <span id="offset-val" class="text-white">15</span>
+                        <span id="offset-val" class="text-white">0</span>
                     </label>
                     <input type="range" id="input-offset" min="0" max="200" step="1" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500 mt-2">
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Min Popularity Filter (0-100)</span>
-                        <span id="minpop-val" class="text-yellow-400 font-bold">20</span>
+                        <span>Min Pop Filter (0-100)</span>
+                        <span id="minpop-val" class="text-yellow-400 font-bold">25</span>
                     </label>
-                    <input type="range" id="input-minpop" min="0" max="80" step="1" value="20" oninput="document.getElementById('minpop-val').innerText=this.value" class="w-full accent-yellow-500">
-                    <p class="text-[9px] text-slate-500 mt-0.5">Discards low-streamed B-sides automatically.</p>
+                    <input type="range" id="input-minpop" min="0" max="80" step="1" value="25" oninput="document.getElementById('minpop-val').innerText=this.value" class="w-full accent-yellow-500">
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Songs Per Query</span>
+                        <span>Target Songs Per Query</span>
                         <span id="limit-val" class="text-white">10</span>
                     </label>
                     <input type="range" id="input-limit" min="1" max="50" step="1" oninput="document.getElementById('limit-val').innerText=this.value" class="w-full accent-indigo-500">
@@ -153,7 +162,7 @@
                 
                 <p class="text-xs text-slate-400 shrink-0">Copy this JSON and send it back to me when you like the song selection.</p>
                 
-                <textarea id="export-json" readonly rows="7" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
+                <textarea id="export-json" readonly rows="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
                 
                 <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-lg flex items-center justify-center gap-2 shrink-0">
                     <i class="fa-solid fa-copy"></i> Copy Config Payload
@@ -173,23 +182,21 @@
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('tuner_spotify_token') || null;
 
-        // V4 Master Config — ZERO "genre:israeli" tags. Pure Hebrew phrases & Artist searches.
+        // The brilliant new logic: Search standard eras, but require IL market and Hebrew characters
         let masterConfig = {
             "hitster_hebrew": {
                 queries: [
-                    "גלגלצ להיטים",
-                    "פופ ישראלי",
-                    "רוק ישראלי",
-                    "מזרחית להיטים",
-                    "קלאסיקה ישראלית",
-                    "artist:\"אריק איינשטיין\" OR artist:\"שלמה ארצי\" OR artist:\"כוורת\"",
-                    "artist:\"עומר אדם\" OR artist:\"אייל גולן\" OR artist:\"עדן חסון\""
+                    "year:1980-1995",
+                    "year:1996-2005",
+                    "year:2006-2015",
+                    "year:2016-2024"
                 ],
-                offsetValue: 15,
+                offsetValue: 0, // Keep offset low since we are throwing away 80% of songs anyway
                 offsetType: "random",
                 minPopularity: 20,
-                limit: 10,
-                market: "IL"
+                limit: 8,
+                market: "IL",
+                requireHebrew: true
             },
             "hitster_classic": {
                 queries: ["year:1960-1979", "year:1980-1989", "year:1990-1999", "year:2000-2009", "year:2010-2024"],
@@ -197,7 +204,8 @@
                 offsetType: "random",
                 minPopularity: 30,
                 limit: 10,
-                market: ""
+                market: "",
+                requireHebrew: false
             },
             "hitster_pop": {
                 queries: ["year:1990-1999 genre:pop", "year:2000-2009 genre:pop", "year:2010-2015 genre:pop", "year:2016-2020 genre:pop", "year:2021-2024 genre:pop"],
@@ -205,7 +213,8 @@
                 offsetType: "random",
                 minPopularity: 40,
                 limit: 8,
-                market: ""
+                market: "",
+                requireHebrew: false
             },
             "hitster_rock": {
                 queries: ["year:1970-1985 genre:rock", "year:1986-1999 genre:rock", "year:2000-2009 genre:rock", "year:2010-2024 genre:rock"],
@@ -213,7 +222,8 @@
                 offsetType: "random",
                 minPopularity: 35,
                 limit: 10,
-                market: ""
+                market: "",
+                requireHebrew: false
             },
             "hitster_hiphop": {
                 queries: ["year:1990-1999 genre:hiphop", "year:2000-2009 genre:hiphop", "year:2010-2015 genre:hiphop", "year:2016-2024 genre:hiphop"],
@@ -221,7 +231,8 @@
                 offsetType: "random",
                 minPopularity: 35,
                 limit: 10,
-                market: ""
+                market: "",
+                requireHebrew: false
             }
         };
 
@@ -231,17 +242,9 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
-            // Clear old master config if it had genre:israeli in it
-            const savedConfig = localStorage.getItem('tuner_master_config');
+            const savedConfig = localStorage.getItem('tuner_v6_master_config');
             if (savedConfig) {
-                try { 
-                    const parsed = JSON.parse(savedConfig); 
-                    if (parsed.hitster_hebrew && JSON.stringify(parsed.hitster_hebrew).includes('genre:')) {
-                        localStorage.removeItem('tuner_master_config');
-                    } else {
-                        masterConfig = parsed;
-                    }
-                } catch(e){}
+                try { masterConfig = JSON.parse(savedConfig); } catch(e){}
             }
 
             if (code) {
@@ -334,6 +337,7 @@
             document.getElementById('input-limit').value = config.limit;
             document.getElementById('limit-val').innerText = config.limit;
             document.getElementById('input-market').value = config.market || '';
+            document.getElementById('input-require-hebrew').checked = config.requireHebrew || false;
         }
 
         function saveCurrentToConfig() {
@@ -345,6 +349,7 @@
             const minPop = parseInt(document.getElementById('input-minpop').value);
             const limit = parseInt(document.getElementById('input-limit').value);
             const market = document.getElementById('input-market').value.trim().toUpperCase();
+            const reqHebrew = document.getElementById('input-require-hebrew').checked;
             
             masterConfig[catId] = {
                 queries: queries,
@@ -352,10 +357,11 @@
                 offsetType: offsetType,
                 minPopularity: minPop,
                 limit: limit,
-                market: market
+                market: market,
+                requireHebrew: reqHebrew
             };
             
-            localStorage.setItem('tuner_master_config', JSON.stringify(masterConfig));
+            localStorage.setItem('tuner_v6_master_config', JSON.stringify(masterConfig));
             updateExportBox();
             
             const btn = document.querySelector('button[onclick="saveCurrentToConfig()"]');
@@ -391,54 +397,76 @@
             const catId = document.getElementById('category-select').value;
             const config = masterConfig[catId];
             
-            let rawItems = [];
+            let finalTracks = [];
             const logList = document.getElementById('fetch-list-log');
             logList.innerHTML = '';
+            
+            // Regex to check for Hebrew characters (Aleph to Tav)
+            const hebrewRegex = /[\u0590-\u05FF]/;
 
             try {
                 for (const query of config.queries) {
-                    let calculatedOffset = 0;
-                    if (config.offsetType === 'random') {
-                        calculatedOffset = Math.floor(Math.random() * config.offsetValue);
-                    } else {
-                        calculatedOffset = config.offsetValue;
+                    let calculatedOffset = config.offsetType === 'random' ? Math.floor(Math.random() * config.offsetValue) : config.offsetValue;
+                    let marketParam = config.market ? `&market=${config.market}` : '';
+                    
+                    let queryCollected = [];
+                    let attempts = 0;
+                    let currentOffset = calculatedOffset;
+
+                    // If requiring Hebrew, we might need to dig deep to find enough songs. We fetch 50 at a time.
+                    let fetchAmount = config.requireHebrew ? 50 : config.limit;
+
+                    while (queryCollected.length < config.limit && attempts < 6) { // Max 6 pages deep
+                        const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${fetchAmount}&offset=${currentOffset}${marketParam}`;
+                        
+                        const data = await safeSpotifyFetch(apiUrl);
+                        if (data.tracks && data.tracks.items && data.tracks.items.length > 0) {
+                            
+                            let rawPage = data.tracks.items.map(t => ({
+                                id: t.id,
+                                u: t.uri,
+                                t: cleanTrackTitle(t.name).substring(0, 40),
+                                a: t.artists ? t.artists[0].name.substring(0, 30) : 'Unknown',
+                                y: parseInt(t.album.release_date.substring(0, 4)),
+                                pop: t.popularity || 0,
+                                isLocal: t.is_local
+                            })).filter(t => t.u && !isNaN(t.y) && !t.isLocal);
+
+                            // Apply Popularity Filter
+                            let filteredPage = rawPage.filter(t => t.pop >= config.minPopularity);
+
+                            // Apply Strict Hebrew Regex Filter
+                            if (config.requireHebrew) {
+                                filteredPage = filteredPage.filter(t => hebrewRegex.test(t.t) || hebrewRegex.test(t.a));
+                            }
+
+                            queryCollected.push(...filteredPage);
+                            logList.innerHTML += `<li class="text-green-400">✓ Page ${attempts+1} [${query}] | Found ${filteredPage.length} matching hits</li>`;
+                        } else {
+                            logList.innerHTML += `<li class="text-red-400">✗ Ended search early for [${query}]</li>`;
+                            break;
+                        }
+
+                        currentOffset += fetchAmount;
+                        attempts++;
+                        
+                        // If we don't need Hebrew filter, we probably got what we needed on page 1.
+                        if (!config.requireHebrew) break;
                     }
 
-                    let marketParam = config.market ? `&market=${config.market}` : '';
-                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${calculatedOffset}${marketParam}`;
-                    
-                    const data = await safeSpotifyFetch(apiUrl);
-                    if (data.tracks && data.tracks.items) {
-                        const items = data.tracks.items.map(t => ({ track: t }));
-                        rawItems.push(...items);
-                        logList.innerHTML += `<li class="text-green-400">✓ [${query}] Offset: ${calculatedOffset} | Got ${items.length}</li>`;
-                    } else {
-                        logList.innerHTML += `<li class="text-red-400">✗ Failed [${query}] Offset: ${calculatedOffset}</li>`;
-                    }
+                    // Only push up to the limit for this query
+                    finalTracks.push(...queryCollected.slice(0, config.limit));
                 }
 
-                // Map & Filter by Min Popularity
-                let mappedTracks = rawItems
-                    .filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local)
-                    .map(i => ({
-                        id: i.track.id,
-                        u: i.track.uri,
-                        t: cleanTrackTitle(i.track.name).substring(0, 32),
-                        a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
-                        y: parseInt(i.track.album.release_date.substring(0, 4)),
-                        pop: i.track.popularity || 0
-                    }))
-                    .filter(t => t.pop >= (config.minPopularity || 0));
-
-                // Deduplicate
+                // Global Deduplicate
                 const activeUris = new Set();
-                mappedTracks = mappedTracks.filter(t => {
+                finalTracks = finalTracks.filter(t => {
                     if (activeUris.has(t.u)) return false;
                     activeUris.add(t.u);
                     return true;
                 });
 
-                currentTestDeck = shuffleArray(mappedTracks);
+                currentTestDeck = shuffleArray(finalTracks);
                 document.getElementById('deck-count').innerText = currentTestDeck.length;
                 
                 logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2 font-bold mb-1">Passed Filters (${config.minPopularity}+ Pop): ${currentTestDeck.length}</li>`;
@@ -455,7 +483,7 @@
                     document.getElementById('active-player').classList.add('flex');
                     nextTestSong();
                 } else {
-                    alert("Zero songs passed filters! Lower the Min Popularity threshold or adjust queries.");
+                    alert("Zero songs passed filters! Try lowering the Min Pop limit.");
                 }
 
             } catch (e) {
@@ -496,4 +524,5 @@
     </script>
 </body>
 </html>
+
 
