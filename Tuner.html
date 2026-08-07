@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hitster Spotify Tuner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap');
+        body { font-family: 'Rubik', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .spotify-green { background-color: #1DB954; }
+        .spotify-green:hover { background-color: #1ed760; }
+        ::-webkit-scrollbar { height: 8px; width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-6xl flex flex-col gap-6">
+        
+        <!-- Header & Auth -->
+        <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+            <div>
+                <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                    <i class="fa-solid fa-sliders text-green-400"></i> Spotify Query Tuner
+                </h1>
+                <p class="text-xs text-slate-400">Test and tune search parameters before putting them in the game.</p>
+            </div>
+            
+            <div id="auth-section">
+                <button onclick="loginSpotify()" id="btn-login" class="spotify-green text-slate-950 font-bold py-2 px-6 rounded-lg shadow transition text-sm flex items-center gap-2">
+                    <i class="fa-brands fa-spotify"></i> Login to Spotify
+                </button>
+                <div id="logged-in-status" class="hidden flex items-center gap-3">
+                    <span class="text-sm font-bold text-green-400"><i class="fa-solid fa-check-circle"></i> Authenticated</span>
+                    <button onclick="logoutSpotify()" class="text-xs text-slate-400 underline hover:text-white">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Workspace (Hidden until logged in) -->
+        <div id="workspace" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- LEFT: CONTROLS -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit">
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">1. Parameters</h2>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category to Tune</label>
+                    <select id="category-select" onchange="loadSelectedCategory()" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                        <option value="hitster_hebrew">Israeli / Hebrew Hits 🇮🇱</option>
+                        <option value="hitster_classic">The Classic Mix 💿</option>
+                        <option value="hitster_pop">Pop 🎤</option>
+                        <option value="hitster_rock">Rock 🎸</option>
+                        <option value="hitster_hiphop">Hip-Hop 🎧</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Search Queries (One per line)</label>
+                    <p class="text-[10px] text-slate-500 mb-2">Each line runs as a separate search. Example: <code class="bg-slate-950 px-1 text-pink-300">year:1980-1995 genre:israeli</code></p>
+                    <textarea id="input-queries" rows="6" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre"></textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
+                        <span>Max Random Offset</span>
+                        <span id="offset-val" class="text-white">15</span>
+                    </label>
+                    <input type="range" id="input-offset" min="0" max="300" step="5" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500">
+                    <p class="text-[10px] text-slate-500 mt-1">Lower = Top mega hits only. Higher = Deeper variety but weirder songs.</p>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
+                        <span>Limit per Query (Songs to pull)</span>
+                        <span id="limit-val" class="text-white">8</span>
+                    </label>
+                    <input type="range" id="input-limit" min="1" max="20" step="1" oninput="document.getElementById('limit-val').innerText=this.value" class="w-full accent-indigo-500">
+                </div>
+
+                <div class="flex gap-2 pt-2 border-t border-slate-700">
+                    <button onclick="saveCurrentToConfig()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-lg text-xs transition border border-slate-500">
+                        <i class="fa-solid fa-save"></i> Save Settings
+                    </button>
+                    <button onclick="fetchTestBatch()" id="btn-fetch" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Fetch Batch
+                    </button>
+                </div>
+            </div>
+
+            <!-- MIDDLE: PLAYER & TESTER -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg">
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 flex justify-between items-center">
+                    <span>2. Player Test</span>
+                    <span class="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 font-mono">Deck: <span id="deck-count" class="text-white">0</span></span>
+                </h2>
+                
+                <div class="flex-1 flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-700 p-4 min-h-[350px]">
+                    <div id="player-placeholder" class="text-slate-500 flex flex-col items-center gap-2">
+                        <i class="fa-solid fa-music text-4xl"></i>
+                        <p class="text-sm">Click "Fetch Batch" then "Next Song"</p>
+                    </div>
+                    
+                    <div id="active-player" class="hidden w-full h-full flex flex-col items-center justify-between gap-4">
+                        <div class="text-center w-full">
+                            <div id="test-track-year" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">2024</div>
+                            <h3 id="test-track-title" class="text-lg font-bold text-white line-clamp-2 leading-tight mt-1">Title</h3>
+                            <p id="test-track-artist" class="text-sm text-slate-400 truncate">Artist</p>
+                        </div>
+                        
+                        <!-- Embedded Spotify Player for instant testing -->
+                        <iframe id="spotify-iframe" src="" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" class="rounded-xl shadow-lg border border-slate-700"></iframe>
+                        
+                        <button onclick="nextTestSong()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-forward"></i> Next Song in Deck
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: EXPORT -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit lg:max-h-[85vh] overflow-y-auto">
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">3. Export Config</h2>
+                
+                <p class="text-xs text-slate-400">When you are happy with the results of all categories, copy this JSON and send it to the AI.</p>
+                
+                <textarea id="export-json" readonly rows="12" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none"></textarea>
+                
+                <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-copy"></i> Copy Config for AI
+                </button>
+
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4 border-b border-slate-700 pb-1">Last Fetch Results:</h3>
+                <ul id="fetch-list-log" class="text-[10px] space-y-1 text-slate-300 font-mono">
+                    <li class="text-slate-500 italic">No songs fetched yet.</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- SPOTIFY AUTH ---
+        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
+        const REDIRECT_URI = window.location.origin + window.location.pathname;
+        let accessToken = localStorage.getItem('tuner_spotify_token') || null;
+
+        // --- MASTER CONFIG OBJECT ---
+        // This is what the app generates and you will send back to me
+        let masterConfig = {
+            "hitster_hebrew": {
+                queries: [
+                    "year:1980-1995 genre:israeli",
+                    "year:1996-2005 genre:israeli",
+                    "year:2006-2015 genre:israeli",
+                    "year:2016-2021 genre:israeli",
+                    "year:2022-2024 genre:israeli"
+                ],
+                maxOffset: 15,
+                limit: 8
+            },
+            "hitster_classic": {
+                queries: ["year:1960-1979", "year:1980-1989", "year:1990-1999", "year:2000-2009", "year:2010-2024"],
+                maxOffset: 110,
+                limit: 8
+            },
+            "hitster_pop": {
+                queries: ["year:1990-1999 genre:pop", "year:2000-2009 genre:pop", "year:2010-2015 genre:pop", "year:2016-2020 genre:pop", "year:2021-2024 genre:pop"],
+                maxOffset: 100,
+                limit: 8
+            },
+            "hitster_rock": {
+                queries: ["year:1970-1985 genre:rock", "year:1986-1999 genre:rock", "year:2000-2009 genre:rock", "year:2010-2024 genre:rock"],
+                maxOffset: 100,
+                limit: 10
+            },
+            "hitster_hiphop": {
+                queries: ["year:1990-1999 genre:hiphop", "year:2000-2009 genre:hiphop", "year:2010-2015 genre:hiphop", "year:2016-2024 genre:hiphop"],
+                maxOffset: 100,
+                limit: 10
+            }
+        };
+
+        let currentTestDeck = [];
+
+        window.addEventListener('load', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            
+            // Try loading saved config from local storage so you don't lose work on refresh
+            const savedConfig = localStorage.getItem('tuner_master_config');
+            if (savedConfig) {
+                try { masterConfig = JSON.parse(savedConfig); } catch(e){}
+            }
+
+            if (code) {
+                try {
+                    const res = await fetch('https://accounts.spotify.com/api/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ 
+                            client_id: CLIENT_ID, grant_type: 'authorization_code', 
+                            code: code, redirect_uri: REDIRECT_URI, 
+                            code_verifier: localStorage.getItem('tuner_code_verifier') 
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.access_token) {
+                        accessToken = data.access_token;
+                        localStorage.setItem('tuner_spotify_token', accessToken);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        checkAuth();
+                    }
+                } catch (e) { alert("Login failed."); }
+            } else {
+                checkAuth();
+            }
+            
+            updateExportBox();
+        });
+
+        function checkAuth() {
+            if (accessToken) {
+                document.getElementById('btn-login').classList.add('hidden');
+                document.getElementById('logged-in-status').classList.remove('hidden');
+                document.getElementById('workspace').classList.remove('hidden');
+                loadSelectedCategory();
+            } else {
+                document.getElementById('btn-login').classList.remove('hidden');
+                document.getElementById('logged-in-status').classList.add('hidden');
+                document.getElementById('workspace').classList.add('hidden');
+            }
+        }
+
+        const generateRandomString = (l) => crypto.getRandomValues(new Uint8Array(l)).reduce((a, x) => a + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62], "");
+        const sha256 = async (p) => window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+        const base64encode = (i) => btoa(String.fromCharCode(...new Uint8Array(i))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+        async function loginSpotify() {
+            const verifier = generateRandomString(64);
+            localStorage.setItem('tuner_code_verifier', verifier);
+            const hashed = await sha256(verifier);
+            const codeChallenge = base64encode(hashed);
+            const params = new URLSearchParams({ 
+                response_type: 'code', client_id: CLIENT_ID, scope: '', 
+                code_challenge_method: 'S256', code_challenge: codeChallenge, 
+                redirect_uri: REDIRECT_URI, show_dialog: 'true'
+            });
+            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        }
+
+        function logoutSpotify() {
+            localStorage.removeItem('tuner_spotify_token');
+            accessToken = null;
+            checkAuth();
+        }
+
+        async function safeSpotifyFetch(url) {
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            if (res.status === 401) { logoutSpotify(); alert("Session expired. Log in again."); throw new Error("401"); }
+            if (!res.ok) throw new Error("API Error");
+            return await res.json();
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- TUNER LOGIC ---
+
+        function loadSelectedCategory() {
+            const catId = document.getElementById('category-select').value;
+            const config = masterConfig[catId];
+            
+            document.getElementById('input-queries').value = config.queries.join('\n');
+            document.getElementById('input-offset').value = config.maxOffset;
+            document.getElementById('offset-val').innerText = config.maxOffset;
+            document.getElementById('input-limit').value = config.limit;
+            document.getElementById('limit-val').innerText = config.limit;
+        }
+
+        function saveCurrentToConfig() {
+            const catId = document.getElementById('category-select').value;
+            const queriesRaw = document.getElementById('input-queries').value;
+            const queries = queriesRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            const offset = parseInt(document.getElementById('input-offset').value);
+            const limit = parseInt(document.getElementById('input-limit').value);
+            
+            masterConfig[catId] = {
+                queries: queries,
+                maxOffset: offset,
+                limit: limit
+            };
+            
+            localStorage.setItem('tuner_master_config', JSON.stringify(masterConfig));
+            updateExportBox();
+            
+            const btn = document.querySelector('button[onclick="saveCurrentToConfig()"]');
+            const ogHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Saved`;
+            btn.classList.replace('bg-slate-700', 'bg-green-600');
+            setTimeout(() => {
+                btn.innerHTML = ogHTML;
+                btn.classList.replace('bg-green-600', 'bg-slate-700');
+            }, 1000);
+        }
+
+        function updateExportBox() {
+            document.getElementById('export-json').value = JSON.stringify(masterConfig, null, 4);
+        }
+
+        function copyConfig() {
+            const ta = document.getElementById('export-json');
+            ta.select();
+            document.execCommand('copy');
+            alert("Copied! Paste this back to the AI.");
+        }
+
+        async function fetchTestBatch() {
+            if (!accessToken) return alert("Log in first!");
+            
+            // Auto-save UI to config before fetching
+            saveCurrentToConfig();
+            
+            const btn = document.getElementById('btn-fetch');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Fetching...`;
+            btn.disabled = true;
+            
+            const catId = document.getElementById('category-select').value;
+            const config = masterConfig[catId];
+            
+            let rawItems = [];
+            const logList = document.getElementById('fetch-list-log');
+            logList.innerHTML = '';
+
+            try {
+                // Sequential fetch just like the real game
+                for (const query of config.queries) {
+                    const randomOffset = Math.floor(Math.random() * config.maxOffset);
+                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${randomOffset}`;
+                    
+                    const data = await safeSpotifyFetch(apiUrl);
+                    if (data.tracks && data.tracks.items) {
+                        const items = data.tracks.items.map(t => ({ track: t }));
+                        rawItems.push(...items);
+                        logList.innerHTML += `<li class="text-green-400">✓ Fetched ${items.length} from [${query}] at offset ${randomOffset}</li>`;
+                    } else {
+                        logList.innerHTML += `<li class="text-red-400">✗ Failed [${query}] at offset ${randomOffset}</li>`;
+                    }
+                }
+
+                // Map exactly like the game
+                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
+                    id: i.track.id, // Added ID for iframe player
+                    u: i.track.uri,
+                    t: cleanTrackTitle(i.track.name).substring(0, 32),
+                    a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
+                    y: parseInt(i.track.album.release_date.substring(0, 4))
+                }));
+
+                // Basic Deduplication for test
+                const activeUris = new Set();
+                mappedTracks = mappedTracks.filter(t => {
+                    if (activeUris.has(t.u)) return false;
+                    activeUris.add(t.u);
+                    return true;
+                });
+
+                currentTestDeck = shuffleArray(mappedTracks);
+                document.getElementById('deck-count').innerText = currentTestDeck.length;
+                
+                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2"><strong>Total Unique Tracks: ${currentTestDeck.length}</strong></li>`;
+                
+                // Print all tracks to log
+                currentTestDeck.forEach((t, i) => {
+                    logList.innerHTML += `<li>${i+1}. ${t.t} - ${t.a} (${t.y})</li>`;
+                });
+
+                if (currentTestDeck.length > 0) {
+                    document.getElementById('player-placeholder').classList.add('hidden');
+                    document.getElementById('active-player').classList.remove('hidden');
+                    document.getElementById('active-player').classList.add('flex');
+                    nextTestSong();
+                } else {
+                    alert("Zero songs returned! Check your query syntax or try a lower offset.");
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Fetch failed. See console.");
+            }
+            
+            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Fetch Batch`;
+            btn.disabled = false;
+        }
+
+        function cleanTrackTitle(name) {
+            return name ? name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '').replace(/\s*-\s*.*remaster.*/gi, '').trim() : '';
+        }
+
+        function nextTestSong() {
+            if (currentTestDeck.length === 0) {
+                document.getElementById('player-placeholder').classList.remove('hidden');
+                document.getElementById('active-player').classList.add('hidden');
+                document.getElementById('active-player').classList.remove('flex');
+                document.getElementById('deck-count').innerText = 0;
+                return;
+            }
+
+            const t = currentTestDeck.pop();
+            document.getElementById('deck-count').innerText = currentTestDeck.length;
+            
+            document.getElementById('test-track-year').innerText = t.y;
+            document.getElementById('test-track-title').innerText = t.t;
+            document.getElementById('test-track-artist').innerText = t.a;
+            
+            // Load track into embedded player
+            document.getElementById('spotify-iframe').src = `https://open.spotify.com/embed/track/${t.id}?utm_source=generator&theme=0`;
+        }
+    </script>
+</body>
+</html>
+
