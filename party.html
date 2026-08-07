@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.34.0">
+    <meta name="app-version" content="1.33.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -242,7 +242,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.34.0</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.33.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -551,14 +551,8 @@
             setTimeout(() => { toast.style.transform = 'translateY(-20px)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 4000); }, 4000);
         }
 
-        // Strictly strips titles down to prevent duplicates
         function cleanTrackTitle(name) {
-            if (!name) return '';
-            return name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '')
-                       .replace(/\s*-\s*.*remaster.*/gi, '')
-                       .replace(/\s*[\(\[\-]\s*live.*[\)\]]?/gi, '')
-                       .replace(/\s*[\(\[\-]\s*radio edit.*[\)\]]?/gi, '')
-                       .trim();
+            return name ? name.replace(/\s*[\(\[\-]\s*(\d{4}\s*)?remaster(ed)?.*[\)\]]?/gi, '').replace(/\s*-\s*.*remaster.*/gi, '').trim() : '';
         }
 
         function switchContainer(id) {
@@ -720,15 +714,12 @@
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // DEEP FETCH: Pulling 100 songs per era to flatten distribution and allow for huge variety
+                    // Sequential fetch for deeper pool (offset up to 110)
                     for (const era of eras) {
-                        for (let offset of [0, 50]) {
-                            try {
-                                const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=50&offset=${offset}`);
-                                if (data.tracks && data.tracks.items) {
-                                    rawItems.push(...data.tracks.items.map(t => ({ track: t })));
-                                }
-                            } catch (e) { console.error("Chunk failed", e); }
+                        const offset = Math.floor(Math.random() * 110);
+                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
+                        if (data.tracks && data.tracks.items) {
+                            rawItems.push(...data.tracks.items.map(t => ({ track: t })));
                         }
                     }
                 }
@@ -741,34 +732,24 @@
                     c: i.track.album.images?.[0]?.url.split('/').pop() || ''
                 }));
 
-                // EXTREMELY STRICT DEDUPLICATION: Prevents Remasters and different album versions of the same track
-                const activeKeys = new Set();
-                
-                const getDedupKey = (t, a) => {
-                    const cleanT = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const cleanA = a.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    return cleanT + '|' + cleanA;
-                };
-
-                tracks.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
-                if (currentHostTrack) activeKeys.add(getDedupKey(currentHostTrack.t, currentHostTrack.a));
+                // Strict Deduplication
+                const activeUris = new Set();
+                tracks.forEach(t => activeUris.add(t.u));
+                if (currentHostTrack) activeUris.add(currentHostTrack.u);
                 Object.values(players).forEach(p => {
-                    p.timeline.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
+                    p.timeline.forEach(t => activeUris.add(t.u));
                 });
                 
                 mappedTracks = mappedTracks.filter(t => {
-                    const key = getDedupKey(t.t, t.a);
-                    if (activeKeys.has(key)) return false; // Throws out duplicates
-                    activeKeys.add(key);
+                    if (activeUris.has(t.u)) return false;
+                    activeUris.add(t.u);
                     return true;
                 });
 
-                // FULL SHUFFLE: Flattens the chance so Top 10 hits appear at the exact same rate as #99 hits
                 tracks = tracks.concat(shuffleArray(mappedTracks));
 
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
-                showMessage("Failed to load tracks. Please try again.", "error");
             }
 
             isFetchingTracks = false;
@@ -844,7 +825,7 @@
                 turnIndex = savedState.turnIndex || 0;
                 gameState = savedState.gameState || 'READY_TO_PLAY';
                 currentHostTrack = savedState.currentHostTrack;
-                isPlaying = false; // Always force pause on resume
+                isPlaying = false; 
                 currentGuesses = savedState.currentGuesses || {};
                 stealDecisions = savedState.stealDecisions || {};
                 stealEndTime = savedState.stealEndTime || 0;
@@ -881,12 +862,8 @@
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
-                }).then(() => {
-                    initHostNetwork(isResuming); 
-                }).catch(e => {
-                    console.log("Device assignment delayed:", e);
-                    initHostNetwork(isResuming); 
-                });
+                }).catch(e => console.log(e));
+                initHostNetwork(isResuming); 
             });
 
             spotifyPlayer.addListener('player_state_changed', state => {
@@ -1189,29 +1166,14 @@
                     if (isPlaying) {
                         spotifyPlayer.pause();
                     } else {
-                        // RECOVERY FIX: Auto-forces transfer if device was dropped during Host Resume
                         fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                             method: 'PUT',
                             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uris: [currentHostTrack.u] })
                         }).then(async (res) => {
                             if (!res.ok) {
-                                const err = await res.json().catch(()=>({}));
-                                if(res.status === 404 || err.error?.reason === 'NO_ACTIVE_DEVICE' || res.status === 403) {
-                                    console.log("Device inactive. Forcing transfer...");
-                                    await fetch('https://api.spotify.com/v1/me/player', {
-                                        method: 'PUT',
-                                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ device_ids: [webDeviceId], play: true })
-                                    });
-                                    await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
-                                        method: 'PUT',
-                                        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ uris: [currentHostTrack.u] })
-                                    });
-                                } else {
-                                    showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
-                                }
+                                const err = await res.json();
+                                showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
                             }
                         }).catch(e => showMessage("Network error playing track.", "error"));
                         gameState = 'PLAYING';
@@ -1779,5 +1741,4 @@
     </script>
 </body>
 </html>
-
 
