@@ -18,7 +18,7 @@
 </head>
 <body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
 
-    <div class="w-full max-w-6xl flex flex-col gap-6">
+    <div class="w-full max-w-7xl flex flex-col gap-6">
         
         <!-- Header & Auth -->
         <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
@@ -60,25 +60,40 @@
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Search Queries (One per line)</label>
-                    <p class="text-[10px] text-slate-500 mb-2">Each line runs as a separate search. Example: <code class="bg-slate-950 px-1 text-pink-300">year:1980-1995 genre:israeli</code></p>
-                    <textarea id="input-queries" rows="6" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre"></textarea>
+                    <p class="text-[10px] text-slate-500 mb-2">Example: <code class="bg-slate-950 px-1 text-pink-300">year:1980-1995 genre:israeli</code></p>
+                    <textarea id="input-queries" rows="5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500 whitespace-pre"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Market Code</label>
+                        <input type="text" id="input-market" placeholder="e.g. IL, US, GB" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 uppercase">
+                        <p class="text-[9px] text-slate-500 mt-1">Leave blank for Global.</p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Offset Type</label>
+                        <select id="input-offset-type" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="random">Random Up To Max</option>
+                            <option value="exact">Exact Number</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Max Random Offset</span>
+                        <span>Offset Value</span>
                         <span id="offset-val" class="text-white">15</span>
                     </label>
-                    <input type="range" id="input-offset" min="0" max="300" step="5" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500">
-                    <p class="text-[10px] text-slate-500 mt-1">Lower = Top mega hits only. Higher = Deeper variety but weirder songs.</p>
+                    <input type="range" id="input-offset" min="0" max="300" step="1" oninput="document.getElementById('offset-val').innerText=this.value" class="w-full accent-indigo-500">
+                    <p class="text-[10px] text-slate-500 mt-1">Lower = Top hits. Higher = Deeper/Weirder variety.</p>
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block flex justify-between">
-                        <span>Limit per Query (Songs to pull)</span>
+                        <span>Limit per Query</span>
                         <span id="limit-val" class="text-white">8</span>
                     </label>
-                    <input type="range" id="input-limit" min="1" max="20" step="1" oninput="document.getElementById('limit-val').innerText=this.value" class="w-full accent-indigo-500">
+                    <input type="range" id="input-limit" min="1" max="50" step="1" oninput="document.getElementById('limit-val').innerText=this.value" class="w-full accent-indigo-500">
                 </div>
 
                 <div class="flex gap-2 pt-2 border-t border-slate-700">
@@ -105,7 +120,10 @@
                     </div>
                     
                     <div id="active-player" class="hidden w-full h-full flex flex-col items-center justify-between gap-4">
-                        <div class="text-center w-full">
+                        <div class="text-center w-full relative">
+                            <div class="absolute top-0 right-0 bg-slate-800 text-xs px-2 py-1 rounded text-slate-300 font-mono border border-slate-700 shadow" title="Spotify Popularity Score (0-100)">
+                                Pop: <span id="test-track-pop" class="text-yellow-400 font-bold">85</span>
+                            </div>
                             <div id="test-track-year" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">2024</div>
                             <h3 id="test-track-title" class="text-lg font-bold text-white line-clamp-2 leading-tight mt-1">Title</h3>
                             <p id="test-track-artist" class="text-sm text-slate-400 truncate">Artist</p>
@@ -121,20 +139,20 @@
                 </div>
             </div>
 
-            <!-- RIGHT: EXPORT -->
-            <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit lg:max-h-[85vh] overflow-y-auto">
-                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2">3. Export Config</h2>
+            <!-- RIGHT: EXPORT & LOGS -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-xl flex flex-col gap-4 shadow-lg h-fit lg:max-h-[85vh] overflow-hidden">
+                <h2 class="text-lg font-bold text-white border-b border-slate-700 pb-2 shrink-0">3. Export Config</h2>
                 
-                <p class="text-xs text-slate-400">When you are happy with the results of all categories, copy this JSON and send it to the AI.</p>
+                <p class="text-xs text-slate-400 shrink-0">When you are happy with the results of all categories, copy this JSON and send it to the AI.</p>
                 
-                <textarea id="export-json" readonly rows="12" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none"></textarea>
+                <textarea id="export-json" readonly rows="8" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-green-300 text-[10px] font-mono focus:outline-none shrink-0"></textarea>
                 
-                <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg flex items-center justify-center gap-2">
+                <button onclick="copyConfig()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg text-sm transition shadow-lg flex items-center justify-center gap-2 shrink-0">
                     <i class="fa-solid fa-copy"></i> Copy Config for AI
                 </button>
 
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4 border-b border-slate-700 pb-1">Last Fetch Results:</h3>
-                <ul id="fetch-list-log" class="text-[10px] space-y-1 text-slate-300 font-mono">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 border-b border-slate-700 pb-1 shrink-0">Fetch Log (Popularity Score):</h3>
+                <ul id="fetch-list-log" class="text-[10px] space-y-1 text-slate-300 font-mono overflow-y-auto pr-2">
                     <li class="text-slate-500 italic">No songs fetched yet.</li>
                 </ul>
             </div>
@@ -149,38 +167,45 @@
         let accessToken = localStorage.getItem('tuner_spotify_token') || null;
 
         // --- MASTER CONFIG OBJECT ---
-        // This is what the app generates and you will send back to me
         let masterConfig = {
             "hitster_hebrew": {
                 queries: [
-                    "year:1980-1995 genre:israeli",
-                    "year:1996-2005 genre:israeli",
-                    "year:2006-2015 genre:israeli",
-                    "year:2016-2021 genre:israeli",
-                    "year:2022-2024 genre:israeli"
+                    "year:1980-1999 genre:israeli",
+                    "year:2000-2015 genre:israeli",
+                    "year:2016-2024 genre:israeli"
                 ],
-                maxOffset: 15,
-                limit: 8
+                offsetValue: 10,
+                offsetType: "exact",
+                limit: 15,
+                market: "IL"
             },
             "hitster_classic": {
                 queries: ["year:1960-1979", "year:1980-1989", "year:1990-1999", "year:2000-2009", "year:2010-2024"],
-                maxOffset: 110,
-                limit: 8
+                offsetValue: 110,
+                offsetType: "random",
+                limit: 8,
+                market: ""
             },
             "hitster_pop": {
                 queries: ["year:1990-1999 genre:pop", "year:2000-2009 genre:pop", "year:2010-2015 genre:pop", "year:2016-2020 genre:pop", "year:2021-2024 genre:pop"],
-                maxOffset: 100,
-                limit: 8
+                offsetValue: 100,
+                offsetType: "random",
+                limit: 8,
+                market: ""
             },
             "hitster_rock": {
                 queries: ["year:1970-1985 genre:rock", "year:1986-1999 genre:rock", "year:2000-2009 genre:rock", "year:2010-2024 genre:rock"],
-                maxOffset: 100,
-                limit: 10
+                offsetValue: 100,
+                offsetType: "random",
+                limit: 10,
+                market: ""
             },
             "hitster_hiphop": {
                 queries: ["year:1990-1999 genre:hiphop", "year:2000-2009 genre:hiphop", "year:2010-2015 genre:hiphop", "year:2016-2024 genre:hiphop"],
-                maxOffset: 100,
-                limit: 10
+                offsetValue: 100,
+                offsetType: "random",
+                limit: 10,
+                market: ""
             }
         };
 
@@ -190,7 +215,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             
-            // Try loading saved config from local storage so you don't lose work on refresh
             const savedConfig = localStorage.getItem('tuner_master_config');
             if (savedConfig) {
                 try { masterConfig = JSON.parse(savedConfig); } catch(e){}
@@ -280,23 +304,29 @@
             const config = masterConfig[catId];
             
             document.getElementById('input-queries').value = config.queries.join('\n');
-            document.getElementById('input-offset').value = config.maxOffset;
-            document.getElementById('offset-val').innerText = config.maxOffset;
+            document.getElementById('input-offset').value = config.offsetValue;
+            document.getElementById('offset-val').innerText = config.offsetValue;
+            document.getElementById('input-offset-type').value = config.offsetType;
             document.getElementById('input-limit').value = config.limit;
             document.getElementById('limit-val').innerText = config.limit;
+            document.getElementById('input-market').value = config.market || '';
         }
 
         function saveCurrentToConfig() {
             const catId = document.getElementById('category-select').value;
             const queriesRaw = document.getElementById('input-queries').value;
             const queries = queriesRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-            const offset = parseInt(document.getElementById('input-offset').value);
+            const offsetVal = parseInt(document.getElementById('input-offset').value);
+            const offsetType = document.getElementById('input-offset-type').value;
             const limit = parseInt(document.getElementById('input-limit').value);
+            const market = document.getElementById('input-market').value.trim().toUpperCase();
             
             masterConfig[catId] = {
                 queries: queries,
-                maxOffset: offset,
-                limit: limit
+                offsetValue: offsetVal,
+                offsetType: offsetType,
+                limit: limit,
+                market: market
             };
             
             localStorage.setItem('tuner_master_config', JSON.stringify(masterConfig));
@@ -320,13 +350,12 @@
             const ta = document.getElementById('export-json');
             ta.select();
             document.execCommand('copy');
-            alert("Copied! Paste this back to the AI.");
+            alert("Copied! Send this JSON payload back to the AI.");
         }
 
         async function fetchTestBatch() {
             if (!accessToken) return alert("Log in first!");
             
-            // Auto-save UI to config before fetching
             saveCurrentToConfig();
             
             const btn = document.getElementById('btn-fetch');
@@ -341,31 +370,40 @@
             logList.innerHTML = '';
 
             try {
-                // Sequential fetch just like the real game
                 for (const query of config.queries) {
-                    const randomOffset = Math.floor(Math.random() * config.maxOffset);
-                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${randomOffset}`;
+                    // Determine Offset
+                    let calculatedOffset = 0;
+                    if (config.offsetType === 'random') {
+                        calculatedOffset = Math.floor(Math.random() * config.offsetValue);
+                    } else {
+                        calculatedOffset = config.offsetValue;
+                    }
+
+                    // Build URL with optional market code
+                    let marketParam = config.market ? `&market=${config.market}` : '';
+                    const apiUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${config.limit}&offset=${calculatedOffset}${marketParam}`;
                     
                     const data = await safeSpotifyFetch(apiUrl);
                     if (data.tracks && data.tracks.items) {
                         const items = data.tracks.items.map(t => ({ track: t }));
                         rawItems.push(...items);
-                        logList.innerHTML += `<li class="text-green-400">✓ Fetched ${items.length} from [${query}] at offset ${randomOffset}</li>`;
+                        logList.innerHTML += `<li class="text-green-400">✓ [${query}] Offset: ${calculatedOffset} | Got ${items.length}</li>`;
                     } else {
-                        logList.innerHTML += `<li class="text-red-400">✗ Failed [${query}] at offset ${randomOffset}</li>`;
+                        logList.innerHTML += `<li class="text-red-400">✗ Failed [${query}] Offset: ${calculatedOffset}</li>`;
                     }
                 }
 
-                // Map exactly like the game
+                // Map & Extract Popularity
                 let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
-                    id: i.track.id, // Added ID for iframe player
+                    id: i.track.id,
                     u: i.track.uri,
                     t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
-                    y: parseInt(i.track.album.release_date.substring(0, 4))
+                    y: parseInt(i.track.album.release_date.substring(0, 4)),
+                    pop: i.track.popularity || 0
                 }));
 
-                // Basic Deduplication for test
+                // Deduplicate
                 const activeUris = new Set();
                 mappedTracks = mappedTracks.filter(t => {
                     if (activeUris.has(t.u)) return false;
@@ -376,11 +414,12 @@
                 currentTestDeck = shuffleArray(mappedTracks);
                 document.getElementById('deck-count').innerText = currentTestDeck.length;
                 
-                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2"><strong>Total Unique Tracks: ${currentTestDeck.length}</strong></li>`;
+                logList.innerHTML += `<li class="text-indigo-400 pt-2 border-t border-slate-700 mt-2 font-bold mb-1">Total Unique Tracks: ${currentTestDeck.length}</li>`;
                 
-                // Print all tracks to log
+                // Print all tracks to log with popularity
                 currentTestDeck.forEach((t, i) => {
-                    logList.innerHTML += `<li>${i+1}. ${t.t} - ${t.a} (${t.y})</li>`;
+                    let popColor = t.pop > 50 ? 'text-green-300' : (t.pop > 20 ? 'text-yellow-300' : 'text-red-400');
+                    logList.innerHTML += `<li class="truncate flex justify-between"><span>${i+1}. ${t.t} - ${t.a} (${t.y})</span> <span class="${popColor}">[Pop: ${t.pop}]</span></li>`;
                 });
 
                 if (currentTestDeck.length > 0) {
@@ -389,7 +428,7 @@
                     document.getElementById('active-player').classList.add('flex');
                     nextTestSong();
                 } else {
-                    alert("Zero songs returned! Check your query syntax or try a lower offset.");
+                    alert("Zero songs returned! Check your query syntax or lower your offset.");
                 }
 
             } catch (e) {
@@ -421,10 +460,16 @@
             document.getElementById('test-track-title').innerText = t.t;
             document.getElementById('test-track-artist').innerText = t.a;
             
+            // Show Popularity with color coding
+            const popEl = document.getElementById('test-track-pop');
+            popEl.innerText = t.pop;
+            popEl.className = t.pop > 50 ? 'text-green-400 font-bold' : (t.pop > 20 ? 'text-yellow-400 font-bold' : 'text-red-400 font-bold');
+            
             // Load track into embedded player
             document.getElementById('spotify-iframe').src = `https://open.spotify.com/embed/track/${t.id}?utm_source=generator&theme=0`;
         }
     </script>
 </body>
 </html>
+
 
