@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.3">
+    <meta name="app-version" content="1.36.4">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.3</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.4</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -913,6 +913,22 @@
                 saveHostState(); // Ensure we save before Spotify fully logs us out
                 showMessage("Spotify Auth Error. Log back in.", "error");
                 logoutSpotify();
+            });
+
+            spotifyPlayer.addListener('account_error', ({ message } = {}) => {
+                showMessage(message || "Spotify Premium is required for playback.", "error");
+            });
+
+            spotifyPlayer.addListener('initialization_error', ({ message } = {}) => {
+                showMessage(message || "Spotify playback could not initialize.", "error");
+            });
+
+            spotifyPlayer.addListener('playback_error', ({ message } = {}) => {
+                showMessage(message || "Spotify could not play this song.", "error");
+            });
+
+            spotifyPlayer.addListener('autoplay_failed', () => {
+                showMessage("Tap Play Song to start Spotify playback.", "info");
             });
 
             spotifyPlayer.connect();

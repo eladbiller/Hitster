@@ -155,3 +155,42 @@ test('resumed host sends Spotify play requests', async ({ page }) => {
   expect(playRequests[0]).toContain('device_id=resume-device');
   await expect(page.locator('#host-status-badge')).toHaveText('MUSIC PLAYING 🎵');
 });
+
+test('returns to the lobby when Spotify session expires', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('party_spotify_token', 'expired-token');
+  });
+  await page.route('https://api.spotify.com/v1/me', async (route) => {
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+  });
+
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Create Room/ }).click();
+
+  await expect(page.locator('#view-roles')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('party_spotify_token'))).toBeNull();
+});
+
+test('shows Spotify SDK playback errors to the host', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate(() => {
+    const listeners = {};
+    window.Spotify = {
+      Player: class {
+        addListener(name, handler) { listeners[name] = handler; }
+        connect() { return true; }
+      },
+    };
+    initSpotifyWebPlayer();
+    listeners.account_error({ message: 'Premium account required' });
+    listeners.initialization_error({ message: 'Browser playback unavailable' });
+    listeners.playback_error({ message: 'Track unavailable' });
+    listeners.autoplay_failed();
+  });
+
+  await expect(page.locator('#toast-container')).toContainText('Premium account required');
+  await expect(page.locator('#toast-container')).toContainText('Browser playback unavailable');
+  await expect(page.locator('#toast-container')).toContainText('Track unavailable');
+  await expect(page.locator('#toast-container')).toContainText('Tap Play Song');
+});
