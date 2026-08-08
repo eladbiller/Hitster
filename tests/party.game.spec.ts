@@ -194,3 +194,75 @@ test('shows Spotify SDK playback errors to the host', async ({ page }) => {
   await expect(page.locator('#toast-container')).toContainText('Track unavailable');
   await expect(page.locator('#toast-container')).toContainText('Tap Play Song');
 });
+
+test('releases the player form when a duplicate name is rejected', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#view-roles')).toBeVisible();
+
+  await page.evaluate(() => {
+    class FakeConnection {
+      open = false;
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+      close() {}
+    }
+
+    window.Peer = class {
+      handlers = {};
+      constructor() { window.__fakePeer = this; }
+      on(name, handler) { this.handlers[name] = handler; }
+      connect() {
+        const connection = new FakeConnection();
+        window.__fakeConnection = connection;
+        return connection;
+      }
+      destroy() {}
+    };
+
+    showPlayerJoin();
+    document.getElementById('join-pin').value = '1234';
+    document.getElementById('join-name').value = 'Alice';
+    joinRoom();
+  });
+
+  await expect.poll(() => page.evaluate(() => Boolean(window.__fakePeer))).toBe(true);
+  await page.evaluate(() => window.__fakePeer.handlers.open('fake-peer-id'));
+  await expect.poll(() => page.evaluate(() => Boolean(window.__fakeConnection?.handlers.open && window.__fakeConnection?.handlers.data))).toBe(true);
+  await page.evaluate(() => {
+    const connection = window.__fakeConnection;
+    connection.open = true;
+    connection.handlers.open();
+    connection.handlers.data({ type: 'JOIN_REJECTED', message: 'That name is already in use.' });
+  });
+
+  await expect(page.locator('#btn-connect')).toBeVisible();
+  await expect(page.locator('#player-status')).toBeHidden();
+  await expect(page.locator('#toast-container')).toContainText('That name is already in use.');
+});
+
+test('shows the paused state when a player loses the host connection', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate(() => {
+    myPlayerName = 'Alice';
+    handlePlayerSync({
+      state: 'PAUSED_DISCONNECT',
+      pausedPlayerName: 'Alice',
+      myTokens: 2,
+      myCardsCount: 1,
+    });
+  });
+
+  await expect(page.locator('#p-ui-title')).toContainText('Game Paused');
+  await expect(page.locator('#p-ui-desc')).toContainText('Waiting for Alice');
+  await expect(page.locator('#p-music-controls')).toBeHidden();
+});
+
+test('prevents starting a game when the host room has no players', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate(() => hostStartGameFromLobby());
+
+  await expect(page.locator('#toast-container')).toContainText('No players in room!');
+});
