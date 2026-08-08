@@ -165,7 +165,9 @@ test('returns to the lobby when Spotify session expires', async ({ page }) => {
   });
 
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  const profileRequest = page.waitForRequest('https://api.spotify.com/v1/me');
   await page.getByRole('button', { name: /Create Room/ }).click();
+  await profileRequest;
 
   await expect(page.locator('#view-roles')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('party_spotify_token'))).toBeNull();
@@ -265,4 +267,95 @@ test('prevents starting a game when the host room has no players', async ({ page
   await page.evaluate(() => hostStartGameFromLobby());
 
   await expect(page.locator('#toast-container')).toContainText('No players in room!');
+});
+
+test('selects a random starting player from all online players', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const selectedIndex = await page.evaluate(() => {
+    players = {
+      host: { id: 'host', name: 'Host', online: true, tokens: 2, score: 0, timeline: [] },
+      alice: { id: 'alice', name: 'Alice', online: true, tokens: 2, score: 0, timeline: [] },
+      bob: { id: 'bob', name: 'Bob', online: true, tokens: 2, score: 0, timeline: [] },
+    };
+    turnOrder = ['host', 'alice', 'bob'];
+    tracks = [
+      { u: 'spotify:track:1', t: 'One', a: 'Artist', y: 2000, c: '' },
+      { u: 'spotify:track:2', t: 'Two', a: 'Artist', y: 2001, c: '' },
+      { u: 'spotify:track:3', t: 'Three', a: 'Artist', y: 2002, c: '' },
+    ];
+    Math.random = () => 0.99;
+    hostStartGameFromLobby();
+    return turnIndex;
+  });
+
+  expect(selectedIndex).toBe(2);
+});
+
+test('rotates through multiple online players and skips offline players', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const turnNames = await page.evaluate(() => {
+    players = {
+      host: { id: 'host', name: 'Host', online: true, tokens: 2, score: 0, timeline: [] },
+      alice: { id: 'alice', name: 'Alice', online: true, tokens: 2, score: 0, timeline: [] },
+      bob: { id: 'bob', name: 'Bob', online: false, tokens: 2, score: 0, timeline: [] },
+    };
+    turnOrder = ['host', 'alice', 'bob'];
+    turnIndex = 0;
+    tracks = [
+      { u: 'spotify:track:1', t: 'One', a: 'Artist', y: 2000, c: '' },
+      { u: 'spotify:track:2', t: 'Two', a: 'Artist', y: 2001, c: '' },
+      { u: 'spotify:track:3', t: 'Three', a: 'Artist', y: 2002, c: '' },
+    ];
+    loadTurn();
+    const names = [players[turnOrder[turnIndex]].name];
+    nextTurn();
+    names.push(players[turnOrder[turnIndex]].name);
+    nextTurn();
+    names.push(players[turnOrder[turnIndex]].name);
+    return names;
+  });
+
+  expect(turnNames).toEqual(['Host', 'Alice', 'Host']);
+});
+
+test('explains fullscreen limitations instead of silently failing', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    for (const method of ['requestFullscreen', 'mozRequestFullScreen', 'webkitRequestFullScreen', 'msRequestFullscreen']) {
+      Object.defineProperty(document.documentElement, method, { value: undefined, configurable: true });
+    }
+    toggleFullScreen();
+  });
+
+  await expect(page.locator('#toast-container')).toContainText('does not support fullscreen');
+});
+
+test('places active player counters before the player name', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate(() => {
+    myPlayerName = 'Alice';
+    handlePlayerSync({
+      state: 'READY_TO_PLAY',
+      isActivePlayer: false,
+      activePlayerName: 'Bob',
+      activePlayerCardsCount: 3,
+      activePlayerTokens: 1,
+      timeline: [],
+      ownTimeline: [],
+      myTokens: 2,
+      myCardsCount: 1,
+    });
+  });
+
+  const title = page.locator('#p-ui-title');
+  await expect(title).toContainText('Bob');
+  await expect(title.locator('div').first()).toContainText('3');
+  const order = await title.evaluate((element) => {
+    const children = Array.from(element.children);
+    return children.findIndex(child => child.textContent?.includes('Bob')) > children.findIndex(child => child.textContent?.includes('3'));
+  });
+  expect(order).toBe(true);
 });

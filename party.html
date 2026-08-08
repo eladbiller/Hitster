@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.6">
+    <meta name="app-version" content="1.36.7">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.6</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.7</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -396,7 +396,12 @@
             const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
 
             if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                if (requestFullScreen) requestFullScreen.call(docEl);
+                if (requestFullScreen) {
+                    const result = requestFullScreen.call(docEl);
+                    if (result?.catch) result.catch(() => showMessage("Fullscreen was blocked. Rotate the phone or use Add to Home Screen.", "info"));
+                } else {
+                    showMessage("Safari does not support fullscreen here. Rotate the phone or use Add to Home Screen.", "info");
+                }
                 if (icon) { icon.classList.remove('fa-expand'); icon.classList.add('fa-compress'); }
             } else {
                 if (cancelFullScreen) cancelFullScreen.call(doc);
@@ -1700,7 +1705,7 @@
         function setPlayerHeader(bgClass, titleHTML, descHTML, titleColorClass, activeStatsHTML = '') {
             const h = document.getElementById('p-ui-header');
             h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
-            document.getElementById('p-ui-title').innerHTML = `<span>${titleHTML}</span>${activeStatsHTML}`;
+            document.getElementById('p-ui-title').innerHTML = `${activeStatsHTML}<span>${titleHTML}</span>`;
             document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColorClass} truncate flex items-center`;
             document.getElementById('p-ui-desc').innerHTML = descHTML;
         }
