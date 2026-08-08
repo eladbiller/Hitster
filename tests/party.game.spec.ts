@@ -359,3 +359,18 @@ test('places active player counters before the player name', async ({ page }) =>
   });
   expect(order).toBe(true);
 });
+
+test('persists a stable reconnect token for fast mobile reloads', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const tokens = await page.evaluate(() => {
+    localStorage.removeItem('party_player_reconnect_token');
+    const first = getPlayerReconnectToken();
+    const second = getPlayerReconnectToken();
+    return { first, second, saved: localStorage.getItem('party_player_reconnect_token') };
+  });
+
+  expect(tokens.first).toBeTruthy();
+  expect(tokens.second).toBe(tokens.first);
+  expect(tokens.saved).toBe(tokens.first);
+});

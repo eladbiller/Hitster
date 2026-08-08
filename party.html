@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.7">
+    <meta name="app-version" content="1.36.8">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.7</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.8</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -991,17 +991,24 @@
                 conn.on('open', () => {
                     const pName = conn.metadata.playerName || "Unknown";
                     const stableId = pName.trim().toLowerCase(); 
+                    const reconnectToken = conn.metadata.reconnectToken || '';
+                    const existingPlayer = players[stableId];
 
-                    if (players[stableId]?.online && players[stableId].conn !== conn) {
+                    if (existingPlayer?.online && existingPlayer.conn !== conn &&
+                        existingPlayer.reconnectToken && existingPlayer.reconnectToken !== reconnectToken) {
                         conn.send({ type: 'JOIN_REJECTED', message: `The name "${pName}" is already in use. Choose another name.` });
                         setTimeout(() => conn.close(), 100);
                         return;
                     }
                     
-                    if (players[stableId]) {
-                        players[stableId].conn = conn;
-                        players[stableId].online = true;
-                        players[stableId].lastPongAt = Date.now();
+                    if (existingPlayer) {
+                        if (existingPlayer.conn && existingPlayer.conn !== conn) {
+                            try { existingPlayer.conn.close(); } catch (e) {}
+                        }
+                        existingPlayer.reconnectToken = existingPlayer.reconnectToken || reconnectToken;
+                        existingPlayer.conn = conn;
+                        existingPlayer.online = true;
+                        existingPlayer.lastPongAt = Date.now();
                         showMessage(`${pName} reconnected!`, 'success');
                         
                         if (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId === stableId) {
@@ -1012,6 +1019,7 @@
                     } else {
                         players[stableId] = {
                             id: stableId, name: pName, conn: conn, online: true,
+                            reconnectToken,
                             tokens: 2, score: 0,
                             lastPongAt: Date.now(),
                             timeline: gameState !== 'IDLE' ? [popTrack()] : []
@@ -1481,6 +1489,15 @@
         
         function showPlayerJoin() { switchSetupView('view-player-join'); }
 
+        function getPlayerReconnectToken() {
+            let token = localStorage.getItem('party_player_reconnect_token');
+            if (!token) {
+                token = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+                localStorage.setItem('party_player_reconnect_token', token);
+            }
+            return token;
+        }
+
         function quickRejoin() {
             document.getElementById('join-pin').value = localStorage.getItem('party_last_pin');
             document.getElementById('join-name').value = localStorage.getItem('party_player_name');
@@ -1491,6 +1508,7 @@
         function joinRoom() {
             const pinInput = document.getElementById('join-pin').value.trim();
             myPlayerName = document.getElementById('join-name').value.trim();
+            const reconnectToken = getPlayerReconnectToken();
 
             if (pinInput.length !== 4) return showMessage("Enter a 4-digit PIN.");
             if (!myPlayerName) return showMessage("Enter your name.");
@@ -1507,7 +1525,7 @@
                 myPeer = new Peer(peerConfig);
                 myPeer.on('open', (id) => {
                     myId = id;
-                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName }, reliable: true });
+                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName, reconnectToken }, reliable: true });
                     
                     let connTimeout = setTimeout(() => {
                         if (!hostConnection || !hostConnection.open) {
