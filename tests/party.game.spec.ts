@@ -116,3 +116,42 @@ test('resumes a paused host game in a playable state', async ({ page }) => {
   expect(gameState).toBe('READY_TO_PLAY');
   await expect(page.locator('#host-game-ui')).toBeVisible();
 });
+
+test('resumed host sends Spotify play requests', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('party_spotify_token', 'resume-test-token');
+    localStorage.setItem('party_host_state', JSON.stringify({
+      pin: 1234,
+      players: {
+        'host-local-player': {
+          id: 'host-local-player', name: 'Host DJ', online: false, conn: null,
+          tokens: 2, score: 0, timeline: [],
+        },
+      },
+      turnOrder: ['host-local-player'],
+      turnIndex: 0,
+      gameState: 'READY_TO_PLAY',
+      currentHostTrack: { u: 'spotify:track:resume', t: 'Resume Song', a: 'Artist', y: 2020, c: '' },
+      tracks: [],
+      currentMusicMode: 'hitster_classic',
+    }));
+  });
+
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  const playRequests: string[] = [];
+  await page.route('https://api.spotify.com/v1/me/player/play*', async (route) => {
+    playRequests.push(route.request().url());
+    await route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.evaluate(() => {
+    initSpotifyWebPlayer = () => {};
+    eval('webDeviceId = "resume-device"');
+    resumeHostGame();
+    sendPlayerAction('TOGGLE_PLAY');
+  });
+
+  await expect.poll(() => playRequests.length).toBe(1);
+  expect(playRequests[0]).toContain('device_id=resume-device');
+  await expect(page.locator('#host-status-badge')).toHaveText('MUSIC PLAYING 🎵');
+});

@@ -878,6 +878,8 @@
                 switchContainer('host-game-ui');
                 isHostMode = true;
                 isHostInPlayerView = false;
+                myId = HOST_PLAYER_ID;
+                myPlayerName = players[HOST_PLAYER_ID]?.name || 'Host DJ';
                 document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
                 requestWakeLock(); 
 
