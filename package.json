@@ -1,0 +1,13 @@
+{
+  "name": "hitster-playwright-tests",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report playwright-report --host 0.0.0.0",
+    "test:spotify": "playwright test tests/party.live.spec.ts",
+    "login:playwright:mobile": "bash scripts/start-playwright-mobile-login.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

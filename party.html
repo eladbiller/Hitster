@@ -16,6 +16,7 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
     <!-- Spotify Web Playback SDK -->
+    <script>window.onSpotifyWebPlaybackSDKReady = function () {};</script>
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
     <style>
@@ -963,6 +964,12 @@
                 conn.on('open', () => {
                     const pName = conn.metadata.playerName || "Unknown";
                     const stableId = pName.trim().toLowerCase(); 
+
+                    if (players[stableId]?.online && players[stableId].conn !== conn) {
+                        conn.send({ type: 'JOIN_REJECTED', message: `The name "${pName}" is already in use. Choose another name.` });
+                        setTimeout(() => conn.close(), 100);
+                        return;
+                    }
                     
                     if (players[stableId]) {
                         players[stableId].conn = conn;
@@ -996,7 +1003,7 @@
                     const pName = conn.metadata.playerName || "Unknown";
                     const stableId = pName.trim().toLowerCase();
                     
-                    if (players[stableId]) {
+                    if (players[stableId] && players[stableId].conn === conn) {
                         players[stableId].online = false;
                         players[stableId].conn = null;
                         showMessage(`${pName} disconnected.`, 'error');
@@ -1511,6 +1518,14 @@
                     hostConnection.on('data', (data) => { 
                         lastHostContact = Date.now();
                         if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                        if (data.type === 'JOIN_REJECTED') {
+                            showMessage(data.message || "That player name is already in use.", 'error');
+                            document.getElementById('btn-connect').classList.remove('hidden');
+                            document.getElementById('player-status').classList.add('hidden');
+                            hostConnection.close();
+                            if (myPeer) { myPeer.destroy(); myPeer = null; }
+                            return;
+                        }
                         if (data.type === 'SYNC') handlePlayerSync(data); 
                         if (data.type === 'HOST_ENDED_GAME') {
                             showMessage("The Host ended the game.", "info");
