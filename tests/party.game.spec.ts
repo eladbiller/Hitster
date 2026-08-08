@@ -84,3 +84,35 @@ test('kicks a disconnected player and returns the room to active play', async ({
   const remainingPlayers = await page.evaluate(() => eval(`Object.keys(players)`));
   expect(remainingPlayers).not.toContain('alice');
 });
+
+test('resumes a paused host game in a playable state', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('party_spotify_token', 'resume-test-token');
+    localStorage.setItem('party_host_state', JSON.stringify({
+      pin: 1234,
+      players: {
+        'host-local-player': {
+          id: 'host-local-player', name: 'Host DJ', online: false, conn: null,
+          tokens: 2, score: 0, timeline: [],
+        },
+      },
+      turnOrder: ['host-local-player'],
+      turnIndex: 0,
+      gameState: 'PAUSED_DISCONNECT',
+      previousStateBeforePause: 'READY_TO_PLAY',
+      currentHostTrack: { u: 'spotify:track:resume', t: 'Resume Song', a: 'Artist', y: 2020, c: '' },
+      tracks: [],
+      currentMusicMode: 'hitster_classic',
+    }));
+  });
+
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    initSpotifyWebPlayer = () => {};
+    resumeHostGame();
+  });
+
+  const gameState = await page.evaluate(() => eval('gameState'));
+  expect(gameState).toBe('READY_TO_PLAY');
+  await expect(page.locator('#host-game-ui')).toBeVisible();
+});

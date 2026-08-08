@@ -827,6 +827,7 @@
             const stateToSave = {
                 pin: currentRoomPin, players: {},
                 turnOrder, turnIndex, gameState,
+                previousStateBeforePause,
                 currentHostTrack, isPlaying, 
                 currentGuesses, stealDecisions, stealEndTime,
                 currentWinnerId, bonusTokenClaimed, tracks,
@@ -855,6 +856,9 @@
                 turnOrder = savedState.turnOrder || [];
                 turnIndex = savedState.turnIndex || 0;
                 gameState = savedState.gameState || 'READY_TO_PLAY';
+                if (gameState === 'PAUSED_DISCONNECT') {
+                    gameState = savedState.previousStateBeforePause || 'READY_TO_PLAY';
+                }
                 currentHostTrack = savedState.currentHostTrack;
                 isPlaying = false; 
                 currentGuesses = savedState.currentGuesses || {};
