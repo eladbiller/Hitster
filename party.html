@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.9">
+    <meta name="app-version" content="1.36.10">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.9</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.10</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -711,6 +711,9 @@
         let viewingOwnTimeline = false; 
         let lastHostContact = Date.now();
         let clientWatchdog = null;
+        let reconnectTimer = null;
+        let reconnectAttempts = 0;
+        let reconnectEnabled = true;
 
         // ==========================================
         //               HOST LOGIC
@@ -1511,13 +1514,41 @@
             joinRoom();
         }
 
-        function joinRoom() {
+        function schedulePlayerReconnect() {
+            if (!reconnectEnabled || reconnectTimer || !localStorage.getItem('party_last_pin') || reconnectAttempts >= 12) return;
+
+            const delay = Math.min(15000, 2000 * 2 ** reconnectAttempts);
+            reconnectAttempts++;
+            document.getElementById('player-status').innerText = `Reconnecting... attempt ${reconnectAttempts}/12`;
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                document.getElementById('join-pin').value = localStorage.getItem('party_last_pin') || '';
+                document.getElementById('join-name').value = localStorage.getItem('party_player_name') || '';
+                joinRoom(true);
+            }, delay);
+        }
+
+        function stopPlayerReconnect() {
+            reconnectEnabled = false;
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+
+        function joinRoom(isAutomaticReconnect = false) {
             const pinInput = document.getElementById('join-pin').value.trim();
             myPlayerName = document.getElementById('join-name').value.trim();
             const reconnectToken = getPlayerReconnectToken();
 
             if (pinInput.length !== 4) return showMessage("Enter a 4-digit PIN.");
             if (!myPlayerName) return showMessage("Enter your name.");
+
+            if (!isAutomaticReconnect) {
+                reconnectAttempts = 0;
+                reconnectEnabled = true;
+            }
+
+            if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; }
+            hostConnection = null;
 
             localStorage.setItem('party_player_name', myPlayerName);
             localStorage.setItem('party_last_pin', pinInput); 
@@ -1544,6 +1575,8 @@
 
                     hostConnection.on('open', () => { 
                         clearTimeout(connTimeout);
+                        reconnectAttempts = 0;
+                        reconnectEnabled = true;
                         switchContainer('player-game-ui'); 
                         lastHostContact = Date.now();
                         requestWakeLock(); 
@@ -1557,6 +1590,7 @@
                             if (Date.now() - lastHostContact > 8000) { 
                                 document.getElementById('client-disconnect-overlay').classList.remove('hidden');
                                 document.getElementById('client-disconnect-overlay').classList.add('flex');
+                                schedulePlayerReconnect();
                             } else {
                                 document.getElementById('client-disconnect-overlay').classList.add('hidden');
                                 document.getElementById('client-disconnect-overlay').classList.remove('flex');
@@ -1570,6 +1604,7 @@
                         lastHostContact = Date.now();
                         if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
                         if (data.type === 'JOIN_REJECTED') {
+                            stopPlayerReconnect();
                             showMessage(data.message || "That player name is already in use.", 'error');
                             switchContainer('setup-container');
                             switchSetupView('view-player-join');
@@ -1589,12 +1624,14 @@
                     hostConnection.on('close', () => { 
                         document.getElementById('client-disconnect-overlay').classList.remove('hidden');
                         document.getElementById('client-disconnect-overlay').classList.add('flex');
+                        schedulePlayerReconnect();
                     });
                 });
                 myPeer.on('error', (err) => {
                     document.getElementById('btn-connect').classList.remove('hidden');
                     document.getElementById('player-status').classList.add('hidden');
                     showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
+                    if (err.type !== 'peer-unavailable') schedulePlayerReconnect();
                 });
             }, delay);
         }
