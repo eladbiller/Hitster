@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.12</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.13</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1855,4 +1855,35 @@
             nextText.innerText = "Next Round";
             nextBtn.onclick = () => sendPlayerAction('NEXT_TURN');
 
-            if (d
+            if (data.isActivePlayer) {
+                nextBtn.classList.remove('hidden');
+                waitingText.classList.add('hidden');
+            } else {
+                nextBtn.classList.add('hidden');
+                waitingText.innerText = `Waiting for ${data.activePlayerName} to start next round...`;
+                waitingText.classList.remove('hidden');
+            }
+
+            if (data.winnerName) {
+                icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400"></i>`;
+                title.innerText = `${data.winnerName} got it!`;
+                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-yellow-400 text-xl">${data.correctYear}</span>.`;
+            } else {
+                icon.innerHTML = `<i class="fa-solid fa-skull-crossbones text-red-500"></i>`;
+                title.innerText = `Nobody got it!`;
+                desc.innerHTML = `<div class="font-bold text-white text-sm mb-0.5">${data.trackTitle || ''}</div><div class="text-[11px] text-slate-400 mb-1">${data.artistName || ''}</div>The release year was <span class="font-black text-red-400 text-xl">${data.correctYear}</span>.`;
+            }
+
+            if (data.isActivePlayer && data.isWinner && !data.bonusTokenClaimed) {
+                bonusContainer.innerHTML = `<button onclick="sendPlayerAction('CLAIM_BONUS_TOKEN')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-2.5 px-6 rounded-full text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] transition flex items-center gap-2"><i class="fa-solid fa-music"></i> I guessed the Artist & Title! (+1 Token)</button>`;
+                bonusContainer.classList.remove('hidden');
+            } else {
+                bonusContainer.classList.add('hidden');
+                bonusContainer.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>
+
+
