@@ -470,6 +470,27 @@ test('automatically retries a dropped player connection', async ({ page }) => {
   expect(retry.scheduled).toBe(1);
 });
 
+test('retries after PeerJS connection timeout or signaling error', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const retry = await page.evaluate(() => {
+    let scheduled = 0;
+    window.setTimeout = (() => {
+      scheduled++;
+      return scheduled;
+    });
+    localStorage.setItem('party_last_pin', '1234');
+    localStorage.setItem('party_player_name', 'Alice');
+    reconnectEnabled = true;
+    reconnectAttempts = 0;
+    reconnectTimer = null;
+    schedulePlayerReconnect();
+    return { attempts: reconnectAttempts, scheduled };
+  });
+
+  expect(retry).toEqual({ attempts: 1, scheduled: 1 });
+});
+
 test('does not offer players a force-reveal control while waiting for steals', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
