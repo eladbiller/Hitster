@@ -469,3 +469,25 @@ test('automatically retries a dropped player connection', async ({ page }) => {
   expect(retry.attempts).toBe(1);
   expect(retry.scheduled).toBe(1);
 });
+
+test('does not offer players a force-reveal control while waiting for steals', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate(() => {
+    myPlayerName = 'Alice';
+    handlePlayerSync({
+      state: 'STEALING',
+      isActivePlayer: true,
+      allStealsDone: false,
+      waitingOn: ['Bob', 'Carol'],
+      stealTimeLeft: 10,
+      myTokens: 2,
+      myCardsCount: 1,
+      timeline: [],
+      ownTimeline: [],
+      guesses: {},
+    });
+  });
+
+  await expect(page.getByText(/Force Reveal|Skip Bob|Skip Carol/)).toHaveCount(0);
+});

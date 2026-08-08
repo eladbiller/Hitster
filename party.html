@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.10">
+    <meta name="app-version" content="1.36.11">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.10</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.11</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1297,9 +1297,6 @@
                 if (checkAllStealsSubmitted()) evaluateAndScoreRound();
                 else broadcastSync();
             }
-            else if (data.action === 'FORCE_EVALUATE_ROUND' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
-                if (gameState === 'STEALING') evaluateAndScoreRound();
-            }
         }
 
         function evaluateAndScoreRound() {
@@ -1813,14 +1810,6 @@
                 }
             }
 
-            if (!viewingOwnTimeline && data.state === 'STEALING' && data.isActivePlayer && !data.allStealsDone) {
-                const revealTriggerBtn = document.createElement('button');
-                const namesList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '...';
-                revealTriggerBtn.className = `fixed bottom-3 left-1/2 -translate-x-1/2 font-bold py-2 px-4 rounded-full shadow-2xl text-[10px] flex items-center gap-2 border z-40 transition-all bg-red-600/90 hover:bg-red-600 text-white border-red-400 cursor-pointer`;
-                revealTriggerBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Force Reveal (Skip ${namesList})`;
-                revealTriggerBtn.onclick = () => { if(confirm("Force round end and skip remaining stealers?")) sendPlayerAction('FORCE_EVALUATE_ROUND', 0); };
-                container.appendChild(revealTriggerBtn);
-            }
         }
 
         function sendPlayerAction(actionType, index) {
