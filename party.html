@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.8">
+    <meta name="app-version" content="1.36.9">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.8</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.9</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -422,6 +422,8 @@
                 }
             } catch (err) {}
         }
+        document.addEventListener('click', () => { requestWakeLock(); }, { passive: true });
+        document.addEventListener('touchstart', () => { requestWakeLock(); }, { passive: true });
         document.addEventListener('visibilitychange', async () => {
             if (wakeLock !== null && document.visibilityState === 'visible') { await requestWakeLock(); }
         });
@@ -565,6 +567,10 @@
                        .replace(/\s*[\(\[\-]\s*live.*[\)\]]?/gi, '')
                        .replace(/\s*[\(\[\-]\s*radio edit.*[\)\]]?/gi, '')
                        .trim();
+        }
+
+        function isPreferredTrack(name) {
+            return !/(^|[\s\[(\-])(live|acoustic|remix|karaoke|instrumental|radio edit|single version|single edit|sped up|slowed)(?:[\s\])\-]|$)/i.test(name || '');
         }
 
         function switchContainer(id) {
@@ -754,7 +760,7 @@
                     }
                 }
 
-                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local).map(i => ({
+                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local && isPreferredTrack(i.track.name)).map(i => ({
                     u: i.track.uri,
                     t: cleanTrackTitle(i.track.name).substring(0, 32),
                     a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
@@ -1723,8 +1729,8 @@
         function setPlayerHeader(bgClass, titleHTML, descHTML, titleColorClass, activeStatsHTML = '') {
             const h = document.getElementById('p-ui-header');
             h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
-            document.getElementById('p-ui-title').innerHTML = `${activeStatsHTML}<span>${titleHTML}</span>`;
-            document.getElementById('p-ui-title').className = `text-sm md:text-base font-bold ${titleColorClass} truncate flex items-center`;
+            document.getElementById('p-ui-title').innerHTML = `<span class="truncate">${titleHTML}</span>${activeStatsHTML}`;
+            document.getElementById('p-ui-title').className = `w-full text-sm md:text-base font-bold ${titleColorClass} truncate flex items-center justify-between gap-2`;
             document.getElementById('p-ui-desc').innerHTML = descHTML;
         }
 

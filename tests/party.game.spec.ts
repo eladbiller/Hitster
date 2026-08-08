@@ -332,7 +332,7 @@ test('explains fullscreen limitations instead of silently failing', async ({ pag
   await expect(page.locator('#toast-container')).toContainText('does not support fullscreen');
 });
 
-test('places active player counters before the player name', async ({ page }) => {
+test('places active player counters after the player name', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
   await page.evaluate(() => {
@@ -355,7 +355,7 @@ test('places active player counters before the player name', async ({ page }) =>
   await expect(title.locator('div').first()).toContainText('3');
   const order = await title.evaluate((element) => {
     const children = Array.from(element.children);
-    return children.findIndex(child => child.textContent?.includes('Bob')) > children.findIndex(child => child.textContent?.includes('3'));
+    return children.findIndex(child => child.textContent?.includes('Bob')) < children.findIndex(child => child.textContent?.includes('3'));
   });
   expect(order).toBe(true);
 });
@@ -373,4 +373,77 @@ test('persists a stable reconnect token for fast mobile reloads', async ({ page 
   expect(tokens.first).toBeTruthy();
   expect(tokens.second).toBe(tokens.first);
   expect(tokens.saved).toBe(tokens.first);
+});
+
+test('keeps a seven-player room stable through a stale-socket reconnect', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const room = await page.evaluate(() => {
+    class FakeConnection {
+      metadata;
+      open = false;
+      handlers = {};
+      constructor(metadata) { this.metadata = metadata; }
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+      close() { this.open = false; this.handlers.close?.(); }
+    }
+
+    window.Peer = class {
+      handlers = {};
+      constructor() { window.__stressPeer = this; }
+      on(name, handler) { this.handlers[name] = handler; }
+      destroy() {}
+    };
+
+    players = {};
+    turnOrder = [];
+    turnIndex = 0;
+    gameState = 'READY_TO_PLAY';
+    isHostMode = true;
+    initHostNetwork(false);
+    window.__stressPeer.handlers.open();
+
+    const connections = [];
+    for (let index = 1; index <= 7; index++) {
+      const metadata = { playerName: `Player ${index}`, reconnectToken: `token-${index}` };
+      const connection = new FakeConnection(metadata);
+      connections.push(connection);
+      window.__stressPeer.handlers.connection(connection);
+      connection.open = true;
+      connection.handlers.open();
+    }
+
+    const dropped = connections[3];
+    dropped.close();
+    const reconnect = new FakeConnection({ playerName: 'Player 4', reconnectToken: 'token-4' });
+    window.__stressPeer.handlers.connection(reconnect);
+    reconnect.open = true;
+    reconnect.handlers.open();
+
+    clearInterval(hostBroadcastInterval);
+    return {
+      playerCount: Object.keys(players).length,
+      onlineCount: Object.values(players).filter(player => player.online).length,
+      turnCount: turnOrder.length,
+      state: gameState,
+      reconnectAccepted: players['player 4']?.conn === reconnect,
+    };
+  });
+
+  expect(room).toEqual({ playerCount: 7, onlineCount: 7, turnCount: 7, state: 'READY_TO_PLAY', reconnectAccepted: true });
+});
+
+test('filters single, live, remix, and acoustic track variants', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const results = await page.evaluate(() => [
+    isPreferredTrack('Bohemian Rhapsody - Single Version'),
+    isPreferredTrack('We Will Rock You (Live)'),
+    isPreferredTrack('Radio Ga Ga - Radio Edit'),
+    isPreferredTrack('Another One Bites the Dust'),
+    isPreferredTrack('Love of My Life (Acoustic)'),
+  ]);
+
+  expect(results).toEqual([false, false, false, true, false]);
 });
