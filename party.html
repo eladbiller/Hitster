@@ -925,6 +925,9 @@
             spotifyPlayer.addListener('player_state_changed', state => {
                 if (!state) return;
                 isPlaying = !state.paused;
+                if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
+                    gameState = isPlaying ? 'PLAYING' : 'READY_TO_PLAY';
+                }
                 broadcastSync();
             });
 
@@ -1885,5 +1888,3 @@
     </script>
 </body>
 </html>
-
-
