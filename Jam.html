@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.5">
+    <meta name="app-version" content="1.37.6">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -275,7 +275,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.5</p>
+            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.6</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1976,7 +1976,7 @@
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
                         setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300', activePlayerStatsHTML);
-                    } else if (data.myTokens <= 0) {
+                    } else if (!(Number(data.myTokens) > 0)) {
                         passStealBox.classList.add('hidden');
                         setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎯 (${data.stealTimeLeft}s)`, 'No steal tokens left. Watching this round.', 'text-slate-400', activePlayerStatsHTML);
                     } else {
