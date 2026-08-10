@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.1">
+    <meta name="app-version" content="1.37.2">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -113,7 +113,7 @@
                 <i class="fa-solid fa-mobile-screen-button"></i>
             </div>
             <h3 class="text-xl font-black text-white">Choose Playback Device</h3>
-            <p class="text-xs text-slate-400">Start the Spotify Jam on your phone first, leave Spotify running, then select that active phone below. Hitster will control this device so Spotify Jam carries play, pause, and track changes to the group.</p>
+            <p class="text-xs text-slate-400">Start the Spotify Jam on your phone first, leave Spotify running, then select that active phone below. Hitster controls your selected device; Spotify Jam itself keeps the group’s music session in sync.</p>
             <div id="device-picker-list" class="space-y-2 max-h-48 overflow-y-auto text-left"></div>
             <button onclick="fetchAvailableDevices()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
                 <i class="fa-solid fa-arrows-rotate"></i> Refresh Devices
@@ -275,7 +275,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.1</p>
+            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.2</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -766,6 +766,9 @@
         let reconnectTimer = null;
         let reconnectAttempts = 0;
         let reconnectEnabled = true;
+        // Every join gets an identity so delayed PeerJS events from an older
+        // socket cannot tear down a newer, healthy connection.
+        let clientConnectionAttempt = 0;
 
         // ==========================================
         //               HOST LOGIC
@@ -1130,9 +1133,17 @@
                         showMessage(`${pName} reconnected!`, 'success');
                         
                         if (gameState === 'PAUSED_DISCONNECT' && pendingDisconnectPlayerId === stableId) {
+                            const resumedState = previousStateBeforePause;
                             closeDisconnectModal();
-                            gameState = previousStateBeforePause;
+                            gameState = resumedState;
                             pendingDisconnectPlayerId = null;
+
+                            // The original deadline may have passed while the
+                            // room was paused. Restart the steal window so the
+                            // returning player has time to rotate and respond.
+                            if (resumedState === 'STEALING') {
+                                stealEndTime = Date.now() + 15000;
+                            }
                         }
                     } else {
                         players[stableId] = {
@@ -1664,6 +1675,11 @@
                 reconnectEnabled = true;
             }
 
+            const connectionAttempt = ++clientConnectionAttempt;
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            if (clientWatchdog) clearInterval(clientWatchdog);
+            clientWatchdog = null;
             if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; }
             hostConnection = null;
 
@@ -1676,22 +1692,29 @@
             const delay = Math.floor(Math.random() * 800); 
             
             setTimeout(() => {
-                myPeer = new Peer(peerConfig);
-                myPeer.on('open', (id) => {
+                if (connectionAttempt !== clientConnectionAttempt) return;
+
+                const peer = new Peer(peerConfig);
+                myPeer = peer;
+                peer.on('open', (id) => {
+                    if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer) return;
                     myId = id;
-                    hostConnection = myPeer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName, reconnectToken }, reliable: true });
+                    const connection = peer.connect(PEER_PREFIX + pinInput, { metadata: { playerName: myPlayerName, reconnectToken }, reliable: true });
+                    hostConnection = connection;
                     
                     let connTimeout = setTimeout(() => {
-                        if (!hostConnection || !hostConnection.open) {
+                        if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer || hostConnection !== connection) return;
+                        if (!connection.open) {
                             document.getElementById('btn-connect').classList.remove('hidden');
                             document.getElementById('player-status').classList.add('hidden');
                             showMessage("Connection timed out. Check PIN.", "error");
-                            if (myPeer) { myPeer.destroy(); myPeer = null; }
+                            if (myPeer === peer) { peer.destroy(); myPeer = null; }
                             schedulePlayerReconnect();
                         }
                     }, 15000); 
 
-                    hostConnection.on('open', () => { 
+                    connection.on('open', () => { 
+                        if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer || hostConnection !== connection) return;
                         clearTimeout(connTimeout);
                         reconnectAttempts = 0;
                         reconnectEnabled = true;
@@ -1715,12 +1738,13 @@
                             }
                         }, 2000);
 
-                        hostConnection.send({ action: 'REQUEST_SYNC' });
+                        connection.send({ action: 'REQUEST_SYNC' });
                     });
                     
-                    hostConnection.on('data', (data) => { 
+                    connection.on('data', (data) => { 
+                        if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer || hostConnection !== connection) return;
                         lastHostContact = Date.now();
-                        if (data.type === 'PING') { hostConnection.send({ action: 'PONG' }); return; }
+                        if (data.type === 'PING') { connection.send({ action: 'PONG' }); return; }
                         if (data.type === 'JOIN_REJECTED') {
                             stopPlayerReconnect();
                             showMessage(data.message || "That player name is already in use.", 'error');
@@ -1728,8 +1752,8 @@
                             switchSetupView('view-player-join');
                             document.getElementById('btn-connect').classList.remove('hidden');
                             document.getElementById('player-status').classList.add('hidden');
-                            hostConnection.close();
-                            if (myPeer) { myPeer.destroy(); myPeer = null; }
+                            connection.close();
+                            if (myPeer === peer) { peer.destroy(); myPeer = null; }
                             return;
                         }
                         if (data.type === 'SYNC') handlePlayerSync(data); 
@@ -1739,13 +1763,17 @@
                         }
                     });
                     
-                    hostConnection.on('close', () => { 
+                    connection.on('close', () => { 
+                        if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer || hostConnection !== connection) return;
+                        if (clientWatchdog) clearInterval(clientWatchdog);
+                        clientWatchdog = null;
                         document.getElementById('client-disconnect-overlay').classList.remove('hidden');
                         document.getElementById('client-disconnect-overlay').classList.add('flex');
                         schedulePlayerReconnect();
                     });
                 });
-                myPeer.on('error', (err) => {
+                peer.on('error', (err) => {
+                    if (connectionAttempt !== clientConnectionAttempt || myPeer !== peer) return;
                     document.getElementById('btn-connect').classList.remove('hidden');
                     document.getElementById('player-status').classList.add('hidden');
                     showMessage(err.type === 'peer-unavailable' ? "Room PIN not found!" : "Connection error.", 'error');
