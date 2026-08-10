@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.0">
+    <meta name="app-version" content="1.37.1">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -97,8 +97,8 @@
             </div>
             <h3 class="text-xl font-black text-white">Listen on Your Own Phone</h3>
             <div class="text-xs text-slate-300 leading-relaxed text-left space-y-2">
-                <p><span class="font-bold text-cyan-400">You (the host):</span> open Spotify → tap the Connect icon on the Now Playing bar → Start a Jam → share the invite link with your players.</p>
-                <p><span class="font-bold text-cyan-400">Players:</span> need the Spotify app and a free account, and to be nearby on the same Wi-Fi.</p>
+                <p><span class="font-bold text-cyan-400">You (the host):</span> open Spotify → tap the Connect icon on the Now Playing bar → Start a Jam → share the invite link with your players. In Hitster, select the phone that is hosting that Jam.</p>
+                <p><span class="font-bold text-cyan-400">Players:</span> need the Spotify app and a free account, and to be nearby on the same Wi-Fi. Their Spotify play/pause changes are reflected in the game.</p>
                 <p class="text-amber-400/90 text-[11px] pt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Heads up: Spotify shows the song name once they join. This only works if everyone agrees not to peek before guessing.</p>
             </div>
             <button onclick="closeJamModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs">
@@ -113,7 +113,7 @@
                 <i class="fa-solid fa-mobile-screen-button"></i>
             </div>
             <h3 class="text-xl font-black text-white">Choose Playback Device</h3>
-            <p class="text-xs text-slate-400">Open the Spotify app on your phone (leave it running in the background), then pick it below. This lets Jam sync properly to other players.</p>
+            <p class="text-xs text-slate-400">Start the Spotify Jam on your phone first, leave Spotify running, then select that active phone below. Hitster will control this device so Spotify Jam carries play, pause, and track changes to the group.</p>
             <div id="device-picker-list" class="space-y-2 max-h-48 overflow-y-auto text-left"></div>
             <button onclick="fetchAvailableDevices()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
                 <i class="fa-solid fa-arrows-rotate"></i> Refresh Devices
@@ -275,7 +275,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.0</p>
+            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.1</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -467,6 +467,7 @@
         // --- SPOTIFY OAUTH ---
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
+        const JAM_PLAYBACK_SCOPE_VERSION = '1';
         let accessToken = localStorage.getItem('party_spotify_token') || null;
 
         // Auto-save host state on refresh
@@ -531,6 +532,7 @@
                     if (data.access_token) {
                         accessToken = data.access_token;
                         localStorage.setItem('party_spotify_token', accessToken);
+                        localStorage.setItem('jam_playback_scope_version', JAM_PLAYBACK_SCOPE_VERSION);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         checkSpotifyAuthAndInitHost();
                     }
@@ -547,7 +549,7 @@
             localStorage.setItem('party_code_verifier', verifier);
             const hashed = await sha256(verifier);
             const codeChallenge = base64encode(hashed);
-            const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
+            const scopes = 'user-read-email user-read-private user-read-playback-state user-modify-playback-state streaming user-library-read';
             const params = new URLSearchParams({ 
                 response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
                 code_challenge_method: 'S256', code_challenge: codeChallenge, 
@@ -748,6 +750,7 @@
         let spotifyPlayer = null;
         let webDeviceId = null;
         let spotifyPollInterval = null; // polls actual playback state since we no longer get instant SDK push events
+        let hasShownPlaybackSyncScopeWarning = false;
         let pendingResumeAfterDevicePick = false;
         let isHostMode = false;
         let hostBroadcastInterval = null;
@@ -770,6 +773,11 @@
         
         async function checkSpotifyAuthAndInitHost() {
             if (!accessToken) { switchSetupView('view-spotify-login'); return; }
+            if (localStorage.getItem('jam_playback_scope_version') !== JAM_PLAYBACK_SCOPE_VERSION) {
+                switchSetupView('view-spotify-login');
+                showMessage('Reconnect Spotify once to enable Spotify Jam play/pause sync.', 'info');
+                return;
+            }
             switchSetupView('view-host-setup');
             try {
                 const userData = await safeSpotifyFetch('https://api.spotify.com/v1/me');
@@ -1004,21 +1012,45 @@
             initHostNetwork(pendingResumeAfterDevicePick);
         }
 
+        async function syncExternalPlaybackState() {
+            if (!accessToken || !webDeviceId) return;
+            if (gameState !== 'READY_TO_PLAY' && gameState !== 'PLAYING') return;
+
+            const state = await safeSpotifyFetch('https://api.spotify.com/v1/me/player');
+            if (!state || typeof state.is_playing !== 'boolean') return;
+
+            // A Spotify Jam can switch the host's active device when someone
+            // controls playback in their Spotify app. Keep commands pointed at
+            // the device Spotify reports as active instead of a stale selection.
+            if (state.device?.id) webDeviceId = state.device.id;
+
+            const playbackChanged = state.is_playing !== isPlaying;
+            isPlaying = state.is_playing;
+
+            // Mirror Spotify Jam controls in the game just like the Party web
+            // player: a Jam pause returns the turn to ready, and a Jam resume
+            // returns it to playing for every connected player.
+            if (isPlaying && gameState === 'READY_TO_PLAY') {
+                gameState = 'PLAYING';
+            } else if (!isPlaying && gameState === 'PLAYING') {
+                gameState = 'READY_TO_PLAY';
+            }
+
+            if (playbackChanged) broadcastSync();
+        }
+
         function startSpotifyStatePoll() {
             if (spotifyPollInterval) clearInterval(spotifyPollInterval);
             // Replaces the SDK's instant player_state_changed push events — polling is the only option when
             // controlling an external device, at the cost of a small delay and extra API calls.
-            spotifyPollInterval = setInterval(async () => {
-                if (!accessToken || !webDeviceId) return;
-                if (gameState !== 'READY_TO_PLAY' && gameState !== 'PLAYING') return;
-                try {
-                    const state = await safeSpotifyFetch('https://api.spotify.com/v1/me/player');
-                    if (state && typeof state.is_playing === 'boolean' && state.is_playing !== isPlaying) {
-                        isPlaying = state.is_playing;
-                        broadcastSync();
-                    }
-                } catch (e) { /* transient poll errors aren't worth surfacing */ }
-            }, 6000);
+            const sync = () => syncExternalPlaybackState().catch((error) => {
+                if (!hasShownPlaybackSyncScopeWarning && /Spotify Error 403/.test(error.message || '')) {
+                    hasShownPlaybackSyncScopeWarning = true;
+                    showMessage('Reconnect Spotify to enable Spotify Jam play/pause sync.', 'info');
+                }
+            });
+            sync();
+            spotifyPollInterval = setInterval(sync, 2000);
         }
 
         function stopSpotifyStatePoll() {
