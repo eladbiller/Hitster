@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.15">
+    <meta name="app-version" content="1.36.16">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.15</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.16</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -974,12 +974,11 @@
                 
                 hostBroadcastInterval = setInterval(() => { 
                     const now = Date.now();
-                    if (gameState === 'STEALING') {
-                        const remaining = Math.ceil((stealEndTime - now) / 1000);
-                        if (remaining <= 0) {
-                            evaluateAndScoreRound();
-                        }
-                    }
+                    // Steals last 15 seconds, so a normal 15-second disconnect
+                    // timeout can let a dropped player get scored before the host
+                    // notices. Keep the general timeout forgiving, but detect a
+                    // stale player within five seconds while the steal clock runs.
+                    const disconnectTimeout = gameState === 'STEALING' ? 5000 : 15000;
                     
                     Object.values(players).forEach(p => {
                         if (p.id !== HOST_PLAYER_ID && p.online) {
@@ -987,7 +986,7 @@
                                 p.conn.send({ type: 'PING' });
                             }
                             
-                            if (now - p.lastPongAt > 15000) {
+                            if (now - p.lastPongAt > disconnectTimeout) {
                                 p.online = false;
                                 p.conn = null;
                                 showMessage(`${p.name} dropped offline.`, 'error');
@@ -998,6 +997,16 @@
                             }
                         }
                     });
+
+                    // Run the disconnect pass before evaluating an expired steal
+                    // window. A player already known to be offline pauses the room
+                    // instead of letting the round score through.
+                    if (gameState === 'STEALING') {
+                        const remaining = Math.ceil((stealEndTime - now) / 1000);
+                        if (remaining <= 0) {
+                            evaluateAndScoreRound();
+                        }
+                    }
 
                     broadcastSync();
                     saveHostState(); // Continuously backup state for host reconnect
