@@ -657,3 +657,63 @@ test('does not offer players a force-reveal control while waiting for steals', a
 
   await expect(page.getByText(/Force Reveal|Skip Bob|Skip Carol/)).toHaveCount(0);
 });
+
+
+test('restarts the steal timer when the paused player reconnects', async ({ page }) => {
+  await page.goto('file:///C:/Users/User/Documents/Codex/2026-08-10/w/outputs/test-run/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    class FakeConnection {
+      open = false;
+      handlers = {};
+      metadata = { playerName: 'Alice', reconnectToken: 'alice-token' };
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+      close() { this.open = false; }
+    }
+
+    class FakePeer {
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+    }
+
+    window.Peer = class extends FakePeer {
+      constructor() { super(); window.__rejoinPeer = this; }
+    };
+
+    const previousDeadline = Date.now() - 1000;
+    players = {
+      'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() },
+      alice: { id: 'alice', name: 'Alice', conn: null, online: false, reconnectToken: 'alice-token', tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() - 6000 },
+    };
+    turnOrder = ['host-local-player', 'alice'];
+    turnIndex = 0;
+    gameState = 'PAUSED_DISCONNECT';
+    previousStateBeforePause = 'STEALING';
+    pendingDisconnectPlayerId = 'alice';
+    stealEndTime = previousDeadline;
+    isHostMode = true;
+
+    initHostNetwork(false);
+    window.__rejoinPeer.handlers.open();
+    const reconnect = new FakeConnection();
+    window.__rejoinPeer.handlers.connection(reconnect);
+    reconnect.open = true;
+    reconnect.handlers.open();
+
+    const result = {
+      state: gameState,
+      aliceOnline: players.alice.online,
+      secondsRestored: Math.ceil((stealEndTime - Date.now()) / 1000),
+      pendingDisconnectPlayerId,
+    };
+
+    clearInterval(hostBroadcastInterval);
+    return result;
+  });
+
+  expect(state.state).toBe('STEALING');
+  expect(state.aliceOnline).toBe(true);
+  expect(state.secondsRestored).toBeGreaterThanOrEqual(14);
+  expect(state.pendingDisconnectPlayerId).toBeNull();
+});
