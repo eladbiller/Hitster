@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.14">
+    <meta name="app-version" content="1.37.0">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -89,6 +89,7 @@
     <div id="toast-container" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[500] flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
 
     <!-- HOST DISCONNECT MODAL -->
+
     <div id="spotify-jam-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
         <div class="bg-slate-900 border-2 border-cyan-500/80 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <div class="w-16 h-16 bg-cyan-500/10 text-cyan-400 rounded-full flex items-center justify-center text-3xl mx-auto">
@@ -102,6 +103,20 @@
             </div>
             <button onclick="closeJamModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs">
                 Got It
+            </button>
+        </div>
+    </div>
+
+    <div id="device-picker-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] hidden flex-col items-center justify-center p-6 text-center">
+        <div class="bg-slate-900 border-2 border-cyan-500/80 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+            <div class="w-16 h-16 bg-cyan-500/10 text-cyan-400 rounded-full flex items-center justify-center text-3xl mx-auto">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <h3 class="text-xl font-black text-white">Choose Playback Device</h3>
+            <p class="text-xs text-slate-400">Open the Spotify app on your phone (leave it running in the background), then pick it below. This lets Jam sync properly to other players.</p>
+            <div id="device-picker-list" class="space-y-2 max-h-48 overflow-y-auto text-left"></div>
+            <button onclick="fetchAvailableDevices()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh Devices
             </button>
         </div>
     </div>
@@ -260,7 +275,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.14</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.0</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -629,6 +644,8 @@
 
         function resetApp() {
             if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null; }
+            stopSpotifyStatePoll();
+            webDeviceId = null;
             if (hostBroadcastInterval) { clearInterval(hostBroadcastInterval); hostBroadcastInterval = null; }
             if (myPeer) { myPeer.destroy(); myPeer = null; }
             if (hostConnection) { hostConnection.close(); hostConnection = null; }
@@ -730,6 +747,8 @@
         let isPlaying = false;
         let spotifyPlayer = null;
         let webDeviceId = null;
+        let spotifyPollInterval = null; // polls actual playback state since we no longer get instant SDK push events
+        let pendingResumeAfterDevicePick = false;
         let isHostMode = false;
         let hostBroadcastInterval = null;
         let isFetchingTracks = false;
@@ -862,8 +881,8 @@
                 };
                 turnOrder = [HOST_PLAYER_ID];
                 
-                document.getElementById('host-loading-text').innerText = "Starting Audio Engine...";
-                initSpotifyWebPlayer();
+                document.getElementById('host-loading-text').innerText = "Choose a Playback Device...";
+                initExternalPlayback(false);
             } catch (err) {
                 console.error(err);
                 showMessage("Failed to initialize.", "error");
@@ -929,58 +948,81 @@
                 isHostInPlayerView = false;
                 myId = HOST_PLAYER_ID;
                 myPlayerName = players[HOST_PLAYER_ID]?.name || 'Host DJ';
-                document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                document.getElementById('host-loading-text').innerText = "Choose a Playback Device...";
                 requestWakeLock(); 
 
-                initSpotifyWebPlayer(true); 
+                initExternalPlayback(true);
             } catch(err) {
                 showMessage("Corrupted save file. Starting fresh.", "error");
                 localStorage.removeItem('party_host_state');
             }
         }
 
-        function initSpotifyWebPlayer(isResuming = false) {
-            spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
+        function initExternalPlayback(isResuming = false) {
+            pendingResumeAfterDevicePick = isResuming;
+            fetchAvailableDevices();
+        }
 
-            spotifyPlayer.addListener('ready', ({ device_id }) => {
-                webDeviceId = device_id;
-                fetch('https://api.spotify.com/v1/me/player', {
+        async function fetchAvailableDevices() {
+            const listEl = document.getElementById('device-picker-list');
+            document.getElementById('device-picker-modal').classList.remove('hidden');
+            document.getElementById('device-picker-modal').classList.add('flex');
+            listEl.innerHTML = '<p class="text-slate-500 text-xs text-center py-2">Looking for devices...</p>';
+            try {
+                const data = await safeSpotifyFetch('https://api.spotify.com/v1/me/player/devices');
+                const devices = (data && data.devices) || [];
+                if (devices.length === 0) {
+                    listEl.innerHTML = '<p class="text-amber-400 text-xs text-center py-2">No devices found. Open Spotify on your phone (or any device), keep it running, then tap Refresh.</p>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                devices.forEach(d => {
+                    const icon = d.type === 'Smartphone' ? 'fa-mobile-screen' : d.type === 'Computer' ? 'fa-laptop' : 'fa-volume-high';
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-2.5 px-3 rounded-xl shadow transition text-xs flex items-center gap-2 text-left';
+                    btn.innerHTML = `<i class="fa-solid ${icon}"></i> ${d.name}${d.is_active ? ' <span class="text-emerald-400 text-[10px] ml-auto">Active</span>' : ''}`;
+                    btn.onclick = () => selectPlaybackDevice(d.id);
+                    listEl.appendChild(btn);
+                });
+            } catch (err) {
+                listEl.innerHTML = `<p class="text-red-400 text-xs text-center py-2">${err.message || 'Could not load devices.'}</p>`;
+            }
+        }
+
+        async function selectPlaybackDevice(deviceId) {
+            webDeviceId = deviceId;
+            document.getElementById('device-picker-modal').classList.add('hidden');
+            document.getElementById('device-picker-modal').classList.remove('flex');
+            try {
+                await safeSpotifyFetch('https://api.spotify.com/v1/me/player', {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_ids: [device_id], play: false })
-                }).catch(e => console.log(e));
-                initHostNetwork(isResuming); 
-            });
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_ids: [deviceId], play: false })
+                });
+            } catch (e) { console.error(e); }
+            startSpotifyStatePoll();
+            initHostNetwork(pendingResumeAfterDevicePick);
+        }
 
-            spotifyPlayer.addListener('player_state_changed', state => {
-                if (!state) return;
-                isPlaying = !state.paused;
-                broadcastSync();
-            });
+        function startSpotifyStatePoll() {
+            if (spotifyPollInterval) clearInterval(spotifyPollInterval);
+            // Replaces the SDK's instant player_state_changed push events — polling is the only option when
+            // controlling an external device, at the cost of a small delay and extra API calls.
+            spotifyPollInterval = setInterval(async () => {
+                if (!accessToken || !webDeviceId) return;
+                if (gameState !== 'READY_TO_PLAY' && gameState !== 'PLAYING') return;
+                try {
+                    const state = await safeSpotifyFetch('https://api.spotify.com/v1/me/player');
+                    if (state && typeof state.is_playing === 'boolean' && state.is_playing !== isPlaying) {
+                        isPlaying = state.is_playing;
+                        broadcastSync();
+                    }
+                } catch (e) { /* transient poll errors aren't worth surfacing */ }
+            }, 6000);
+        }
 
-            spotifyPlayer.addListener('authentication_error', () => {
-                saveHostState(); // Ensure we save before Spotify fully logs us out
-                showMessage("Spotify Auth Error. Log back in.", "error");
-                logoutSpotify();
-            });
-
-            spotifyPlayer.addListener('account_error', ({ message } = {}) => {
-                showMessage(message || "Spotify Premium is required for playback.", "error");
-            });
-
-            spotifyPlayer.addListener('initialization_error', ({ message } = {}) => {
-                showMessage(message || "Spotify playback could not initialize.", "error");
-            });
-
-            spotifyPlayer.addListener('playback_error', ({ message } = {}) => {
-                showMessage(message || "Spotify could not play this song.", "error");
-            });
-
-            spotifyPlayer.addListener('autoplay_failed', () => {
-                showMessage("Tap Play Song to start Spotify playback.", "info");
-            });
-
-            spotifyPlayer.connect();
+        function stopSpotifyStatePoll() {
+            if (spotifyPollInterval) { clearInterval(spotifyPollInterval); spotifyPollInterval = null; }
         }
 
         function initHostNetwork(isResuming = false) {
@@ -1280,8 +1322,13 @@
             if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
                 if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
                     if (isPlaying) {
-                        spotifyPlayer.pause();
+                        isPlaying = false;
+                        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        }).catch(e => showMessage("Network error pausing track.", "error"));
                     } else {
+                        isPlaying = true;
                         fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                             method: 'PUT',
                             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -1303,7 +1350,13 @@
                 stealDecisions = {}; 
                 stealEndTime = Date.now() + 15000; 
                 
-                if (spotifyPlayer) spotifyPlayer.pause();
+                if (webDeviceId) {
+                    isPlaying = false;
+                    fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    }).catch(e => console.error(e));
+                }
                 
                 if (checkAllStealsSubmitted()) {
                     evaluateAndScoreRound();
@@ -1915,4 +1968,3 @@
     </script>
 </body>
 </html>
-
