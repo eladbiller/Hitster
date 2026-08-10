@@ -660,7 +660,7 @@ test('does not offer players a force-reveal control while waiting for steals', a
 
 
 test('restarts the steal timer when the paused player reconnects', async ({ page }) => {
-  await page.goto('file:///C:/Users/User/Documents/Codex/2026-08-10/w/outputs/test-run/party.html', { waitUntil: 'domcontentloaded' });
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
   const state = await page.evaluate(() => {
     class FakeConnection {
