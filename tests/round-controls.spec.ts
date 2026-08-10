@@ -8,14 +8,18 @@ for (const game of ['party.html', 'Jam.html']) {
 
     const result = await page.evaluate(() => {
       myPlayerName = 'Bob';
-      handlePlayerSync({
+      const stealSync = {
         state: 'STEALING', isPlaying: false, activePlayerName: 'Alice', isActivePlayer: false,
         timeline: [], ownTimeline: [], guesses: {}, hasPassedSteal: false, hasStealed: false,
         allStealsDone: false, waitingOn: ['Carol'], stealTimeLeft: 12, myScore: 0,
         myTokens: 0, myCardsCount: 1, activePlayerCardsCount: 1, activePlayerTokens: 2,
         correctYear: null, trackTitle: null, artistName: null, isWinner: false,
         bonusTokenClaimed: false, overallWinnerName: null, winnerName: null,
-      });
+      };
+      handlePlayerSync(stealSync);
+      const passHiddenWithZeroTokens = document.getElementById('p-steal-pass-control').classList.contains('hidden');
+      delete stealSync.myTokens;
+      handlePlayerSync(stealSync);
 
       players = {
         'host-local-player': { id: 'host-local-player', name: 'Host', online: true, tokens: 2, score: 0, timeline: [] },
@@ -29,13 +33,15 @@ for (const game of ['party.html', 'Jam.html']) {
       handlePlayerAction('bob', { action: 'PASS_STEAL' });
 
       return {
-        passHidden: document.getElementById('p-steal-pass-control').classList.contains('hidden'),
+        passHiddenWithZeroTokens,
+        passHiddenWithMissingTokenCount: document.getElementById('p-steal-pass-control').classList.contains('hidden'),
         header: document.getElementById('p-ui-desc').textContent,
         passIgnored: !Object.prototype.hasOwnProperty.call(stealDecisions, 'bob'),
       };
     });
 
-    expect(result.passHidden).toBe(true);
+    expect(result.passHiddenWithZeroTokens).toBe(true);
+    expect(result.passHiddenWithMissingTokenCount).toBe(true);
     expect(result.header).toContain('No steal tokens left');
     expect(result.passIgnored).toBe(true);
   });
