@@ -521,6 +521,64 @@ test('ignores stale client socket events after a browser reconnect', async ({ pa
   });
 });
 
+test('pauses a stale player before an expired steal window can score', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    class FakeConnection {
+      open = true;
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+    }
+
+    class FakePeer {
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+    }
+
+    const realSetInterval = window.setInterval;
+    let hostTick;
+    window.setInterval = ((callback) => {
+      hostTick = callback;
+      return 1;
+    }) as typeof window.setInterval;
+
+    window.Peer = class extends FakePeer {
+      constructor() { super(); window.__stealPeer = this; }
+    };
+
+    players = {
+      'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() },
+      alice: { id: 'alice', name: 'Alice', conn: new FakeConnection(), online: true, tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() - 6000 },
+    };
+    turnOrder = ['host-local-player', 'alice'];
+    turnIndex = 0;
+    gameState = 'STEALING';
+    stealEndTime = Date.now() - 1;
+    isHostMode = true;
+    initHostNetwork(false);
+    window.__stealPeer.handlers.open();
+    hostTick();
+
+    const result = {
+      gameState,
+      aliceOnline: players.alice.online,
+      disconnectVisible: !document.getElementById('host-disconnect-modal').classList.contains('hidden'),
+    };
+
+    window.setInterval = realSetInterval;
+    clearInterval(hostBroadcastInterval);
+    return result;
+  });
+
+  expect(state).toEqual({
+    gameState: 'PAUSED_DISCONNECT',
+    aliceOnline: false,
+    disconnectVisible: true,
+  });
+});
+
 test('filters single, live, remix, and acoustic track variants', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
