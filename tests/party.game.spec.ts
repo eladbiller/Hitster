@@ -434,6 +434,93 @@ test('keeps a seven-player room stable through a stale-socket reconnect', async 
   expect(room).toEqual({ playerCount: 7, onlineCount: 7, turnCount: 7, state: 'READY_TO_PLAY', reconnectAccepted: true });
 });
 
+test('ignores stale client socket events after a browser reconnect', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    class FakeConnection {
+      open = false;
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+      close() { this.open = false; this.handlers.close?.(); }
+    }
+
+    class FakePeer {
+      handlers = {};
+      connections = [];
+      on(name, handler) { this.handlers[name] = handler; }
+      connect() {
+        const connection = new FakeConnection();
+        this.connections.push(connection);
+        return connection;
+      }
+      destroy() {}
+    }
+
+    const realSetTimeout = window.setTimeout;
+    const delayedCallbacks = [];
+    window.setTimeout = ((callback, delay) => {
+      if (delay < 1000) {
+        callback();
+        return 1;
+      }
+      if (delay === 15000) return 2;
+      delayedCallbacks.push(callback);
+      return delayedCallbacks.length + 2;
+    }) as typeof window.setTimeout;
+
+    const peers = [];
+    window.Peer = class extends FakePeer {
+      constructor() {
+        super();
+        peers.push(this);
+      }
+    };
+
+    showPlayerJoin();
+    document.getElementById('join-pin').value = '1234';
+    document.getElementById('join-name').value = 'Alice';
+
+    const openNewestConnection = () => {
+      const peer = peers[peers.length - 1];
+      peer.handlers.open(`peer-${peers.length}`);
+      const connection = peer.connections[0];
+      connection.open = true;
+      connection.handlers.open();
+      return { peer, connection };
+    };
+
+    joinRoom();
+    const first = openNewestConnection();
+
+    // This simulates the player reopening the game while PeerJS finishes
+    // delivering close/error events from the previous browser session.
+    joinRoom(true);
+    const second = openNewestConnection();
+    first.connection.handlers.close();
+    first.peer.handlers.error({ type: 'network' });
+
+    const result = {
+      activePeerIsNewest: myPeer === second.peer,
+      activeConnectionIsNewest: hostConnection === second.connection,
+      reconnectWasScheduled: reconnectTimer !== null,
+      connectionLostVisible: !document.getElementById('client-disconnect-overlay').classList.contains('hidden'),
+    };
+
+    if (clientWatchdog) clearInterval(clientWatchdog);
+    window.setTimeout = realSetTimeout;
+    return result;
+  });
+
+  expect(state).toEqual({
+    activePeerIsNewest: true,
+    activeConnectionIsNewest: true,
+    reconnectWasScheduled: false,
+    connectionLostVisible: false,
+  });
+});
+
 test('filters single, live, remix, and acoustic track variants', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
