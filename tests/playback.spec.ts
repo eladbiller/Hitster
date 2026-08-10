@@ -93,6 +93,33 @@ test('Jam.html starts and pauses the selected track on the external device', asy
   });
 });
 
+test('Jam.html mirrors play and pause changes made in Spotify Jam', async ({ page }) => {
+  let playbackState = { is_playing: true, device: { id: 'jam-active-phone' } };
+
+  await page.route('https://api.spotify.com/v1/me/player', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(playbackState) });
+  });
+
+  await page.goto('/Jam.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async () => {
+    eval("accessToken = 'jam-test-token'; webDeviceId = 'stale-device'; isPlaying = false;");
+    eval("players = { 'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [] } };");
+    eval("turnOrder = ['host-local-player']; turnIndex = 0; gameState = 'READY_TO_PLAY';");
+    await syncExternalPlaybackState();
+  });
+
+  await expect.poll(() => page.evaluate(() => ({
+    gameState: eval('gameState'),
+    isPlaying: eval('isPlaying'),
+    deviceId: eval('webDeviceId'),
+  }))).toEqual({ gameState: 'PLAYING', isPlaying: true, deviceId: 'jam-active-phone' });
+
+  playbackState = { is_playing: false, device: { id: 'jam-active-phone' } };
+  await page.evaluate(async () => { await syncExternalPlaybackState(); });
+  await expect.poll(() => page.evaluate(() => ({ gameState: eval('gameState'), isPlaying: eval('isPlaying') })))
+    .toEqual({ gameState: 'READY_TO_PLAY', isPlaying: false });
+});
+
 test('party.html returns to ready when Spotify reports that playback has paused', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
