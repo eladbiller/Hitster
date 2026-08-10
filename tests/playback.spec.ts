@@ -92,3 +92,52 @@ test('Jam.html starts and pauses the selected track on the external device', asy
     body: null,
   });
 });
+
+test('party.html returns to ready when Spotify reports that playback has paused', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    const listeners: Record<string, (state: { paused: boolean }) => void> = {};
+    (window as any).Spotify = {
+      Player: class {
+        addListener(name: string, handler: (state: { paused: boolean }) => void) {
+          listeners[name] = handler;
+        }
+        connect() { return Promise.resolve(true); }
+      },
+    };
+
+    eval("isHost = true; players = { 'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [] } }; turnOrder = ['host-local-player']; turnIndex = 0; gameState = 'PLAYING'; isPlaying = true;");
+    initSpotifyWebPlayer();
+    listeners.player_state_changed({ paused: true });
+
+    return { gameState: eval('gameState'), isPlaying: eval('isPlaying') };
+  });
+
+  expect(state).toEqual({ gameState: 'READY_TO_PLAY', isPlaying: false });
+  await expect(page.locator('#host-status-badge')).toHaveText('WAITING FOR PLAYER TO START MUSIC');
+});
+
+test('party.html preserves the steal phase when Spotify reports a pause', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    const listeners: Record<string, (state: { paused: boolean }) => void> = {};
+    (window as any).Spotify = {
+      Player: class {
+        addListener(name: string, handler: (state: { paused: boolean }) => void) {
+          listeners[name] = handler;
+        }
+        connect() { return Promise.resolve(true); }
+      },
+    };
+
+    eval("isHost = true; players = { 'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [] } }; turnOrder = ['host-local-player']; turnIndex = 0; gameState = 'STEALING'; isPlaying = true;");
+    initSpotifyWebPlayer();
+    listeners.player_state_changed({ paused: true });
+
+    return { gameState: eval('gameState'), isPlaying: eval('isPlaying') };
+  });
+
+  expect(state).toEqual({ gameState: 'STEALING', isPlaying: false });
+});
