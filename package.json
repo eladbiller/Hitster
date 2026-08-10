@@ -4,7 +4,8 @@
   "scripts": {
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report playwright-report --host 0.0.0.0",
-    "test:spotify": "playwright test tests/party.live.spec.ts",
+    "test:spotify": "playwright test tests/party.live.spec.ts tests/spotify.playback.live.spec.ts",
+    "test:spotify:playback": "playwright test tests/spotify.playback.live.spec.ts",
     "login:playwright:mobile": "bash scripts/start-playwright-mobile-login.sh"
   },
   "devDependencies": {
