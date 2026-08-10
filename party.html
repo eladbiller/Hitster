@@ -958,6 +958,14 @@
 
             spotifyPlayer.connect();
         }
+                                    const resumedState = previousStateBeforePause;gameState = resumedState;
+                                    // The original deadline may have passed while the
+                            // room was paused. Restart the steal window so the
+                            // returning player has time to rotate and respond.
+                            if (resumedState === 'STEALING') {
+                                stealEndTime = Date.now() + 15000;
+                            }
+
 
         function initHostNetwork(isResuming = false) {
             if (!isResuming) {
