@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.3">
+    <meta name="app-version" content="1.37.4">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -275,7 +275,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.3</p>
+            <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.4</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -314,6 +314,10 @@
                 <!-- Direct Play Button for Host when it's their turn -->
                 <button id="dj-direct-play-btn" onclick="sendPlayerAction('TOGGLE_PLAY')" class="hidden mt-2 bg-green-500 hover:bg-green-400 text-slate-900 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
                     <i class="fa-solid fa-play mr-1"></i> Start Song
+                </button>
+
+                <button id="dj-skip-song-btn" onclick="sendPlayerAction('SKIP_SONG')" class="hidden mt-2 bg-orange-500 hover:bg-orange-400 text-slate-950 font-bold py-2 px-6 rounded-full shadow-lg text-sm transition">
+                    <i class="fa-solid fa-forward-step mr-1"></i> Skip &amp; Replace Song
                 </button>
 
                 <!-- Direct Pass Steal Button for Host on DJ screen -->
@@ -1290,6 +1294,27 @@
             broadcastSync();
         }
 
+        function skipCurrentSong() {
+            if (!currentHostTrack || tracks.length === 0) {
+                showMessage("No replacement song is ready yet. Please wait a moment.", "error");
+                return;
+            }
+
+            const activePlayerName = players[turnOrder[turnIndex]]?.name || "the active player";
+            if (spotifyPlayer) {
+                spotifyPlayer.pause();
+            } else if (webDeviceId) {
+                fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                }).catch(e => console.error(e));
+            }
+
+            isPlaying = false;
+            loadTurn();
+            showMessage(`Song replaced. ${activePlayerName} has a new song.`, "info");
+        }
+
         function nextTurn() {
             if (turnOrder.length === 0) return;
             
@@ -1362,6 +1387,11 @@
                 return;
             }
 
+            if (data.action === 'SKIP_SONG' && pId === HOST_PLAYER_ID) {
+                if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') skipCurrentSong();
+                return;
+            }
+
             if (data.action === 'TOGGLE_PLAY' && (pId === activePlayerId || pId === HOST_PLAYER_ID)) {
                 if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
                     if (isPlaying) {
@@ -1422,7 +1452,8 @@
                 else broadcastSync();
             }
             else if (data.action === 'PASS_STEAL' && gameState === 'STEALING') {
-                if (pId === activePlayerId) return;
+                const player = players[pId];
+                if (pId === activePlayerId || !player || player.tokens <= 0) return;
                 stealDecisions[pId] = 'PASS';
                 
                 if (checkAllStealsSubmitted()) evaluateAndScoreRound();
@@ -1590,8 +1621,15 @@
                 djPlayBtn.classList.add('hidden');
             }
 
+            const djSkipBtn = document.getElementById('dj-skip-song-btn');
+            if (djSkipBtn && (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') && currentHostTrack) {
+                djSkipBtn.classList.remove('hidden');
+            } else if (djSkipBtn) {
+                djSkipBtn.classList.add('hidden');
+            }
+
             const djPassBtn = document.getElementById('dj-direct-pass-btn');
-            if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && !stealDecisions[HOST_PLAYER_ID]) {
+            if (djPassBtn && gameState === 'STEALING' && HOST_PLAYER_ID !== activePlayerId && players[HOST_PLAYER_ID]?.tokens > 0 && !stealDecisions[HOST_PLAYER_ID]) {
                 djPassBtn.classList.remove('hidden');
             } else if (djPassBtn) {
                 djPassBtn.classList.add('hidden');
@@ -1894,6 +1932,9 @@
                         passStealBox.classList.add('hidden');
                         const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
                         setPlayerHeader('bg-indigo-950 border-indigo-500', 'Steal Placed! 🎯', `Waiting for: ${waitList} (${data.stealTimeLeft}s)`, 'text-indigo-300', activePlayerStatsHTML);
+                    } else if (data.myTokens <= 0) {
+                        passStealBox.classList.add('hidden');
+                        setPlayerHeader('bg-slate-800 border-slate-600', `${data.activePlayerName}'s Turn 🎯 (${data.stealTimeLeft}s)`, 'No steal tokens left. Watching this round.', 'text-slate-400', activePlayerStatsHTML);
                     } else {
                         passStealBox.classList.remove('hidden');
                         setPlayerHeader('bg-yellow-950 border-yellow-500', `${data.activePlayerName}'s Turn 🎯 (${data.stealTimeLeft}s)`, 'Tap a slot to Steal (1 Token) or tap Pass.', 'text-yellow-400', activePlayerStatsHTML);
