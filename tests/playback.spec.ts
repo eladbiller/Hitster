@@ -94,7 +94,7 @@ test('Jam.html starts and pauses the selected track on the external device', asy
 });
 
 for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.html', 'jam-phone-device']] as const) {
-  test(`${game} resumes the song without leaving the steal decision`, async ({ page }) => {
+  test(`${game} resumes the song from the result screen without starting the next round`, async ({ page }) => {
     const requests: Array<{ url: string; body: string | null }> = [];
     await page.route('https://api.spotify.com/v1/me/player/play*', async (route) => {
       requests.push({ url: route.request().url(), body: route.request().postData() });
@@ -104,7 +104,7 @@ for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.ht
     await page.goto(`file:///C:/Users/User/Documents/Codex/2026-08-10/w/outputs/test-run/${game}`, { waitUntil: 'domcontentloaded' });
     await page.evaluate((selectedDeviceId) => {
       eval("players = { alice: { id: 'alice', name: 'Alice', conn: null, online: true, tokens: 2, score: 0, timeline: [] }, bob: { id: 'bob', name: 'Bob', conn: null, online: true, tokens: 2, score: 0, timeline: [] } };");
-      eval("turnOrder = ['alice', 'bob']; turnIndex = 0; gameState = 'STEALING'; currentHostTrack = { u: 'spotify:track:playback-test', t: 'Playback Test', a: 'Hitster', y: 2024, c: '' }; webDeviceId = selectedDeviceId; spotifyPlayer = null; isPlaying = false;");
+      eval("turnOrder = ['alice', 'bob']; turnIndex = 0; gameState = 'REVEAL'; currentHostTrack = { u: 'spotify:track:playback-test', t: 'Playback Test', a: 'Hitster', y: 2024, c: '' }; webDeviceId = selectedDeviceId; spotifyPlayer = null; isPlaying = false;");
       handlePlayerAction('bob', { action: 'RESUME_LISTENING' });
     }, deviceId);
 
@@ -114,7 +114,7 @@ for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.ht
       body: JSON.stringify({ uris: [TRACK_URI] }),
     });
     await expect.poll(() => page.evaluate(() => ({ gameState: eval('gameState'), isPlaying: eval('isPlaying') })))
-      .toEqual({ gameState: 'STEALING', isPlaying: true });
+      .toEqual({ gameState: 'REVEAL', isPlaying: true });
   });
 }
 
