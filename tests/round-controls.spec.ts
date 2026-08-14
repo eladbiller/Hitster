@@ -83,4 +83,41 @@ for (const game of ['party.html', 'Jam.html']) {
       pauseCalls: 1,
     });
   });
+
+  test(`${game} enlarges the whole player header and offers Listen Again during a paused steal`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
+
+    const result = await page.evaluate(() => {
+      myPlayerName = 'Bob';
+      const stealSync = {
+        state: 'STEALING', isPlaying: false, activePlayerName: 'Alice', isActivePlayer: false,
+        timeline: [], ownTimeline: [], guesses: {}, hasPassedSteal: false, hasStealed: false,
+        allStealsDone: false, waitingOn: ['Bob'], stealTimeLeft: 12, myScore: 0,
+        myTokens: 2, myCardsCount: 3, activePlayerCardsCount: 1, activePlayerTokens: 2,
+        correctYear: null, trackTitle: null, artistName: null, isWinner: false,
+        bonusTokenClaimed: false, overallWinnerName: null, winnerName: null,
+      };
+      handlePlayerSync(stealSync);
+      const scoreBefore = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-score')).fontSize);
+      const tokensBefore = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-tokens')).fontSize);
+      const listenAgainVisible = !document.getElementById('p-resume-listening-control').classList.contains('hidden');
+      const wideActions = document.getElementById('p-btn-pass-steal').classList.contains('w-full')
+        && document.getElementById('p-btn-resume-listening').classList.contains('w-full');
+
+      toggleFontSize();
+      const scoreAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-score')).fontSize);
+      const tokensAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-tokens')).fontSize);
+
+      handlePlayerSync({ ...stealSync, isPlaying: true });
+      const listenAgainHiddenWhilePlaying = document.getElementById('p-resume-listening-control').classList.contains('hidden');
+
+      return { scoreBefore, tokensBefore, scoreAfter, tokensAfter, listenAgainVisible, listenAgainHiddenWhilePlaying, wideActions };
+    });
+
+    expect(result.scoreAfter).toBeGreaterThan(result.scoreBefore);
+    expect(result.tokensAfter).toBeGreaterThan(result.tokensBefore);
+    expect(result.listenAgainVisible).toBe(true);
+    expect(result.listenAgainHiddenWhilePlaying).toBe(true);
+    expect(result.wideActions).toBe(true);
+  });
 }
