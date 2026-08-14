@@ -84,7 +84,7 @@ for (const game of ['party.html', 'Jam.html']) {
     });
   });
 
-  test(`${game} enlarges active-player counters and offers Listen Again only to the active player`, async ({ page }) => {
+  test(`${game} enlarges active-player counters and offers Continue Listening only to the active player`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
@@ -105,6 +105,7 @@ for (const game of ['party.html', 'Jam.html']) {
       const activeTokensBefore = Number.parseFloat(getComputedStyle(activeTokenElement).fontSize);
       const listenAgainHiddenDuringSteal = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
       const wideActions = document.getElementById('p-btn-pass-steal').classList.contains('w-full');
+      const topPanelMatchesHeader = document.querySelector('#player-game-ui > div').classList.contains('min-h-[64px]') && document.getElementById('p-ui-header').classList.contains('min-h-[64px]');
 
       toggleFontSize();
       const scoreAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-score')).fontSize);
@@ -117,8 +118,9 @@ for (const game of ['party.html', 'Jam.html']) {
       const listenAgainHiddenForOtherPlayer = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
       handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: true, isActivePlayer: true, winnerName: 'Alice' });
       const listenAgainHiddenWhilePlaying = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+      const continueListeningLabel = document.getElementById('p-btn-reveal-listen').textContent.trim();
 
-      return { scoreBefore, tokensBefore, activeTokensBefore, scoreAfter, tokensAfter, activeTokensAfter, listenAgainHiddenDuringSteal, listenAgainVisibleForActivePlayer, listenAgainHiddenForOtherPlayer, listenAgainHiddenWhilePlaying, wideActions };
+      return { scoreBefore, tokensBefore, activeTokensBefore, scoreAfter, tokensAfter, activeTokensAfter, listenAgainHiddenDuringSteal, listenAgainVisibleForActivePlayer, listenAgainHiddenForOtherPlayer, listenAgainHiddenWhilePlaying, continueListeningLabel, wideActions, topPanelMatchesHeader };
     });
 
     expect(result.scoreAfter).toBeGreaterThan(result.scoreBefore);
@@ -128,6 +130,57 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.listenAgainVisibleForActivePlayer).toBe(true);
     expect(result.listenAgainHiddenForOtherPlayer).toBe(true);
     expect(result.listenAgainHiddenWhilePlaying).toBe(true);
+    expect(result.continueListeningLabel).toContain('Continue Listening');
     expect(result.wideActions).toBe(true);
+    expect(result.topPanelMatchesHeader).toBe(true);
+  });
+
+  test(`${game} shows screen-control state and creates a lobby QR join link`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
+
+    const result = await page.evaluate(() => {
+      currentRoomPin = 4321;
+      gameState = 'IDLE';
+      updateHostJoinQr();
+      const qrCard = document.getElementById('host-join-qr-card');
+      const qrLink = new URL(document.getElementById('host-join-link').href);
+      const qrVisibleInLobby = !qrCard.classList.contains('hidden');
+      const qrImageAlt = document.querySelector('#host-join-qr img')?.getAttribute('alt');
+      const accessibilityButton = document.getElementById('accessibility-toggle');
+      const accessibilityIndicator = document.getElementById('accessibility-indicator');
+      const fullscreenButton = document.getElementById('fullscreen-toggle');
+      const fullscreenIndicator = document.getElementById('fullscreen-indicator');
+      toggleFontSize();
+      const accessibleState = {
+        pressed: accessibilityButton.getAttribute('aria-pressed'),
+        indicatorVisible: !accessibilityIndicator.classList.contains('hidden'),
+      };
+      gameState = 'READY_TO_PLAY';
+      updateHostJoinQr();
+
+      return {
+        qrLinkPin: qrLink.searchParams.get('join'),
+        qrVisibleInLobby,
+        qrImageAlt,
+        qrHiddenAfterStart: qrCard.classList.contains('hidden'),
+        accessibleState,
+        fullscreenPressed: fullscreenButton.getAttribute('aria-pressed'),
+        fullscreenIndicatorHidden: fullscreenIndicator.classList.contains('hidden'),
+      };
+    });
+
+    expect(result.qrLinkPin).toBe('4321');
+    expect(result.qrVisibleInLobby).toBe(true);
+    expect(result.qrImageAlt).toContain('4321');
+    expect(result.qrHiddenAfterStart).toBe(true);
+    expect(result.accessibleState).toEqual({ pressed: 'true', indicatorVisible: true });
+    expect(result.fullscreenPressed).toBe('false');
+    expect(result.fullscreenIndicatorHidden).toBe(true);
+  });
+
+  test(`${game} pre-fills a room PIN opened from the QR link`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}?join=4321`, { waitUntil: 'load' });
+    await expect(page.locator('#join-pin')).toHaveValue('4321');
+    await expect(page.locator('#view-player-join')).not.toHaveClass(/hidden/);
   });
 }
