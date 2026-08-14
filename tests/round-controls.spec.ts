@@ -84,7 +84,7 @@ for (const game of ['party.html', 'Jam.html']) {
     });
   });
 
-  test(`${game} enlarges the whole player header and offers Listen Again during a paused steal`, async ({ page }) => {
+  test(`${game} enlarges active-player counters and offers Listen Again on the result screen`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
@@ -100,23 +100,30 @@ for (const game of ['party.html', 'Jam.html']) {
       handlePlayerSync(stealSync);
       const scoreBefore = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-score')).fontSize);
       const tokensBefore = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-tokens')).fontSize);
-      const listenAgainVisible = !document.getElementById('p-resume-listening-control').classList.contains('hidden');
-      const wideActions = document.getElementById('p-btn-pass-steal').classList.contains('w-full')
-        && document.getElementById('p-btn-resume-listening').classList.contains('w-full');
+      const activeTokenElement = document.querySelector('.p-active-tokens');
+      activeTokenElement.style.fontSize = '12px';
+      const activeTokensBefore = Number.parseFloat(getComputedStyle(activeTokenElement).fontSize);
+      const listenAgainHiddenDuringSteal = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+      const wideActions = document.getElementById('p-btn-pass-steal').classList.contains('w-full');
 
       toggleFontSize();
       const scoreAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-score')).fontSize);
       const tokensAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-tokens')).fontSize);
+      const activeTokensAfter = Number.parseFloat(getComputedStyle(activeTokenElement).fontSize);
 
-      handlePlayerSync({ ...stealSync, isPlaying: true });
-      const listenAgainHiddenWhilePlaying = document.getElementById('p-resume-listening-control').classList.contains('hidden');
+      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: false, winnerName: 'Alice' });
+      const listenAgainVisibleOnResult = !document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: true, winnerName: 'Alice' });
+      const listenAgainHiddenWhilePlaying = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
 
-      return { scoreBefore, tokensBefore, scoreAfter, tokensAfter, listenAgainVisible, listenAgainHiddenWhilePlaying, wideActions };
+      return { scoreBefore, tokensBefore, activeTokensBefore, scoreAfter, tokensAfter, activeTokensAfter, listenAgainHiddenDuringSteal, listenAgainVisibleOnResult, listenAgainHiddenWhilePlaying, wideActions };
     });
 
     expect(result.scoreAfter).toBeGreaterThan(result.scoreBefore);
     expect(result.tokensAfter).toBeGreaterThan(result.tokensBefore);
-    expect(result.listenAgainVisible).toBe(true);
+    expect(result.activeTokensAfter).toBeGreaterThan(result.activeTokensBefore);
+    expect(result.listenAgainHiddenDuringSteal).toBe(true);
+    expect(result.listenAgainVisibleOnResult).toBe(true);
     expect(result.listenAgainHiddenWhilePlaying).toBe(true);
     expect(result.wideActions).toBe(true);
   });
