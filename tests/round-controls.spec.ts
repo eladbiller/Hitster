@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const ROOT = 'file:///C:/Users/User/Documents/Codex/2026-08-10/w/outputs/test-run';
+const ROOT = '';
 
 for (const game of ['party.html', 'Jam.html']) {
   test(`${game} hides steal controls and ignores a pass when the player has no tokens`, async ({ page }) => {
@@ -84,7 +84,7 @@ for (const game of ['party.html', 'Jam.html']) {
     });
   });
 
-  test(`${game} enlarges active-player counters and offers Listen Again on the result screen`, async ({ page }) => {
+  test(`${game} enlarges active-player counters and offers Listen Again only to the active player`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
@@ -111,19 +111,22 @@ for (const game of ['party.html', 'Jam.html']) {
       const tokensAfter = Number.parseFloat(getComputedStyle(document.getElementById('p-ui-tokens')).fontSize);
       const activeTokensAfter = Number.parseFloat(getComputedStyle(activeTokenElement).fontSize);
 
-      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: false, winnerName: 'Alice' });
-      const listenAgainVisibleOnResult = !document.getElementById('p-reveal-listening-control').classList.contains('hidden');
-      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: true, winnerName: 'Alice' });
+      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: false, isActivePlayer: true, winnerName: 'Alice' });
+      const listenAgainVisibleForActivePlayer = !document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: false, isActivePlayer: false, winnerName: 'Alice' });
+      const listenAgainHiddenForOtherPlayer = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+      handlePlayerSync({ ...stealSync, state: 'REVEAL', isPlaying: true, isActivePlayer: true, winnerName: 'Alice' });
       const listenAgainHiddenWhilePlaying = document.getElementById('p-reveal-listening-control').classList.contains('hidden');
 
-      return { scoreBefore, tokensBefore, activeTokensBefore, scoreAfter, tokensAfter, activeTokensAfter, listenAgainHiddenDuringSteal, listenAgainVisibleOnResult, listenAgainHiddenWhilePlaying, wideActions };
+      return { scoreBefore, tokensBefore, activeTokensBefore, scoreAfter, tokensAfter, activeTokensAfter, listenAgainHiddenDuringSteal, listenAgainVisibleForActivePlayer, listenAgainHiddenForOtherPlayer, listenAgainHiddenWhilePlaying, wideActions };
     });
 
     expect(result.scoreAfter).toBeGreaterThan(result.scoreBefore);
     expect(result.tokensAfter).toBeGreaterThan(result.tokensBefore);
     expect(result.activeTokensAfter).toBeGreaterThan(result.activeTokensBefore);
     expect(result.listenAgainHiddenDuringSteal).toBe(true);
-    expect(result.listenAgainVisibleOnResult).toBe(true);
+    expect(result.listenAgainVisibleForActivePlayer).toBe(true);
+    expect(result.listenAgainHiddenForOtherPlayer).toBe(true);
     expect(result.listenAgainHiddenWhilePlaying).toBe(true);
     expect(result.wideActions).toBe(true);
   });
