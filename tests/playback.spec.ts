@@ -101,11 +101,11 @@ for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.ht
       await route.fulfill({ status: 204, body: '' });
     });
 
-    await page.goto(`file:///C:/Users/User/Documents/Codex/2026-08-10/w/outputs/test-run/${game}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/${game}`, { waitUntil: 'domcontentloaded' });
     await page.evaluate((selectedDeviceId) => {
       eval("players = { alice: { id: 'alice', name: 'Alice', conn: null, online: true, tokens: 2, score: 0, timeline: [] }, bob: { id: 'bob', name: 'Bob', conn: null, online: true, tokens: 2, score: 0, timeline: [] } };");
       eval("turnOrder = ['alice', 'bob']; turnIndex = 0; gameState = 'REVEAL'; currentHostTrack = { u: 'spotify:track:playback-test', t: 'Playback Test', a: 'Hitster', y: 2024, c: '' }; webDeviceId = selectedDeviceId; spotifyPlayer = null; isPlaying = false;");
-      handlePlayerAction('bob', { action: 'RESUME_LISTENING' });
+      handlePlayerAction('alice', { action: 'RESUME_LISTENING' });
     }, deviceId);
 
     await expect.poll(() => requests.length).toBe(1);
@@ -115,6 +115,24 @@ for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.ht
     });
     await expect.poll(() => page.evaluate(() => ({ gameState: eval('gameState'), isPlaying: eval('isPlaying') })))
       .toEqual({ gameState: 'REVEAL', isPlaying: true });
+  });
+}
+
+for (const [game, deviceId] of [['party.html', 'party-browser-device'], ['Jam.html', 'jam-phone-device']] as const) {
+  test(`${game} returns to Play when Spotify rejects a start request`, async ({ page }) => {
+    await page.route('https://api.spotify.com/v1/me/player/play*', async (route) => {
+      await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Bad gateway' } }) });
+    });
+
+    await page.goto(`/${game}`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((selectedDeviceId) => {
+      eval("players = { 'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [] } };");
+      eval("turnOrder = ['host-local-player']; turnIndex = 0; gameState = 'READY_TO_PLAY'; currentHostTrack = { u: 'spotify:track:playback-test', t: 'Playback Test', a: 'Hitster', y: 2024, c: '' }; webDeviceId = selectedDeviceId; spotifyPlayer = null; isPlaying = false;");
+      handlePlayerAction('host-local-player', { action: 'TOGGLE_PLAY' });
+    }, deviceId);
+
+    await expect.poll(() => page.evaluate(() => ({ gameState: eval('gameState'), isPlaying: eval('isPlaying'), toast: document.getElementById('toast-container').textContent })))
+      .toEqual({ gameState: 'READY_TO_PLAY', isPlaying: false, toast: expect.stringContaining('Spotify Play Error: Bad gateway') });
   });
 }
 
