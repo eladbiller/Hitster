@@ -26,7 +26,7 @@ for (const game of ['party.html', 'Jam.html']) {
       schedulePlayerReconnect();
       const queuedReconnect = callbacks[0];
 
-      resetApp();
+      cancelPlayerReconnect();
       queuedReconnect();
 
       const state = {
@@ -36,20 +36,45 @@ for (const game of ['party.html', 'Jam.html']) {
         connectionAttemptAdvanced: clientConnectionAttempt > beforeCancel,
         queuedTimerCleared: cleared.includes(1),
         peerWasNotRecreated: myPeer === null,
+        cancelledStatus: document.getElementById('player-status').textContent,
       };
       window.setTimeout = originalSetTimeout;
       window.clearTimeout = originalClearTimeout;
       return state;
     });
 
-    expect(result).toEqual({
-      reconnectEnabled: false,
-      reconnectAttempts: 0,
-      reconnectTimer: null,
-      connectionAttemptAdvanced: true,
-      queuedTimerCleared: true,
-      peerWasNotRecreated: true,
+    expect(result.reconnectEnabled).toBe(false);
+    expect(result.reconnectAttempts).toBe(0);
+    expect(result.reconnectTimer).toBeNull();
+    expect(result.connectionAttemptAdvanced).toBe(true);
+    expect(result.queuedTimerCleared).toBe(true);
+    expect(result.peerWasNotRecreated).toBe(true);
+    expect(result.cancelledStatus).toContain('Reconnection cancelled');
+  });
+
+  test(`${game} retries quickly instead of waiting several seconds between attempts`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
+
+    const result = await page.evaluate(() => {
+      const delays = [];
+      const originalSetTimeout = window.setTimeout;
+      window.setTimeout = ((callback, delay) => {
+        delays.push(delay);
+        return 1;
+      }) as typeof window.setTimeout;
+
+      localStorage.setItem('party_last_pin', '1234');
+      reconnectEnabled = true;
+      reconnectAttempts = 0;
+      reconnectTimer = null;
+      schedulePlayerReconnect();
+
+      window.setTimeout = originalSetTimeout;
+      return { delays, timeout: HOST_CONNECTION_TIMEOUT_MS };
     });
+
+    expect(result.delays).toEqual([250]);
+    expect(result.timeout).toBe(4000);
   });
 
   test(`${game} stops automatic reconnects after three attempts`, async ({ page }) => {
