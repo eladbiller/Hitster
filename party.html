@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.22">
+    <meta name="app-version" content="1.36.23">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -360,15 +360,15 @@
             </div>
             
             <!-- Music Controls for Active Player -->
-            <div id="p-music-controls" class="hidden flex-1 min-w-0">
-                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-full spotify-green text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5">
+            <div id="p-music-controls" class="hidden w-[42%] max-w-[360px] min-w-[170px] shrink-0">
+                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-full bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 text-slate-950 font-black py-3 px-4 rounded-xl border border-emerald-200/40 shadow-lg transition text-sm flex items-center justify-center gap-2">
                     <i class="fa-solid fa-play"></i> Start Song
                 </button>
             </div>
 
             <!-- Pass Steal Control for Stealers -->
-            <div id="p-steal-pass-control" class="hidden flex-1 min-w-0">
-                <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5 border border-slate-600">
+            <div id="p-steal-pass-control" class="hidden w-[42%] max-w-[360px] min-w-[170px] shrink-0">
+                <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold py-3 px-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2 border border-slate-600">
                     <i class="fa-solid fa-forward"></i> Pass
                 </button>
             </div>
@@ -388,7 +388,7 @@
             <p id="p-overlay-desc" class="text-sm text-slate-300 mb-4">Description here.</p>
 
             <div id="p-reveal-listening-control" class="hidden flex flex-col items-center mb-3">
-                <button id="p-btn-reveal-listen" onclick="sendPlayerAction('RESUME_LISTENING')" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 px-6 rounded-xl shadow transition text-sm flex items-center justify-center gap-2">
+                <button id="p-btn-reveal-listen" onclick="sendPlayerAction('RESUME_LISTENING')" class="bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 text-slate-950 font-black py-3 px-6 rounded-xl border border-emerald-200/40 shadow-[0_0_18px_rgba(52,211,153,0.3)] transition text-sm flex items-center justify-center gap-2">
                     <i class="fa-solid fa-play"></i> Listen Again
                 </button>
             </div>
@@ -1297,22 +1297,35 @@
             }
         }
 
+        async function getSpotifyPlayErrorMessage(res) {
+            let detail = res.statusText || `HTTP ${res.status}`;
+            try {
+                const err = await res.json();
+                detail = err?.error?.message || err?.message || detail;
+            } catch (_) { }
+            return `Spotify Play Error: ${detail}`;
+        }
+
+        function handlePlaybackStartFailure(message) {
+            isPlaying = false;
+            if (gameState === 'PLAYING') gameState = 'READY_TO_PLAY';
+            broadcastSync();
+            showMessage(message, 'error');
+        }
+
         function resumeRoundListening() {
             if (!currentHostTrack) return false;
             isPlaying = true;
             if (spotifyPlayer?.resume) {
-                Promise.resolve(spotifyPlayer.resume()).catch(e => showMessage("Spotify could not resume this song.", "error"));
+                Promise.resolve(spotifyPlayer.resume()).catch(() => handlePlaybackStartFailure("Spotify could not resume this song."));
             } else if (webDeviceId) {
                 fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uris: [currentHostTrack.u] })
                 }).then(async res => {
-                    if (!res.ok) {
-                        const err = await res.json();
-                        showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
-                    }
-                }).catch(() => showMessage("Network error playing track.", "error"));
+                    if (!res.ok) handlePlaybackStartFailure(await getSpotifyPlayErrorMessage(res));
+                }).catch(() => handlePlaybackStartFailure("Network error playing track."));
             } else {
                 isPlaying = false;
                 showMessage("Choose a Spotify playback device first.", "error");
@@ -1408,11 +1421,8 @@
                             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uris: [currentHostTrack.u] })
                         }).then(async (res) => {
-                            if (!res.ok) {
-                                const err = await res.json();
-                                showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
-                            }
-                        }).catch(e => showMessage("Network error playing track.", "error"));
+                            if (!res.ok) handlePlaybackStartFailure(await getSpotifyPlayErrorMessage(res));
+                        }).catch(() => handlePlaybackStartFailure("Network error playing track."));
                         gameState = 'PLAYING';
                     }
                     broadcastSync();
@@ -1420,7 +1430,7 @@
             }
             else if (data.action === 'RESUME_LISTENING' && gameState === 'REVEAL') {
                 const player = players[pId];
-                if (!player || !player.online || isPlaying) return;
+                if (pId !== activePlayerId || !player || !player.online || isPlaying) return;
                 if (resumeRoundListening()) broadcastSync();
             }
             else if (data.action === 'GUESS' && pId === activePlayerId) {
@@ -1974,11 +1984,11 @@
                 if (data.isActivePlayer) {
                     musicBox.classList.remove('hidden');
                     if (data.isPlaying) {
-                        playBtn.className = "w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5";
+                        playBtn.className = "w-full bg-gradient-to-r from-amber-300 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 text-slate-950 font-black py-3 px-4 rounded-xl border border-yellow-200/50 shadow-lg transition text-sm flex items-center justify-center gap-2";
                         playBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Song`;
                         setPlayerHeader('bg-indigo-950 border-indigo-500', 'Your Turn! 🎵', 'Tap a + slot below to place your card.', 'text-indigo-300');
                     } else {
-                        playBtn.className = "w-full spotify-green text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5";
+                        playBtn.className = "w-full bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 text-slate-950 font-black py-3 px-4 rounded-xl border border-emerald-200/40 shadow-lg transition text-sm flex items-center justify-center gap-2";
                         playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Play Song`;
                         setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the track.', 'text-indigo-300');
                     }
@@ -2109,8 +2119,8 @@
                 return;
             }
 
-            if (data.isPlaying) revealListeningControl.classList.add('hidden');
-            else revealListeningControl.classList.remove('hidden');
+            if (data.isActivePlayer && !data.isPlaying) revealListeningControl.classList.remove('hidden');
+            else revealListeningControl.classList.add('hidden');
             nextText.innerText = "Next Round";
             nextBtn.onclick = () => sendPlayerAction('NEXT_TURN');
 
