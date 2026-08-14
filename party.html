@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.24">
+    <meta name="app-version" content="1.36.25">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -89,13 +89,11 @@
 
     <!-- Screen Controls -->
     <div class="fixed bottom-3 left-3 z-[1000] flex flex-col gap-3">
-        <button id="accessibility-toggle" onclick="toggleFontSize()" aria-label="Larger controls off" aria-pressed="false" class="relative bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
+        <button id="accessibility-toggle" onclick="toggleFontSize()" aria-label="Larger controls off" aria-pressed="false" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
             A+
-            <span id="accessibility-indicator" aria-hidden="true" class="hidden absolute -top-1 -right-1 min-w-4 h-4 px-0.5 rounded-full bg-emerald-400 text-[7px] leading-4 font-black text-slate-950 border border-emerald-100 shadow">ON</span>
         </button>
-        <button id="fullscreen-toggle" onclick="toggleFullScreen()" aria-label="Enter full screen" aria-pressed="false" class="relative bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
+        <button id="fullscreen-toggle" onclick="toggleFullScreen()" aria-label="Enter full screen" aria-pressed="false" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
-            <span id="fullscreen-indicator" aria-hidden="true" class="hidden absolute -top-1 -right-1 min-w-4 h-4 px-0.5 rounded-full bg-emerald-400 text-[7px] leading-4 font-black text-slate-950 border border-emerald-100 shadow">ON</span>
         </button>
     </div>
 
@@ -177,7 +175,7 @@
                 </button>
             </div>
 
-            <button onclick="checkSpotifyAuthAndInitHost()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
+            <button onclick="startNewHostSetup()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-3">
                 <i class="fa-solid fa-crown text-yellow-400 text-xl"></i>
                 <div class="text-left flex-1">
                     <div class="text-base font-extrabold leading-tight">Create Room</div>
@@ -260,7 +258,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.24</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.25</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -287,12 +285,12 @@
                 <div id="host-turn-player-name" class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">In Lobby</div>
                 <div id="host-status-badge" class="bg-slate-800 text-slate-300 text-[10px] px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">WAITING FOR PLAYERS TO JOIN</div>
 
-                <div id="host-join-qr-card" class="hidden w-full max-w-[280px] mt-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-2.5 flex items-center gap-3 text-left">
-                    <div id="host-join-qr" class="w-16 h-16 shrink-0 rounded-lg bg-white p-1 flex items-center justify-center overflow-hidden"></div>
-                    <div class="min-w-0">
-                        <div class="text-xs font-black text-emerald-300"><i class="fa-solid fa-qrcode mr-1"></i> Scan to join</div>
-                        <p class="text-[10px] leading-snug text-slate-300 mt-0.5">Opens the join page and fills in this room’s PIN.</p>
-                        <a id="host-join-link" href="#" class="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 hover:text-emerald-200 underline underline-offset-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open join page</a>
+                <div id="host-join-qr-card" class="hidden w-full mt-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 flex flex-col items-center text-center">
+                    <div id="host-join-qr" class="w-48 h-48 shrink-0 rounded-xl bg-white p-2 shadow-lg flex items-center justify-center overflow-hidden"></div>
+                    <div class="mt-2">
+                        <div class="text-sm font-black text-emerald-300"><i class="fa-solid fa-qrcode mr-1"></i> Scan to join</div>
+                        <p class="text-[11px] leading-snug text-slate-300 mt-0.5">Opens the join page and fills in this room’s PIN.</p>
+                        <a id="host-join-link" href="#" class="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-emerald-200 underline underline-offset-2"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open join page</a>
                     </div>
                 </div>
                 
@@ -418,10 +416,9 @@
         // --- UI TOGGLES ---
         let isLargeFont = false;
 
-        function setScreenControlIndicator(buttonId, indicatorId, isOn, onLabel, offLabel) {
+        function setScreenControlState(buttonId, isOn, onLabel, offLabel) {
             const button = document.getElementById(buttonId);
-            const indicator = document.getElementById(indicatorId);
-            if (!button || !indicator) return;
+            if (!button) return;
             button.setAttribute('aria-pressed', String(isOn));
             button.setAttribute('aria-label', isOn ? onLabel : offLabel);
             button.title = isOn ? onLabel : offLabel;
@@ -431,11 +428,13 @@
             button.classList.toggle('bg-slate-800/80', !isOn);
             button.classList.toggle('border-slate-700', !isOn);
             button.classList.toggle('text-slate-400', !isOn);
-            indicator.classList.toggle('hidden', !isOn);
+            button.style.backgroundColor = isOn ? '#4f46e5' : '';
+            button.style.borderColor = isOn ? '#a5b4fc' : '';
+            button.style.color = isOn ? '#ffffff' : '';
         }
 
         function updateAccessibilityIndicator() {
-            setScreenControlIndicator('accessibility-toggle', 'accessibility-indicator', isLargeFont, 'Larger controls on', 'Larger controls off');
+            setScreenControlState('accessibility-toggle', isLargeFont, 'Larger controls on', 'Larger controls off');
         }
 
         function isFullScreenActive() {
@@ -449,7 +448,7 @@
                 icon.classList.toggle('fa-expand', !active);
                 icon.classList.toggle('fa-compress', active);
             }
-            setScreenControlIndicator('fullscreen-toggle', 'fullscreen-indicator', active, 'Exit full screen', 'Enter full screen');
+            setScreenControlState('fullscreen-toggle', active, 'Exit full screen', 'Enter full screen');
         }
 
         function toggleFontSize() {
@@ -504,6 +503,7 @@
         const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let accessToken = localStorage.getItem('party_spotify_token') || null;
+        const HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY = 'party_resume_after_spotify_login';
 
         // Auto-save host state on refresh
         window.addEventListener('beforeunload', () => {
@@ -579,7 +579,7 @@
                         accessToken = data.access_token;
                         localStorage.setItem('party_spotify_token', accessToken);
                         window.history.replaceState({}, document.title, window.location.pathname);
-                        checkSpotifyAuthAndInitHost();
+                        continueAfterSpotifyLogin();
                     }
                 } catch (e) { showMessage("Spotify login failed. Please reconnect.", "error"); }
             }
@@ -854,6 +854,18 @@
         //               HOST LOGIC
         // ==========================================
         
+        function startNewHostSetup() {
+            sessionStorage.removeItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY);
+            checkSpotifyAuthAndInitHost();
+        }
+
+        function continueAfterSpotifyLogin() {
+            const shouldResume = sessionStorage.getItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY) === 'true';
+            sessionStorage.removeItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY);
+            if (shouldResume) resumeHostGame();
+            else checkSpotifyAuthAndInitHost();
+        }
+
         async function checkSpotifyAuthAndInitHost() {
             if (!accessToken) { switchSetupView('view-spotify-login'); return; }
             switchSetupView('view-host-setup');
@@ -994,13 +1006,17 @@
 
         function resumeHostGame() {
             if (!accessToken) {
+                sessionStorage.setItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY, 'true');
                 showMessage("Please log in with Spotify to resume your game.", "info");
                 switchSetupView('view-spotify-login');
                 return;
             }
             
             const savedStateStr = localStorage.getItem('party_host_state');
-            if (!savedStateStr) return;
+            if (!savedStateStr) {
+                sessionStorage.removeItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY);
+                return;
+            }
             
             try {
                 const savedState = JSON.parse(savedStateStr);
@@ -1331,7 +1347,7 @@
             qr.dataset.joinUrl = joinUrl.toString();
             qr.replaceChildren();
             const image = document.createElement('img');
-            image.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(joinUrl.toString())}`;
+            image.src = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=8&data=${encodeURIComponent(joinUrl.toString())}`;
             image.alt = `QR code to join room ${currentRoomPin}`;
             image.className = 'w-full h-full object-contain';
             qr.appendChild(image);
