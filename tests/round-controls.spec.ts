@@ -135,7 +135,7 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.topPanelMatchesHeader).toBe(true);
   });
 
-  test(`${game} shows screen-control state and creates a lobby QR join link`, async ({ page }) => {
+  test(`${game} changes screen-control color immediately and creates a scannable lobby QR join link`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
@@ -147,13 +147,11 @@ for (const game of ['party.html', 'Jam.html']) {
       const qrVisibleInLobby = !qrCard.classList.contains('hidden');
       const qrImageAlt = document.querySelector('#host-join-qr img')?.getAttribute('alt');
       const accessibilityButton = document.getElementById('accessibility-toggle');
-      const accessibilityIndicator = document.getElementById('accessibility-indicator');
       const fullscreenButton = document.getElementById('fullscreen-toggle');
-      const fullscreenIndicator = document.getElementById('fullscreen-indicator');
       toggleFontSize();
       const accessibleState = {
         pressed: accessibilityButton.getAttribute('aria-pressed'),
-        indicatorVisible: !accessibilityIndicator.classList.contains('hidden'),
+        backgroundColor: accessibilityButton.style.backgroundColor,
       };
       gameState = 'READY_TO_PLAY';
       updateHostJoinQr();
@@ -162,25 +160,55 @@ for (const game of ['party.html', 'Jam.html']) {
         qrLinkPin: qrLink.searchParams.get('join'),
         qrVisibleInLobby,
         qrImageAlt,
+        qrSizeClass: document.getElementById('host-join-qr').classList.contains('w-48'),
+        qrSource: document.querySelector('#host-join-qr img')?.getAttribute('src'),
         qrHiddenAfterStart: qrCard.classList.contains('hidden'),
         accessibleState,
+        accessibilityIndicatorPresent: Boolean(document.getElementById('accessibility-indicator')),
         fullscreenPressed: fullscreenButton.getAttribute('aria-pressed'),
-        fullscreenIndicatorHidden: fullscreenIndicator.classList.contains('hidden'),
+        fullscreenIndicatorPresent: Boolean(document.getElementById('fullscreen-indicator')),
       };
     });
 
     expect(result.qrLinkPin).toBe('4321');
     expect(result.qrVisibleInLobby).toBe(true);
     expect(result.qrImageAlt).toContain('4321');
+    expect(result.qrSizeClass).toBe(true);
+    expect(result.qrSource).toContain('size=360x360');
     expect(result.qrHiddenAfterStart).toBe(true);
-    expect(result.accessibleState).toEqual({ pressed: 'true', indicatorVisible: true });
+    expect(result.accessibleState).toEqual({ pressed: 'true', backgroundColor: 'rgb(79, 70, 229)' });
+    expect(result.accessibilityIndicatorPresent).toBe(false);
     expect(result.fullscreenPressed).toBe('false');
-    expect(result.fullscreenIndicatorHidden).toBe(true);
+    expect(result.fullscreenIndicatorPresent).toBe(false);
   });
 
   test(`${game} pre-fills a room PIN opened from the QR link`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}?join=4321`, { waitUntil: 'load' });
     await expect(page.locator('#join-pin')).toHaveValue('4321');
     await expect(page.locator('#view-player-join')).not.toHaveClass(/hidden/);
+  });
+
+  test(`${game} resumes the saved host game after returning from Spotify login`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'load' });
+
+    const result = await page.evaluate(() => {
+      let resumeCalls = 0;
+      let newGameSetupCalls = 0;
+      sessionStorage.removeItem('party_resume_after_spotify_login');
+      eval('accessToken = null');
+      resumeHostGame();
+      const resumeIntentSet = sessionStorage.getItem('party_resume_after_spotify_login') === 'true';
+      resumeHostGame = () => { resumeCalls++; };
+      checkSpotifyAuthAndInitHost = () => { newGameSetupCalls++; };
+      continueAfterSpotifyLogin();
+      return {
+        resumeCalls,
+        newGameSetupCalls,
+        resumeIntentSet,
+        resumeIntentCleared: sessionStorage.getItem('party_resume_after_spotify_login') === null,
+      };
+    });
+
+    expect(result).toEqual({ resumeCalls: 1, newGameSetupCalls: 0, resumeIntentSet: true, resumeIntentCleared: true });
   });
 }
