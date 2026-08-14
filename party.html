@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.20">
+    <meta name="app-version" content="1.36.21">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -57,6 +57,15 @@
         .text-scaled .gap-slot { width: 4.5rem !important; }
         .text-scaled #p-ui-title { font-size: 1.25rem !important; }
         .text-scaled #p-ui-desc { font-size: 0.85rem !important; }
+        .text-scaled #p-ui-name { font-size: 1rem !important; }
+        .text-scaled #p-inventory { padding: 0.45rem !important; gap: 0.6rem !important; }
+        .text-scaled #p-inventory > div { font-size: 1.05rem !important; padding: 0.4rem 0.6rem !important; }
+        .text-scaled #p-ui-score, .text-scaled #p-ui-tokens { font-size: 1.35rem !important; }
+        .text-scaled #p-btn-toggle-view,
+        .text-scaled #p-btn-play,
+        .text-scaled #p-btn-resume-listening,
+        .text-scaled #p-btn-pass-steal { font-size: 1rem !important; padding: 0.8rem 1rem !important; }
+        .text-scaled #p-ui-header { min-height: 76px !important; padding: 0.75rem !important; }
 
         @keyframes rotate-phone {
             0%, 10% { transform: rotate(0deg); }
@@ -77,8 +86,8 @@
 
     <!-- Screen Controls -->
     <div class="fixed bottom-3 left-3 z-[1000] flex flex-col gap-3">
-        <button onclick="toggleFontSize()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
-            A
+        <button onclick="toggleFontSize()" aria-label="Toggle larger game controls" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-base font-bold w-10 h-10">
+            A+
         </button>
         <button onclick="toggleFullScreen()" class="bg-slate-800/80 p-2.5 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 shadow-lg transition flex items-center justify-center aspect-square text-sm w-10 h-10">
             <i class="fa-solid fa-expand" id="fs-icon"></i>
@@ -243,7 +252,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.20</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.21</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -311,50 +320,57 @@
     <div id="player-game-ui" class="hidden w-full h-[100vh] flex-col items-center p-2 pt-4 md:p-4 max-w-5xl mx-auto overflow-hidden">
         <!-- Top Bar -->
         <div class="w-full flex flex-wrap justify-between items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-md mb-2 flex-shrink-0 gap-y-2 gap-x-2">
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <div class="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-2 py-1 rounded flex items-center gap-1 border border-indigo-500/30">
+            <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+                <div class="bg-indigo-500/20 text-indigo-300 text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-indigo-500/30">
                     <i class="fa-solid fa-user"></i> <span id="p-ui-name">Me</span>
                 </div>
                 <!-- Host Mode Switch Button -->
-                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded transition flex items-center gap-1 shrink-0">
+                <button id="p-btn-host-back" onclick="switchPlayerToHostView()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shrink-0">
                     <i class="fa-solid fa-crown"></i> DJ
                 </button>
             </div>
 
             <!-- View Toggle Button -->
-            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-xs font-bold px-3 py-1 rounded-lg transition flex items-center gap-1.5 shrink-0 ml-auto md:ml-0">
+            <button id="p-btn-toggle-view" onclick="togglePlayerTimelineView()" class="hidden bg-slate-700 hover:bg-slate-600 text-indigo-300 border border-slate-600 text-sm font-bold px-4 py-2 rounded-lg transition flex items-center gap-1.5 shrink-0">
                 <i class="fa-solid fa-eye" id="toggle-view-icon"></i> <span id="toggle-view-text">View My Timeline</span>
             </button>
 
             <!-- Score & Tokens protected in their own box (ALWAYS SHOWS YOUR INVENTORY) -->
-            <div class="flex items-center gap-3 shrink-0 bg-slate-900/50 px-2.5 py-1.5 rounded-lg border border-slate-700 ml-auto">
-                <div class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+            <div id="p-inventory" class="flex items-center gap-2 shrink-0 bg-slate-900/50 p-1.5 rounded-xl border border-slate-700 ml-auto">
+                <div class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 px-2 py-1">
                     <i class="fa-solid fa-layer-group text-green-400 mr-1"></i> <span id="p-ui-score">1</span>
                 </div>
-                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                <div class="bg-yellow-500/10 border border-yellow-500/30 px-2 py-1 rounded-lg text-sm font-bold text-yellow-400 flex items-center gap-1.5">
                     <i class="fa-solid fa-coins"></i> <span id="p-ui-tokens">2</span>
                 </div>
             </div>
         </div>
 
         <!-- Dynamic Header & Player Controls -->
-        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2">
+        <div id="p-ui-header" class="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[62px] border gap-3">
             <div class="text-left flex-1 min-w-0">
                 <h2 id="p-ui-title" class="text-sm md:text-base font-bold text-white truncate flex items-center">Loading...</h2>
                 <div id="p-ui-desc" class="text-[11px] text-slate-400 truncate mt-0.5">Syncing with Host</div>
             </div>
             
             <!-- Music Controls for Active Player -->
-            <div id="p-music-controls" class="hidden flex-shrink-0">
-                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5">
+            <div id="p-music-controls" class="hidden flex-1 min-w-0">
+                <button id="p-btn-play" onclick="sendPlayerAction('TOGGLE_PLAY')" class="w-full spotify-green text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5">
                     <i class="fa-solid fa-play"></i> Start Song
                 </button>
             </div>
 
+            <!-- Let players hear the track again while deciding whether to steal. -->
+            <div id="p-resume-listening-control" class="hidden flex-1 min-w-0">
+                <button id="p-btn-resume-listening" onclick="sendPlayerAction('RESUME_LISTENING')" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-play"></i> Listen Again
+                </button>
+            </div>
+
             <!-- Pass Steal Control for Stealers -->
-            <div id="p-steal-pass-control" class="hidden flex-shrink-0">
-                <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5 border border-slate-600">
-                    <i class="fa-solid fa-forward"></i> Pass (No Steal)
+            <div id="p-steal-pass-control" class="hidden flex-1 min-w-0">
+                <button id="p-btn-pass-steal" onclick="sendPlayerAction('PASS_STEAL')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5 border border-slate-600">
+                    <i class="fa-solid fa-forward"></i> Pass
                 </button>
             </div>
         </div>
@@ -577,6 +593,49 @@
             return !/(^|[\s\[(\-])(live|acoustic|remix|karaoke|instrumental|radio edit|single version|single edit|sped up|slowed)(?:[\s\])\-]|$)/i.test(name || '');
         }
 
+        // Spotify sometimes returns a reissue or compilation year.  These are the
+        // original recording years for versions that Spotify consistently labels
+        // with a much later compilation release year.
+        const ORIGINAL_RELEASE_YEAR_OVERRIDES = Object.freeze({
+            'thehouseoftherisingsun|frijidpink': 1970,
+            'thehouseoftherisingsun|theanimals': 1964
+        });
+        const originalReleaseYearCache = new Map();
+
+        function getTrackIdentityKey(title, artist) {
+            return `${title || ''}|${artist || ''}`.toLowerCase().replace(/[^a-z0-9|]/g, '');
+        }
+
+        function getAlbumReleaseYear(track) {
+            return Number.parseInt(track?.album?.release_date?.substring(0, 4), 10);
+        }
+
+        async function getOriginalReleaseYear(track) {
+            const fallbackYear = getAlbumReleaseYear(track);
+            const title = cleanTrackTitle(track?.name || '');
+            const artist = track?.artists?.[0]?.name || '';
+            const override = ORIGINAL_RELEASE_YEAR_OVERRIDES[getTrackIdentityKey(title, artist)];
+            if (override) return override;
+
+            const isrc = track?.external_ids?.isrc;
+            if (!isrc || !accessToken || !Number.isFinite(fallbackYear)) return fallbackYear;
+
+            if (!originalReleaseYearCache.has(isrc)) {
+                const request = safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`isrc:${isrc}`)}&type=track&limit=50`)
+                    .then(data => {
+                        const years = (data.tracks?.items || [])
+                            .filter(candidate => candidate.external_ids?.isrc === isrc)
+                            .map(getAlbumReleaseYear)
+                            .filter(Number.isFinite);
+                        return years.length > 0 ? Math.min(fallbackYear, ...years) : fallbackYear;
+                    })
+                    .catch(() => fallbackYear);
+                originalReleaseYearCache.set(isrc, request);
+            }
+
+            return originalReleaseYearCache.get(isrc);
+        }
+
         function switchContainer(id) {
             ['setup-container', 'host-game-ui', 'player-game-ui'].forEach(c => {
                 const el = document.getElementById(c);
@@ -773,23 +832,22 @@
                     }
                 }
 
-                let mappedTracks = rawItems.filter(i => i?.track?.uri && i.track.album?.release_date && !i.track.is_local && isPreferredTrack(i.track.name)).map(i => ({
-                    u: i.track.uri,
-                    t: cleanTrackTitle(i.track.name).substring(0, 32),
-                    a: i.track.artists ? i.track.artists[0].name.substring(0, 24) : 'Unknown',
-                    y: parseInt(i.track.album.release_date.substring(0, 4)),
-                    c: i.track.album.images?.[0]?.url.split('/').pop() || ''
-                }));
+                const sourceTracks = rawItems
+                    .map(i => i?.track)
+                    .filter(track => track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name));
+                let mappedTracks = await Promise.all(sourceTracks.map(async track => ({
+                    u: track.uri,
+                    t: cleanTrackTitle(track.name).substring(0, 32),
+                    a: track.artists ? track.artists[0].name.substring(0, 24) : 'Unknown',
+                    y: await getOriginalReleaseYear(track),
+                    c: track.album.images?.[0]?.url.split('/').pop() || ''
+                })));
 
                 const activeKeys = new Set();
-                const getDedupKey = (t, a) => {
-                    return (t.toLowerCase().replace(/[^a-z0-9]/g, '') + '|' + a.toLowerCase().replace(/[^a-z0-9]/g, ''));
-                };
-
-                tracks.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
-                if (currentHostTrack) activeKeys.add(getDedupKey(currentHostTrack.t, currentHostTrack.a));
+                tracks.forEach(t => activeKeys.add(getTrackIdentityKey(t.t, t.a)));
+                if (currentHostTrack) activeKeys.add(getTrackIdentityKey(currentHostTrack.t, currentHostTrack.a));
                 Object.values(players).forEach(p => {
-                    p.timeline.forEach(t => activeKeys.add(getDedupKey(t.t, t.a)));
+                    p.timeline.forEach(t => activeKeys.add(getTrackIdentityKey(t.t, t.a)));
                 });
                 
                 // Strict Deduplication based on Title & Artist — prefer the earliest release year among
@@ -798,7 +856,7 @@
                 // remaster's reissue year.
                 const earliestByKey = new Map();
                 mappedTracks.forEach(t => {
-                    const key = getDedupKey(t.t, t.a);
+                    const key = getTrackIdentityKey(t.t, t.a);
                     if (activeKeys.has(key)) return;
                     const existing = earliestByKey.get(key);
                     if (!existing || t.y < existing.y) earliestByKey.set(key, t);
@@ -1212,18 +1270,46 @@
             }
 
             const activePlayerName = players[turnOrder[turnIndex]]?.name || "the active player";
-            if (spotifyPlayer) {
-                spotifyPlayer.pause();
+            pauseRoundListening();
+            loadTurn();
+            showMessage(`Song replaced. ${activePlayerName} has a new song.`, "info");
+        }
+
+        function pauseRoundListening() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            if (spotifyPlayer?.pause) {
+                Promise.resolve(spotifyPlayer.pause()).catch(e => console.error(e));
             } else if (webDeviceId) {
                 fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 }).catch(e => console.error(e));
             }
+        }
 
-            isPlaying = false;
-            loadTurn();
-            showMessage(`Song replaced. ${activePlayerName} has a new song.`, "info");
+        function resumeRoundListening() {
+            if (!currentHostTrack) return false;
+            isPlaying = true;
+            if (spotifyPlayer?.resume) {
+                Promise.resolve(spotifyPlayer.resume()).catch(e => showMessage("Spotify could not resume this song.", "error"));
+            } else if (webDeviceId) {
+                fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uris: [currentHostTrack.u] })
+                }).then(async res => {
+                    if (!res.ok) {
+                        const err = await res.json();
+                        showMessage(`Spotify Play Error: ${err.error?.message || res.status}`, "error");
+                    }
+                }).catch(() => showMessage("Network error playing track.", "error"));
+            } else {
+                isPlaying = false;
+                showMessage("Choose a Spotify playback device first.", "error");
+                return false;
+            }
+            return true;
         }
 
         function nextTurn() {
@@ -1323,13 +1409,18 @@
                     broadcastSync();
                 }
             }
+            else if (data.action === 'RESUME_LISTENING' && gameState === 'STEALING') {
+                const player = players[pId];
+                if (!player || !player.online || isPlaying) return;
+                if (resumeRoundListening()) broadcastSync();
+            }
             else if (data.action === 'GUESS' && pId === activePlayerId) {
                 currentGuesses[pId] = data.index;
                 gameState = 'STEALING';
                 stealDecisions = {}; 
                 stealEndTime = Date.now() + 15000; 
                 
-                if (spotifyPlayer) spotifyPlayer.pause();
+                pauseRoundListening();
                 
                 if (checkAllStealsSubmitted()) {
                     evaluateAndScoreRound();
@@ -1362,6 +1453,7 @@
         }
 
         function evaluateAndScoreRound() {
+            pauseRoundListening();
             stealEndTime = 0;
             gameState = 'REVEAL';
             const activePlayerId = turnOrder[turnIndex];
@@ -1784,12 +1876,14 @@
             document.getElementById('p-ui-overlay').classList.add('hidden');
 
             const musicBox = document.getElementById('p-music-controls');
+            const resumeListeningBox = document.getElementById('p-resume-listening-control');
             const passStealBox = document.getElementById('p-steal-pass-control');
             const playBtn = document.getElementById('p-btn-play');
             const viewToggleBtn = document.getElementById('p-btn-toggle-view');
 
             if (data.state === 'IDLE') {
                 if (musicBox) musicBox.classList.add('hidden');
+                if (resumeListeningBox) resumeListeningBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 
@@ -1802,6 +1896,7 @@
 
             if (data.state === 'PAUSED_DISCONNECT') {
                 if (musicBox) musicBox.classList.add('hidden');
+                if (resumeListeningBox) resumeListeningBox.classList.add('hidden');
                 if (passStealBox) passStealBox.classList.add('hidden');
                 if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
                 setPlayerHeader('bg-red-950 border-red-500', 'Game Paused ⏸️', `Waiting for ${data.pausedPlayerName || 'player'} to reconnect or Host decision...`, 'text-red-400');
@@ -1841,14 +1936,15 @@
 
             if (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING') {
                 passStealBox.classList.add('hidden');
+                resumeListeningBox.classList.add('hidden');
                 if (data.isActivePlayer) {
                     musicBox.classList.remove('hidden');
                     if (data.isPlaying) {
-                        playBtn.className = "bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
+                        playBtn.className = "w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5";
                         playBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Song`;
                         setPlayerHeader('bg-indigo-950 border-indigo-500', 'Your Turn! 🎵', 'Tap a + slot below to place your card.', 'text-indigo-300');
                     } else {
-                        playBtn.className = "spotify-green text-slate-950 font-black py-2 px-4 rounded-lg shadow transition text-xs flex items-center gap-1.5";
+                        playBtn.className = "w-full spotify-green text-slate-950 font-black py-3 px-3 rounded-lg shadow transition text-sm flex items-center justify-center gap-1.5";
                         playBtn.innerHTML = `<i class="fa-solid fa-play"></i> Play Song`;
                         setPlayerHeader('bg-indigo-900 border-indigo-500', 'Your Turn!', 'Tap Play Song to start the track.', 'text-indigo-300');
                     }
@@ -1859,6 +1955,8 @@
                 }
             } else if (data.state === 'STEALING') {
                 musicBox.classList.add('hidden');
+                if (!data.isPlaying && !data.allStealsDone) resumeListeningBox.classList.remove('hidden');
+                else resumeListeningBox.classList.add('hidden');
                 if (data.isActivePlayer) {
                     passStealBox.classList.add('hidden');
                     const waitList = data.waitingOn && data.waitingOn.length > 0 ? data.waitingOn.join(', ') : '';
@@ -1883,6 +1981,7 @@
                 }
             } else if (data.state === 'REVEAL' || data.state === 'GAME_OVER') {
                 musicBox.classList.add('hidden');
+                resumeListeningBox.classList.add('hidden');
                 passStealBox.classList.add('hidden');
                 showRevealOverlay(data);
                 return;
@@ -1893,7 +1992,7 @@
 
         function setPlayerHeader(bgClass, titleHTML, descHTML, titleColorClass, activeStatsHTML = '') {
             const h = document.getElementById('p-ui-header');
-            h.className = `w-full ${bgClass} p-2.5 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[50px] border gap-2`;
+            h.className = `w-full ${bgClass} p-3 rounded-xl text-center shadow-lg transition-all flex-shrink-0 mb-2 flex items-center justify-between min-h-[62px] border gap-3`;
             document.getElementById('p-ui-title').innerHTML = `<span class="truncate">${titleHTML}</span>${activeStatsHTML}`;
             document.getElementById('p-ui-title').className = `w-full text-sm md:text-base font-bold ${titleColorClass} truncate flex items-center justify-between gap-2`;
             document.getElementById('p-ui-desc').innerHTML = descHTML;
