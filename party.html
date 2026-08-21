@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.25">
+    <meta name="app-version" content="1.36.26">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -189,6 +189,9 @@
                     <div class="text-[10px] text-slate-300 font-normal">Player Remote</div>
                 </div>
             </button>
+            <a href="spotify-dev-setup.html" class="text-[11px] text-slate-400 hover:text-emerald-300 transition-colors underline underline-offset-4 flex items-center gap-1.5 py-1" aria-label="Open Spotify developer setup guide">
+                <i class="fa-solid fa-code"></i> Spotify developer setup
+            </a>
         </div>
 
         <!-- View 2: Spotify Login (Host Only) -->
@@ -258,7 +261,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.25</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.26</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -656,6 +659,29 @@
             return !/(^|[\s\[(\-])(live|acoustic|remix|karaoke|instrumental|radio edit|single version|single edit|sped up|slowed)(?:[\s\])\-]|$)/i.test(name || '');
         }
 
+        // The normal Spotify year search is global. Add a small, deliberate
+        // Israeli/Hebrew slice for every decade so it remains a familiar part
+        // of the mixed decks without turning the whole game into one genre.
+        const HEBREW_ARTISTS_BY_ERA = Object.freeze({
+            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי'],
+            '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב'],
+            '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה'],
+            '1986-1999': ['משינה', 'יהודה פוליקר', 'שלמה ארצי'],
+            '1990-1999': ['משינה', 'החברים של נטאשה', 'אייל גולן'],
+            '2000-2009': ['עידן רייכל', 'הדג נחש', 'מוקי'],
+            '2010-2015': ['קרן פלס', 'עידן עמדי', 'ישי ריבו'],
+            '2010-2024': ['עידן רייכל', 'נועה קירל', 'יסמין מועלם'],
+            '2016-2020': ['נועה קירל', 'סטטיק ובן אל', 'עדן חסון'],
+            '2016-2024': ['נועה קירל', 'אודיה', 'יסמין מועלם'],
+            '2021-2024': ['אודיה', 'יסמין מועלם', 'עדן חסון']
+        });
+
+        function buildHebrewSearchQuery(era) {
+            const artists = HEBREW_ARTISTS_BY_ERA[era] || HEBREW_ARTISTS_BY_ERA['2010-2024'];
+            const artist = artists[Math.floor(Math.random() * artists.length)];
+            return `artist:"${artist}" year:${era}`;
+        }
+
         // Spotify sometimes returns a reissue or compilation year.  These are the
         // original recording years for versions that Spotify consistently labels
         // with a much later compilation release year.
@@ -666,7 +692,10 @@
         const originalReleaseYearCache = new Map();
 
         function getTrackIdentityKey(title, artist) {
-            return `${title || ''}|${artist || ''}`.toLowerCase().replace(/[^a-z0-9|]/g, '');
+            // Keep letters and numbers from every language. The old ASCII-only
+            // expression converted every Hebrew title/artist pair to "|", so
+            // the duplicate filter silently removed almost all Hebrew songs.
+            return `${title || ''}|${artist || ''}`.normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}|]/gu, '');
         }
 
         function getAlbumReleaseYear(track) {
@@ -906,6 +935,14 @@
                         const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
                         if (data.tracks && data.tracks.items) {
                             rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                        }
+
+                        // Reserve roughly a quarter of every decade batch for
+                        // Hebrew music. `market=IL` helps Spotify return tracks
+                        // that are actually playable for the local audience.
+                        const hebrewData = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(buildHebrewSearchQuery(era))}&type=track&limit=4&market=IL`);
+                        if (hebrewData.tracks && hebrewData.tracks.items) {
+                            rawItems.push(...hebrewData.tracks.items.map(t => ({ track: t })));
                         }
                     }
                 }
