@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#020617">
+    <title>Spotify developer setup | Hitster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-400 selection:text-slate-950">
+    <main class="mx-auto w-full max-w-3xl px-4 py-7 sm:px-6 sm:py-12">
+        <div class="mb-7 flex flex-wrap gap-2">
+            <a href="party.html" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-indigo-400 hover:text-white"><i class="fa-solid fa-gamepad mr-1.5 text-indigo-300"></i>Back to Party</a>
+            <a href="Jam.html" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-emerald-400 hover:text-white"><i class="fa-solid fa-music mr-1.5 text-emerald-300"></i>Back to Jam</a>
+        </div>
+
+        <section class="rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-6 shadow-2xl shadow-indigo-950/40 sm:p-9">
+            <p class="mb-3 text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Hitster help</p>
+            <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Set up Spotify developer access</h1>
+            <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-300">Hitster uses Spotify to find tracks and control the host’s music. Spotify apps in development mode only work for the app owner and a small allow-list of test users. This page explains the quick route for a friend and the full route for your own copy of the game.</p>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-emerald-500/35 bg-emerald-950/25 p-5 sm:p-6">
+            <h2 class="flex items-center gap-2 text-lg font-extrabold text-emerald-200"><i class="fa-solid fa-bolt"></i>Fastest: ask the app owner to add you</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">Use this when you are playing a friend’s published Hitster game. You do not need to edit code or create your own app.</p>
+            <ol class="mt-4 space-y-3 text-sm leading-6 text-slate-200">
+                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">1</span>Send the host the email address on your Spotify account.</li>
+                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">2</span>The app owner opens the <a class="font-bold text-emerald-300 underline underline-offset-2" href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Spotify Developer Dashboard</a>, chooses the app, then opens <strong>Settings → Users Management → Add new user</strong>.</li>
+                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">3</span>After the owner has added you, open Hitster and choose <strong>Connect Spotify</strong> using that same Spotify account.</li>
+            </ol>
+            <p class="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100"><i class="fa-solid fa-circle-info mr-1.5"></i>Spotify currently limits a development-mode app to five authenticated users. If the list is full, the owner must remove an old tester or use Spotify’s extended quota process.</p>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
+            <h2 class="flex items-center gap-2 text-lg font-extrabold"><i class="fa-solid fa-screwdriver-wrench text-indigo-300"></i>Make your own developer copy</h2>
+            <ol class="mt-4 space-y-4 text-sm leading-6 text-slate-300">
+                <li><strong class="text-white">1. Create a Spotify app.</strong> Sign in at the Developer Dashboard and choose <strong>Create an app</strong>. Give it a name such as “My Hitster”. The app owner needs an active Spotify Premium subscription while the app is in development mode.</li>
+                <li><strong class="text-white">2. Add the two exact redirect URLs.</strong> In the app’s Settings, add these to <strong>Redirect URIs</strong> after you publish your copy:
+                    <div class="mt-2 space-y-2 font-mono text-[11px] text-indigo-200">
+                        <code class="block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">https://YOUR-NAME.github.io/YOUR-REPOSITORY/party.html</code>
+                        <code class="block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">https://YOUR-NAME.github.io/YOUR-REPOSITORY/Jam.html</code>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400">The address must match exactly, including capital letters, path, and any trailing slash. Spotify requires HTTPS for published web redirects.</p>
+                </li>
+                <li><strong class="text-white">3. Copy only the Client ID.</strong> Replace the <code class="rounded bg-slate-950 px-1.5 py-0.5 text-indigo-200">CLIENT_ID</code> value near the top of both game HTML files, then publish the files. This game uses PKCE, so never put a Client Secret in an HTML file or share it with players.</li>
+                <li><strong class="text-white">4. Add your hosts as test users.</strong> In <strong>Settings → Users Management</strong>, add each Spotify email that should be allowed to sign in. The player remotes do not need Spotify access merely to join the room; only the person hosting music does.</li>
+            </ol>
+        </section>
+
+        <section class="mt-6 grid gap-4 sm:grid-cols-2">
+            <article class="rounded-2xl border border-indigo-500/35 bg-indigo-950/30 p-5">
+                <h2 class="font-extrabold text-indigo-200"><i class="fa-solid fa-gamepad mr-1.5"></i>Party</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-300">Party plays music in the host browser with Spotify’s Web Playback SDK. The host must use Spotify Premium. Guests use their phones as game remotes; they do not need their own Spotify sign-in.</p>
+            </article>
+            <article class="rounded-2xl border border-emerald-500/35 bg-emerald-950/30 p-5">
+                <h2 class="font-extrabold text-emerald-200"><i class="fa-solid fa-music mr-1.5"></i>Jam</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-300">Jam controls the host’s active Spotify device and can keep the game in step with its play and pause state. Start the music on the host’s Spotify device first, then connect Spotify in Jam.</p>
+            </article>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
+            <h2 class="font-extrabold"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-300"></i>Common errors</h2>
+            <ul class="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+                <li><strong class="text-white">“Invalid redirect URI”:</strong> copy the full published page address into Spotify’s Redirect URIs, save, then try again.</li>
+                <li><strong class="text-white">Login succeeds but the game cannot use Spotify:</strong> check that the account’s exact Spotify email is on the app’s test-user list.</li>
+                <li><strong class="text-white">Party cannot play music:</strong> verify that the hosting account is Premium and that the browser is allowed to play audio.</li>
+                <li><strong class="text-white">You changed the Client ID:</strong> publish the edited HTML and wait for GitHub Pages to deploy before retrying.</li>
+            </ul>
+        </section>
+
+        <p class="mt-8 text-center text-xs text-slate-500">Spotify access is only used to run the game’s music features. Hitster never needs your Spotify password.</p>
+    </main>
+</body>
+</html>
