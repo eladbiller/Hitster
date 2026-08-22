@@ -44,9 +44,12 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.hebrewQueries.every(query => /artist:"[\u0590-\u05FF]+/.test(query) && query.includes('year:2000-2009'))).toBe(true);
     expect(result.englishQueries.every(query => /artist:"[A-Za-z]/.test(query) && query.includes('year:2000-2009'))).toBe(true);
     expect(result.artistsInEveryClassicEra).toBe(true);
-    expect(result.automaticSearchCalls).toHaveLength(10);
-    expect(result.automaticSearchCalls.filter(url => url.includes('market=IL'))).toHaveLength(10);
-    expect(result.classicPlan).toEqual(['hebrew', 'english']);
+    const expectedAutomaticSearches = game === 'party.html' ? 20 : 10;
+    expect(result.automaticSearchCalls).toHaveLength(expectedAutomaticSearches);
+    expect(result.automaticSearchCalls.filter(url => url.includes('market=IL'))).toHaveLength(expectedAutomaticSearches);
+    expect(result.classicPlan).toEqual(game === 'party.html'
+      ? ['hebrew', 'hebrew', 'english', 'english']
+      : ['hebrew', 'english']);
     expect(result.hebrewOnlyPlan).toEqual(['hebrew', 'hebrew']);
     expect(result.englishOnlyPlan).toEqual(['english', 'english']);
   });
@@ -102,7 +105,9 @@ for (const game of ['party.html', 'Jam.html']) {
       };
     });
 
-    expect(result).toEqual({ total: 30, hebrew: 15, english: 15 });
+    expect(result).toEqual(game === 'party.html'
+      ? { total: 60, hebrew: 30, english: 30 }
+      : { total: 30, hebrew: 15, english: 15 });
   });
 }
 
