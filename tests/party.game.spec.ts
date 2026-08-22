@@ -55,6 +55,25 @@ test('requires Spotify before a player can create a host room', async ({ page })
   await expect(page.getByRole('button', { name: /Login with Spotify/ })).toBeVisible();
 });
 
+test('lets a host save a personal Spotify Client ID without changing the game code', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Create Room/ }).click();
+  await page.getByRole('button', { name: /Use your own Spotify Client ID/ }).click();
+  await page.locator('#custom-spotify-client-id').fill('1234567890abcdef1234567890abcdef');
+  await page.getByRole('button', { name: /Use this Client ID/ }).click();
+
+  const result = await page.evaluate(() => ({
+    clientId: eval('spotifyClientId'),
+    savedClientId: localStorage.getItem('party_custom_spotify_client_id'),
+    accessToken: eval('accessToken'),
+  }));
+  expect(result).toEqual({
+    clientId: '1234567890abcdef1234567890abcdef',
+    savedClientId: '1234567890abcdef1234567890abcdef',
+    accessToken: null,
+  });
+});
+
 test('validates the player PIN and name before connecting', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /Join Room/ }).click();
