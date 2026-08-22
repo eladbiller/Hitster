@@ -3,13 +3,14 @@ import { test, expect } from '@playwright/test';
 const ROOT = '';
 
 for (const game of ['party.html', 'Jam.html']) {
-  test(`${game} preserves Hebrew tracks and deliberately includes them in automatic mixes`, async ({ page }) => {
+  test(`${game} preserves Hebrew tracks and plans balanced, Hebrew-only, and English-only classic mixes`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
       const firstKey = getTrackIdentityKey('שיר אחד', 'עפרה חזה');
       const secondKey = getTrackIdentityKey('שיר אחר', 'עידן רייכל');
-      const searchQuery = buildHebrewSearchQuery('2000-2009');
+      const hebrewQueries = buildLanguageSearchQueries('2000-2009', 'hebrew', 2);
+      const englishQueries = buildLanguageSearchQueries('2000-2009', 'english', 2);
       const searchCalls: string[] = [];
       const originalSpotifyFetch = safeSpotifyFetch;
       eval('accessToken = "test-token"');
@@ -23,8 +24,12 @@ for (const game of ['party.html', 'Jam.html']) {
         return {
           firstKey,
           secondKey,
-          searchQuery,
+          hebrewQueries,
+          englishQueries,
           automaticSearchCalls: searchCalls.filter(url => url.includes('/v1/search')),
+          classicPlan: getClassicLanguagePlan('hitster_classic'),
+          hebrewOnlyPlan: getClassicLanguagePlan('hitster_hebrew_classic'),
+          englishOnlyPlan: getClassicLanguagePlan('hitster_english_classic'),
           artistsInEveryClassicEra: ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']
             .every(era => HEBREW_ARTISTS_BY_ERA[era]?.length >= 1),
         };
@@ -34,16 +39,29 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.firstKey).not.toBe('|');
     expect(result.secondKey).not.toBe('|');
     expect(result.secondKey).not.toBe(result.firstKey);
-    expect(result.searchQuery).toMatch(/artist:"[\u0590-\u05FF]+/);
-    expect(result.searchQuery).toContain('year:2000-2009');
+    expect(result.hebrewQueries).toHaveLength(2);
+    expect(result.englishQueries).toHaveLength(2);
+    expect(result.hebrewQueries.every(query => /artist:"[\u0590-\u05FF]+/.test(query) && query.includes('year:2000-2009'))).toBe(true);
+    expect(result.englishQueries.every(query => /artist:"[A-Za-z]/.test(query) && query.includes('year:2000-2009'))).toBe(true);
     expect(result.artistsInEveryClassicEra).toBe(true);
     expect(result.automaticSearchCalls).toHaveLength(10);
-    expect(result.automaticSearchCalls.filter(url => url.includes('market=IL'))).toHaveLength(5);
+    expect(result.automaticSearchCalls.filter(url => url.includes('market=IL'))).toHaveLength(10);
+    expect(result.classicPlan).toEqual(['hebrew', 'english']);
+    expect(result.hebrewOnlyPlan).toEqual(['hebrew', 'hebrew']);
+    expect(result.englishOnlyPlan).toEqual(['english', 'english']);
   });
 
   test(`${game} links to the Spotify developer setup guide from the main screen`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('a[href="spotify-dev-setup.html"]')).toHaveText('Spotify developer setup');
+  });
+
+  test(`${game} offers separate Hebrew and English Classic Mix buttons`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => switchSetupView('view-host-setup'));
+    await expect(page.getByRole('button', { name: /Hebrew Classic/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /English Classic/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /The Classic Mix/ })).toContainText('50% Hebrew / 50% English');
   });
 }
 
