@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.33">
+    <meta name="app-version" content="1.36.34">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -147,6 +147,9 @@
             <div class="flex items-center gap-2 text-[10px] text-indigo-300/80 bg-indigo-950/50 px-3 py-1.5 rounded-full border border-indigo-800/40 font-mono">
                 <i class="fa-solid fa-arrows-rotate"></i> Auto-rotate required
             </div>
+            <button id="portrait-exit-fullscreen" onclick="exitFullScreen()" class="hidden w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl border border-slate-500 transition text-sm">
+                <i class="fa-solid fa-compress mr-1"></i> Exit full screen
+            </button>
         </div>
     </div>
 
@@ -304,7 +307,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.33</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.34</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -490,11 +493,20 @@
         function updateFullScreenIndicator() {
             const active = isFullScreenActive();
             const icon = document.getElementById('fs-icon');
+            const portraitExit = document.getElementById('portrait-exit-fullscreen');
             if (icon) {
                 icon.classList.toggle('fa-expand', !active);
                 icon.classList.toggle('fa-compress', active);
             }
+            if (portraitExit) portraitExit.classList.toggle('hidden', !active);
             setScreenControlState('fullscreen-toggle', active, 'Exit full screen', 'Enter full screen');
+        }
+
+        function exitFullScreen() {
+            if (!isFullScreenActive()) return;
+            const doc = window.document;
+            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+            if (cancelFullScreen) Promise.resolve(cancelFullScreen.call(doc)).then(updateFullScreenIndicator).catch(updateFullScreenIndicator);
         }
 
         function toggleFontSize() {
@@ -994,8 +1006,37 @@
         }
 
         function popTrack() {
-            if (tracks.length > 0) return tracks.pop();
+            if (tracks.length > 0) {
+                const previousArtist = getTrackArtistKey(currentHostTrack);
+                const previousAlbum = getTrackAlbumKey(currentHostTrack);
+                const preferredIndex = findLastTrackIndex(track =>
+                    getTrackArtistKey(track) !== previousArtist &&
+                    (!previousAlbum || getTrackAlbumKey(track) !== previousAlbum)
+                );
+                if (preferredIndex >= 0) return tracks.splice(preferredIndex, 1)[0];
+
+                // A very small remaining pool may not offer both. Still avoid
+                // repeating the artist when any other artist is available.
+                const differentArtistIndex = findLastTrackIndex(track => getTrackArtistKey(track) !== previousArtist);
+                if (differentArtistIndex >= 0) return tracks.splice(differentArtistIndex, 1)[0];
+                return tracks.pop();
+            }
             return { y: 2024, t: "Out of Songs! Click Refetch.", a: "System", c: "" };
+        }
+
+        function getTrackArtistKey(track) {
+            return (track?.a || '').trim().toLocaleLowerCase();
+        }
+
+        function getTrackAlbumKey(track) {
+            return (track?.al || '').trim().toLocaleLowerCase();
+        }
+
+        function findLastTrackIndex(predicate) {
+            for (let index = tracks.length - 1; index >= 0; index--) {
+                if (predicate(tracks[index])) return index;
+            }
+            return -1;
         }
 
         // --- NO REPEATS OFFSET MEMORY (Cross-Session Tracker) ---
@@ -1195,7 +1236,8 @@
                     t: cleanTrackTitle(track.name).substring(0, 32),
                     a: track.artists ? track.artists[0].name.substring(0, 24) : 'Unknown',
                     y: await getOriginalReleaseYear(track),
-                    c: track.album.images?.[0]?.url.split('/').pop() || ''
+                    c: track.album.images?.[0]?.url.split('/').pop() || '',
+                    al: track.album?.id || track.album?.name || ''
                 })));
 
                 const activeKeys = new Set();
