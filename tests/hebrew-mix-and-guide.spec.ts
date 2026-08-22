@@ -63,6 +63,45 @@ for (const game of ['party.html', 'Jam.html']) {
     await expect(page.getByRole('button', { name: /English Classic/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /The Classic Mix/ })).toContainText('50% Hebrew / 50% English');
   });
+
+  test(`${game} balances the real Classic deck when Spotify returns fewer English results`, async ({ page }) => {
+    await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
+
+    const result = await page.evaluate(async () => {
+      const originalSpotifyFetch = safeSpotifyFetch;
+      eval('accessToken = "test-token"');
+      currentMusicMode = 'hitster_classic';
+      tracks = [];
+      players = {};
+      currentHostTrack = null;
+      let serial = 0;
+      safeSpotifyFetch = async (url: string) => {
+        const isHebrew = /[\u0590-\u05FF]/.test(decodeURIComponent(url));
+        const size = isHebrew ? 5 : 3;
+        const requestId = serial++;
+        return {
+          tracks: {
+            items: Array.from({ length: size }, (_, index) => ({
+              uri: `spotify:track:${isHebrew ? 'h' : 'e'}-${requestId}-${index}`,
+              name: `${isHebrew ? 'H' : 'E'} song ${requestId}-${index}`,
+              artists: [{ name: isHebrew ? 'Hebrew Artist' : 'English Artist' }],
+              album: { release_date: '2005-01-01', images: [] },
+              is_local: false,
+            })),
+          },
+        };
+      };
+      await fetchTracksFromSpotify();
+      safeSpotifyFetch = originalSpotifyFetch;
+      return {
+        total: tracks.length,
+        hebrew: tracks.filter(track => track.t.startsWith('H song')).length,
+        english: tracks.filter(track => track.t.startsWith('E song')).length,
+      };
+    });
+
+    expect(result).toEqual({ total: 30, hebrew: 15, english: 15 });
+  });
 }
 
 test('Spotify developer setup guide explains allow-listing and safe PKCE setup', async ({ page }) => {
