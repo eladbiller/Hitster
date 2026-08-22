@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.13">
+    <meta name="app-version" content="1.37.14">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -304,7 +304,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.13</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.14</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1029,11 +1029,25 @@
                                 counts[language] = (counts[language] || 0) + 1;
                                 return counts;
                             }, {});
+                            const languageItems = {};
                             for (const [language, count] of Object.entries(languageCounts)) {
                                 for (const query of buildLanguageSearchQueries(era, language, count)) {
                                     const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5&market=IL`);
-                                    if (data.tracks?.items) rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                                    if (data.tracks?.items) {
+                                        languageItems[language] = (languageItems[language] || []).concat(data.tracks.items);
+                                    }
                                 }
+                            }
+                            if (currentMusicMode === 'hitster_classic') {
+                                // The API does not always return the requested
+                                // count for an artist/year query. Use the same
+                                // count from both languages per decade so the
+                                // final Classic deck remains truly 50/50.
+                                const perLanguage = Math.min(languageItems.hebrew?.length || 0, languageItems.english?.length || 0);
+                                rawItems.push(...shuffleArray(languageItems.hebrew || []).slice(0, perLanguage).map(track => ({ track })));
+                                rawItems.push(...shuffleArray(languageItems.english || []).slice(0, perLanguage).map(track => ({ track })));
+                            } else {
+                                Object.values(languageItems).forEach(items => rawItems.push(...items.map(track => ({ track }))));
                             }
                         } else {
                             // Uses the Smart Memory Offset to ensure no repeats across sessions.
