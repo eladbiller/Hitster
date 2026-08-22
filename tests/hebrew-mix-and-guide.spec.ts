@@ -89,7 +89,7 @@ for (const game of ['party.html', 'Jam.html']) {
             items: Array.from({ length: size }, (_, index) => ({
               uri: `spotify:track:${isHebrew ? 'h' : 'e'}-${requestId}-${index}`,
               name: `${isHebrew ? 'H' : 'E'} song ${requestId}-${index}`,
-              artists: [{ name: isHebrew ? 'Hebrew Artist' : 'English Artist' }],
+              artists: [{ name: `${isHebrew ? 'Hebrew' : 'English'} Artist ${requestId}` }],
               album: { release_date: '2005-01-01', images: [] },
               is_local: false,
             })),
@@ -106,7 +106,7 @@ for (const game of ['party.html', 'Jam.html']) {
     });
 
     expect(result).toEqual(game === 'party.html'
-      ? { total: 60, hebrew: 30, english: 30 }
+      ? { total: 40, hebrew: 20, english: 20 }
       : { total: 30, hebrew: 15, english: 15 });
   });
 }
@@ -143,11 +143,11 @@ test('Party lets the host choose the Hebrew percentage before creating a Classic
   await expect(slider).toHaveValue('50');
 });
 
-test('Spotify developer setup guide explains allow-listing and safe PKCE setup', async ({ page }) => {
+test('Spotify developer setup guide gives a simple Party fork and Spotify setup path', async ({ page }) => {
   await page.goto(`${ROOT}/spotify-dev-setup.html`, { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveTitle(/Spotify developer setup/i);
+  await expect(page).toHaveTitle(/Hitster Party.*Spotify setup/i);
   await expect(page.getByText('Users Management', { exact: false }).first()).toBeVisible();
-  await expect(page.getByText('Client Secret', { exact: false }).first()).toContainText('never put');
-  await expect(page.getByText('https://YOUR-NAME.github.io/YOUR-REPOSITORY/party.html')).toBeVisible();
-  await expect(page.getByText('https://YOUR-NAME.github.io/YOUR-REPOSITORY/Jam.html')).toBeVisible();
+  await expect(page.getByText('Client Secret', { exact: false }).first()).toContainText('Never copy');
+  await expect(page.locator('a[href="https://github.com/eladbiller/Hitster"]')).toHaveCount(3);
+  await expect(page.getByText('https://YOUR-GITHUB-NAME.github.io/Hitster/party.html')).toBeVisible();
 });
