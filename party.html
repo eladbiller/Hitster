@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.32">
+    <meta name="app-version" content="1.36.33">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -304,7 +304,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.32</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.33</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -811,28 +811,28 @@
         // made the old "mixed" deck overwhelmingly Hebrew in Israel. These
         // matching decade lists let us choose the language balance explicitly.
         const HEBREW_ARTISTS_BY_ERA = Object.freeze({
-            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי'],
+            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי', 'שלום חנוך', 'חוה אלברשטיין', 'יהורם גאון'],
             '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב'],
-            '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה'],
+            '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה', 'ריטה', 'ירדנה ארזי', 'גידי גוב'],
             '1986-1999': ['משינה', 'יהודה פוליקר', 'שלמה ארצי'],
-            '1990-1999': ['משינה', 'החברים של נטאשה', 'אייל גולן'],
-            '2000-2009': ['עידן רייכל', 'הדג נחש', 'מוקי'],
+            '1990-1999': ['משינה', 'החברים של נטאשה', 'אייל גולן', 'שרית חדד', 'אביב גפן', 'הדג נחש'],
+            '2000-2009': ['עידן רייכל', 'הדג נחש', 'מוקי', 'שירי מימון', 'הראל סקעת', 'קובי פרץ'],
             '2010-2015': ['קרן פלס', 'עידן עמדי', 'ישי ריבו'],
-            '2010-2024': ['עידן רייכל', 'נועה קירל', 'יסמין מועלם'],
+            '2010-2024': ['עידן רייכל', 'נועה קירל', 'יסמין מועלם', 'עומר אדם', 'נסרין קדרי', 'טונה'],
             '2016-2020': ['נועה קירל', 'סטטיק ובן אל', 'עדן חסון'],
             '2016-2024': ['נועה קירל', 'אודיה', 'יסמין מועלם'],
             '2021-2024': ['אודיה', 'יסמין מועלם', 'עדן חסון']
         });
 
         const ENGLISH_ARTISTS_BY_ERA = Object.freeze({
-            '1960-1979': ['The Beatles', 'Queen', 'ABBA'],
+            '1960-1979': ['The Beatles', 'Queen', 'ABBA', 'Bee Gees', 'Fleetwood Mac', 'David Bowie', 'Pink Floyd'],
             '1970-1985': ['Queen', 'David Bowie', 'Fleetwood Mac'],
-            '1980-1989': ['Michael Jackson', 'Madonna', 'Prince'],
+            '1980-1989': ['Michael Jackson', 'Madonna', 'Prince', 'Whitney Houston', 'Guns N Roses', 'Metallica', 'Depeche Mode'],
             '1986-1999': ['Madonna', 'Nirvana', 'Backstreet Boys'],
-            '1990-1999': ['Backstreet Boys', 'Spice Girls', 'Britney Spears'],
-            '2000-2009': ['Coldplay', 'Beyoncé', 'Eminem'],
+            '1990-1999': ['Backstreet Boys', 'Spice Girls', 'Britney Spears', 'Nirvana', 'Tupac Shakur', 'Mariah Carey', 'Radiohead'],
+            '2000-2009': ['Coldplay', 'Beyoncé', 'Eminem', 'Linkin Park', 'Avril Lavigne', 'Rihanna', 'Arctic Monkeys'],
             '2010-2015': ['Adele', 'Bruno Mars', 'Taylor Swift'],
-            '2010-2024': ['Taylor Swift', 'The Weeknd', 'Dua Lipa'],
+            '2010-2024': ['Taylor Swift', 'The Weeknd', 'Dua Lipa', 'Adele', 'Bruno Mars', 'Drake', 'Lady Gaga', 'Imagine Dragons'],
             '2016-2020': ['Dua Lipa', 'Billie Eilish', 'The Weeknd'],
             '2016-2024': ['Dua Lipa', 'The Weeknd', 'Harry Styles'],
             '2021-2024': ['Sabrina Carpenter', 'Tate McRae', 'Chappell Roan']
@@ -841,7 +841,10 @@
         function getClassicLanguagePlan(mode) {
             if (mode === 'hitster_hebrew_classic') return ['hebrew', 'hebrew'];
             if (mode === 'hitster_english_classic') return ['english', 'english'];
-            return ['hebrew', 'english'];
+            // Two artists per language in every decade gives a normal Classic
+            // room much broader pop, rock, hip-hop, dance, Mizrahi and singer-
+            // songwriter coverage than a single-artist search can provide.
+            return ['hebrew', 'hebrew', 'english', 'english'];
         }
 
         function selectClassicLanguageItems(languageItems) {
@@ -855,8 +858,18 @@
             // Choose the largest possible deck that can keep the requested
             // ratio with Spotify's actual returned result counts.
             const total = Math.floor(Math.min(hebrew.length / hebrewShare, english.length / (1 - hebrewShare)));
-            const hebrewCount = Math.min(hebrew.length, Math.round(total * hebrewShare));
-            const englishCount = Math.min(english.length, total - hebrewCount);
+            let hebrewCount = Math.min(hebrew.length, Math.round(total * hebrewShare));
+            let englishCount = Math.min(english.length, total - hebrewCount);
+            // The slider never allows 0% or 100%; keep at least one track of
+            // each language whenever Spotify returned both languages.
+            if (hebrewCount === 0 && hebrew.length && english.length) {
+                hebrewCount = 1;
+                englishCount = Math.max(1, total - hebrewCount);
+            }
+            if (englishCount === 0 && hebrew.length && english.length) {
+                englishCount = 1;
+                hebrewCount = Math.max(1, total - englishCount);
+            }
             return [...hebrew.slice(0, hebrewCount), ...english.slice(0, englishCount)];
         }
 
@@ -1137,9 +1150,9 @@
                     const isClassicLanguageMode = ['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode);
                     for (const era of eras) {
                         if (isClassicLanguageMode) {
-                            // The standard classic plan is one Hebrew and one
-                            // English query per decade. Language-only plans use
-                            // two different artists per decade for a full deck.
+                            // Every Classic plan uses two different artists per
+                            // selected language in each decade, for a fuller
+                            // and more varied deck.
                             const languageCounts = getClassicLanguagePlan(currentMusicMode).reduce((counts, language) => {
                                 counts[language] = (counts[language] || 0) + 1;
                                 return counts;
