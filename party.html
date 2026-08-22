@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.35">
+    <meta name="app-version" content="1.36.36">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -210,6 +210,14 @@
             <button onclick="loginSpotify()" class="w-full spotify-green text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base mt-2">
                 <i class="fa-solid fa-bolt"></i> Login with Spotify
             </button>
+            <button type="button" onclick="toggleCustomSpotifyClientId()" class="text-xs font-bold text-indigo-300 hover:text-white underline underline-offset-4">Use your own Spotify Client ID</button>
+            <div id="custom-spotify-client-id-panel" class="hidden w-full rounded-xl border border-indigo-400/30 bg-indigo-950/30 p-3 text-left">
+                <label for="custom-spotify-client-id" class="block text-xs font-bold text-indigo-100">Your Spotify Client ID</label>
+                <p class="mt-1 text-[10px] leading-4 text-slate-400">Create a Spotify app, add this page as its Redirect URI, then paste its Client ID here. No GitHub needed.</p>
+                <input id="custom-spotify-client-id" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="32" placeholder="32-character Client ID" class="mt-2 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 font-mono text-xs text-white outline-none focus:border-indigo-400" aria-label="Custom Spotify Client ID">
+                <button type="button" onclick="saveCustomSpotifyClientId()" class="mt-2 w-full rounded-lg bg-indigo-600 py-2 text-xs font-bold text-white hover:bg-indigo-500">Use this Client ID</button>
+                <a href="spotify-dev-setup.html" class="mt-2 block text-center text-[10px] text-indigo-300 underline underline-offset-2">Show me the simple setup steps</a>
+            </div>
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-2">Back</button>
         </div>
 
@@ -307,7 +315,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.35</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.36</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -558,10 +566,19 @@
         });
 
         // --- SPOTIFY OAUTH ---
-        const CLIENT_ID = 'bc721809b5344694abc164c34249aea1'; 
+        const DEFAULT_SPOTIFY_CLIENT_ID = 'bc721809b5344694abc164c34249aea1';
+        const CUSTOM_SPOTIFY_CLIENT_ID_KEY = 'party_custom_spotify_client_id';
+        const SPOTIFY_TOKEN_CLIENT_ID_KEY = 'party_spotify_token_client_id';
         const REDIRECT_URI = window.location.origin + window.location.pathname;
+        let spotifyClientId = localStorage.getItem(CUSTOM_SPOTIFY_CLIENT_ID_KEY) || DEFAULT_SPOTIFY_CLIENT_ID;
         let accessToken = localStorage.getItem('party_spotify_token') || null;
         const HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY = 'party_resume_after_spotify_login';
+
+        if (accessToken && (localStorage.getItem(SPOTIFY_TOKEN_CLIENT_ID_KEY) || DEFAULT_SPOTIFY_CLIENT_ID) !== spotifyClientId) {
+            localStorage.removeItem('party_spotify_token');
+            localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
+            accessToken = null;
+        }
 
         // Auto-save host state on refresh
         window.addEventListener('beforeunload', () => {
@@ -627,7 +644,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: new URLSearchParams({ 
-                            client_id: CLIENT_ID, grant_type: 'authorization_code', 
+                            client_id: spotifyClientId, grant_type: 'authorization_code', 
                             code: code, redirect_uri: REDIRECT_URI, 
                             code_verifier: localStorage.getItem('party_code_verifier') 
                         }),
@@ -636,6 +653,7 @@
                     if (data.access_token) {
                         accessToken = data.access_token;
                         localStorage.setItem('party_spotify_token', accessToken);
+                        localStorage.setItem(SPOTIFY_TOKEN_CLIENT_ID_KEY, spotifyClientId);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         continueAfterSpotifyLogin();
                     }
@@ -654,7 +672,7 @@
             const codeChallenge = base64encode(hashed);
             const scopes = 'user-read-email user-read-private user-modify-playback-state streaming user-library-read';
             const params = new URLSearchParams({ 
-                response_type: 'code', client_id: CLIENT_ID, scope: scopes, 
+                response_type: 'code', client_id: spotifyClientId, scope: scopes, 
                 code_challenge_method: 'S256', code_challenge: codeChallenge, 
                 redirect_uri: REDIRECT_URI, show_dialog: 'true'
             });
@@ -663,8 +681,36 @@
 
         function logoutSpotify() {
             localStorage.removeItem('party_spotify_token');
+            localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
             accessToken = null;
             resetApp();
+        }
+
+        function toggleCustomSpotifyClientId() {
+            const panel = document.getElementById('custom-spotify-client-id-panel');
+            const input = document.getElementById('custom-spotify-client-id');
+            const isHidden = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !isHidden);
+            if (isHidden) {
+                input.value = localStorage.getItem(CUSTOM_SPOTIFY_CLIENT_ID_KEY) || '';
+                input.focus();
+            }
+        }
+
+        function saveCustomSpotifyClientId() {
+            const input = document.getElementById('custom-spotify-client-id');
+            const clientId = input.value.trim();
+            if (!/^[a-zA-Z0-9]{32}$/.test(clientId)) {
+                showMessage('Spotify Client IDs have 32 letters and numbers. Copy the Client ID, not the Client Secret.', 'error');
+                return;
+            }
+            localStorage.setItem(CUSTOM_SPOTIFY_CLIENT_ID_KEY, clientId);
+            localStorage.removeItem('party_spotify_token');
+            localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
+            spotifyClientId = clientId;
+            accessToken = null;
+            document.getElementById('custom-spotify-client-id-panel').classList.add('hidden');
+            showMessage('Your Client ID is saved on this device. You can now log in with Spotify.', 'success');
         }
 
         async function safeSpotifyFetch(url, options = {}) {
