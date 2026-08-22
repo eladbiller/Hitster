@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.31">
+    <meta name="app-version" content="1.36.32">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -282,8 +282,8 @@
                 <div class="mt-3 flex h-3 overflow-hidden rounded-full bg-violet-500/70 ring-1 ring-white/10" aria-label="Classic Mix language balance">
                     <div id="classic-hebrew-fill" class="bg-sky-400 transition-[width] duration-150" style="width: 50%"></div>
                 </div>
-                <input id="classic-hebrew-slider" type="range" min="0" max="100" step="5" value="50" oninput="updateClassicHebrewPercentage(this.value)" class="mt-5 w-full accent-sky-400" aria-label="Hebrew song percentage">
-                <div class="mt-1 flex justify-between text-[10px] font-bold text-slate-400"><span>0% Hebrew</span><span>100% Hebrew</span></div>
+                <input id="classic-hebrew-slider" type="range" min="5" max="95" step="5" value="50" oninput="updateClassicHebrewPercentage(this.value)" class="mt-5 w-full accent-sky-400" aria-label="Hebrew song percentage">
+                <div class="mt-1 flex justify-between text-[10px] font-bold text-slate-400"><span>5% Hebrew</span><span>95% Hebrew</span></div>
             </div>
 
             <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-black py-3.5 px-5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
@@ -304,7 +304,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.31</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.32</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -681,7 +681,7 @@
         async function runSpotifyDuplicateAudit() {
             if (new URLSearchParams(window.location.search).get('duplicate-audit') !== '1') return;
 
-            const report = { status: 'running', searches: [], failures: [], rawTracks: 0, usableTracks: 0, removedByVersionFilter: 0, remainingForDeduplication: 0, distinctIdentityKeys: 0, removedByIdentityDeduplication: 0, duplicateGroups: [], suspiciousCollisions: [], malformedKeys: [], hebrewTracks: 0, hebrewDistinctIdentityKeys: 0, hebrewRemovedByIdentityDeduplication: 0, rejectedExamples: [] };
+            const report = { status: 'running', searches: [], failures: [], rawTracks: 0, usableTracks: 0, removedByVersionFilter: 0, remainingForDeduplication: 0, distinctIdentityKeys: 0, removedByIdentityDeduplication: 0, duplicateGroups: [], suspiciousCollisions: [], malformedKeys: [], hebrewTracks: 0, hebrewDistinctIdentityKeys: 0, hebrewRemovedByIdentityDeduplication: 0, rejectedExamples: [], selectedArtists: [], spotifyGenres: [] };
             const reportElement = document.createElement('pre');
             reportElement.id = 'spotify-duplicate-audit-report';
             reportElement.className = 'fixed inset-3 z-[10000] overflow-auto rounded-2xl border border-indigo-400 bg-slate-950 p-5 text-left text-xs leading-5 text-slate-100 shadow-2xl whitespace-pre-wrap';
@@ -742,6 +742,16 @@
                 const hasHebrew = value => /[\u0590-\u05FF]/.test(value || '');
                 const hebrewTracks = preferred.filter(track => hasHebrew(track.name) || hasHebrew(track.artists?.[0]?.name));
                 const hebrewKeys = new Set(hebrewTracks.map(track => getTrackIdentityKey(cleanTrackTitle(track.name), track.artists?.[0]?.name || 'Unknown')));
+                const artistIds = [...new Set(preferred.map(track => track.artists?.[0]?.id).filter(Boolean))];
+                let spotifyGenres = [];
+                if (artistIds.length) {
+                    try {
+                        const artistData = await readSpotify(`https://api.spotify.com/v1/artists?ids=${artistIds.slice(0, 50).join(',')}`);
+                        spotifyGenres = (artistData.artists || []).map(artist => ({ artist: artist.name, genres: artist.genres || [] }));
+                    } catch (error) {
+                        report.failures.push({ kind: 'artist-genres', error: String(error.message || error) });
+                    }
+                }
 
                 report.status = report.failures.length ? 'completed_with_api_errors' : 'completed';
                 report.fetchedTracks = fetchedTracks.length;
@@ -758,6 +768,8 @@
                 report.hebrewDistinctIdentityKeys = hebrewKeys.size;
                 report.hebrewRemovedByIdentityDeduplication = hebrewTracks.length - hebrewKeys.size;
                 report.rejectedExamples = filteredOut.slice(0, 12).map(track => ({ title: track.name, artist: track.artists?.[0]?.name || 'Unknown' }));
+                report.selectedArtists = [...new Set(preferred.map(track => track.artists?.[0]?.name || 'Unknown'))];
+                report.spotifyGenres = spotifyGenres;
             } catch (error) {
                 report.status = 'failed';
                 report.failures.push({ kind: 'audit', error: String(error.message || error) });
@@ -1026,8 +1038,7 @@
         let tracks = [];
         let currentHostTrack = null;
         let currentMusicMode = 'hitster_classic';
-        const savedClassicHebrewPercentage = Number(localStorage.getItem('party_classic_hebrew_percentage'));
-        let classicHebrewPercentage = Number.isFinite(savedClassicHebrewPercentage) && savedClassicHebrewPercentage >= 0 && savedClassicHebrewPercentage <= 100 ? savedClassicHebrewPercentage : 50;
+        let classicHebrewPercentage = 50;
         let isPlaying = false;
         let spotifyPlayer = null;
         let webDeviceId = null;
@@ -1064,14 +1075,14 @@
         }
 
         function showClassicMixSetup() {
-            updateClassicHebrewPercentage(classicHebrewPercentage);
+            // Each newly created Classic room starts from a neutral 50/50 mix.
+            updateClassicHebrewPercentage(50);
             switchSetupView('view-classic-balance');
         }
 
         function updateClassicHebrewPercentage(value) {
             const parsed = Number(value);
-            classicHebrewPercentage = Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed / 5) * 5)) : 50;
-            localStorage.setItem('party_classic_hebrew_percentage', String(classicHebrewPercentage));
+            classicHebrewPercentage = Number.isFinite(parsed) ? Math.max(5, Math.min(95, Math.round(parsed / 5) * 5)) : 50;
             const hebrewPercent = document.getElementById('classic-hebrew-percent');
             const englishPercent = document.getElementById('classic-english-percent');
             const fill = document.getElementById('classic-hebrew-fill');
@@ -1290,7 +1301,7 @@
                 bonusTokenClaimed = savedState.bonusTokenClaimed;
                 tracks = savedState.tracks || [];
                 currentMusicMode = savedState.currentMusicMode || 'hitster_classic';
-                if (Number.isFinite(savedState.classicHebrewPercentage)) classicHebrewPercentage = savedState.classicHebrewPercentage;
+                if (Number.isFinite(savedState.classicHebrewPercentage)) classicHebrewPercentage = Math.max(5, Math.min(95, savedState.classicHebrewPercentage));
 
                 Object.values(players).forEach(p => {
                     p.conn = null;
