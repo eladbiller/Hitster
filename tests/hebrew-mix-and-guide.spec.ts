@@ -61,7 +61,8 @@ for (const game of ['party.html', 'Jam.html']) {
     await page.evaluate(() => switchSetupView('view-host-setup'));
     await expect(page.getByRole('button', { name: /Hebrew Classic/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /English Classic/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /The Classic Mix/ })).toContainText('50% Hebrew / 50% English');
+    const classicButton = page.getByRole('button', { name: /The Classic Mix/ });
+    await expect(classicButton).toContainText(game === 'party.html' ? 'Choose your Hebrew / English balance' : '50% Hebrew / 50% English');
   });
 
   test(`${game} balances the real Classic deck when Spotify returns fewer English results`, async ({ page }) => {
@@ -71,6 +72,7 @@ for (const game of ['party.html', 'Jam.html']) {
       const originalSpotifyFetch = safeSpotifyFetch;
       eval('accessToken = "test-token"');
       currentMusicMode = 'hitster_classic';
+      if (window.location.pathname.endsWith('party.html')) classicHebrewPercentage = 50;
       tracks = [];
       players = {};
       currentHostTrack = null;
@@ -103,6 +105,32 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result).toEqual({ total: 30, hebrew: 15, english: 15 });
   });
 }
+
+test('Party lets the host choose the Hebrew percentage before creating a Classic room', async ({ page }) => {
+  await page.goto(`${ROOT}/party.html`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => switchSetupView('view-host-setup'));
+  await page.getByRole('button', { name: /The Classic Mix/ }).click();
+
+  await expect(page.getByRole('heading', { name: 'Classic Mix balance' })).toBeVisible();
+  const slider = page.locator('#classic-hebrew-slider');
+  await slider.evaluate((element: HTMLInputElement) => {
+    element.value = '70';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#classic-hebrew-percent')).toHaveText('70%');
+  await expect(page.locator('#classic-english-percent')).toHaveText('30%');
+  await expect(page.locator('#classic-hebrew-fill')).toHaveAttribute('style', /width: 70%/);
+
+  const result = await page.evaluate(() => {
+    const sample = language => Array.from({ length: language === 'hebrew' ? 5 : 3 }, (_, index) => ({ language, index }));
+    const selected = selectClassicLanguageItems({ hebrew: sample('hebrew'), english: sample('english') });
+    return {
+      hebrew: selected.filter(item => item.language === 'hebrew').length,
+      english: selected.filter(item => item.language === 'english').length,
+    };
+  });
+  expect(result).toEqual({ hebrew: 5, english: 2 });
+});
 
 test('Spotify developer setup guide explains allow-listing and safe PKCE setup', async ({ page }) => {
   await page.goto(`${ROOT}/spotify-dev-setup.html`, { waitUntil: 'domcontentloaded' });
