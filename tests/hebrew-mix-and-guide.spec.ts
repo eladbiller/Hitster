@@ -113,6 +113,9 @@ test('Party lets the host choose the Hebrew percentage before creating a Classic
 
   await expect(page.getByRole('heading', { name: 'Classic Mix balance' })).toBeVisible();
   const slider = page.locator('#classic-hebrew-slider');
+  await expect(slider).toHaveAttribute('min', '5');
+  await expect(slider).toHaveAttribute('max', '95');
+  await expect(slider).toHaveValue('50');
   await slider.evaluate((element: HTMLInputElement) => {
     element.value = '70';
     element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -120,8 +123,7 @@ test('Party lets the host choose the Hebrew percentage before creating a Classic
   await expect(page.locator('#classic-hebrew-percent')).toHaveText('70%');
   await expect(page.locator('#classic-english-percent')).toHaveText('30%');
   await expect(page.locator('#classic-hebrew-fill')).toHaveAttribute('style', /width: 70%/);
-
-  const result = await page.evaluate(() => {
+  const seventyPercentResult = await page.evaluate(() => {
     const sample = language => Array.from({ length: language === 'hebrew' ? 5 : 3 }, (_, index) => ({ language, index }));
     const selected = selectClassicLanguageItems({ hebrew: sample('hebrew'), english: sample('english') });
     return {
@@ -129,7 +131,11 @@ test('Party lets the host choose the Hebrew percentage before creating a Classic
       english: selected.filter(item => item.language === 'english').length,
     };
   });
-  expect(result).toEqual({ hebrew: 5, english: 2 });
+  expect(seventyPercentResult).toEqual({ hebrew: 5, english: 2 });
+
+  await page.getByRole('button', { name: /Back to music modes/ }).click();
+  await page.getByRole('button', { name: /The Classic Mix/ }).click();
+  await expect(slider).toHaveValue('50');
 });
 
 test('Spotify developer setup guide explains allow-listing and safe PKCE setup', async ({ page }) => {
