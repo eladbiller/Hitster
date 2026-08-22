@@ -56,7 +56,7 @@ for (const game of ['party.html', 'Jam.html']) {
 
   test(`${game} links to the Spotify developer setup guide from the main screen`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('a[href="spotify-dev-setup.html"]')).toHaveText('Spotify developer setup');
+    await expect(page.locator('a[href="spotify-dev-setup.html"]').first()).toHaveText('Spotify developer setup');
   });
 
   test(`${game} offers separate Hebrew and English Classic Mix buttons`, async ({ page }) => {
@@ -143,11 +143,12 @@ test('Party lets the host choose the Hebrew percentage before creating a Classic
   await expect(slider).toHaveValue('50');
 });
 
-test('Spotify developer setup guide gives a simple Party fork and Spotify setup path', async ({ page }) => {
+test('Spotify developer setup guide explains using a personal Client ID without GitHub', async ({ page }) => {
   await page.goto(`${ROOT}/spotify-dev-setup.html`, { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveTitle(/Hitster Party.*Spotify setup/i);
+  await expect(page).toHaveTitle(/own Spotify.*Hitster Party/i);
   await expect(page.getByText('Users Management', { exact: false }).first()).toBeVisible();
-  await expect(page.getByText('Client Secret', { exact: false }).first()).toContainText('Never copy');
-  await expect(page.locator('a[href="https://github.com/eladbiller/Hitster"]')).toHaveCount(3);
-  await expect(page.getByText('https://YOUR-GITHUB-NAME.github.io/Hitster/party.html')).toBeVisible();
+  await expect(page.getByText('Client Secret', { exact: false }).first()).toContainText('Never paste');
+  await expect(page.getByText('No GitHub needed')).toBeVisible();
+  await expect(page.getByText('https://eladbiller.github.io/Hitster/party.html')).toBeVisible();
+  await expect(page.locator('a[href="https://github.com/eladbiller/Hitster"]')).toHaveCount(2);
 });
