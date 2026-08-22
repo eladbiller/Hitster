@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.34">
+    <meta name="app-version" content="1.36.35">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -307,7 +307,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.34</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.35</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1039,6 +1039,21 @@
             return -1;
         }
 
+        function limitTracksPerArtist(newTracks, maxPerArtist = 2) {
+            const artistCounts = new Map();
+            tracks.forEach(track => {
+                const artistKey = getTrackArtistKey(track);
+                artistCounts.set(artistKey, (artistCounts.get(artistKey) || 0) + 1);
+            });
+            return newTracks.filter(track => {
+                const artistKey = getTrackArtistKey(track);
+                const count = artistCounts.get(artistKey) || 0;
+                if (count >= maxPerArtist) return false;
+                artistCounts.set(artistKey, count + 1);
+                return true;
+            });
+        }
+
         // --- NO REPEATS OFFSET MEMORY (Cross-Session Tracker) ---
         function getNextOffset(mode, era) {
             const key = `party_offsets_${mode}_${era}`;
@@ -1260,7 +1275,9 @@
                 });
                 mappedTracks = Array.from(earliestByKey.values());
 
-                tracks = tracks.concat(shuffleArray(mappedTracks));
+                // Keep a varied ready pool. A popular artist can appear in many
+                // search results, but should never fill a whole game batch.
+                tracks = tracks.concat(limitTracksPerArtist(shuffleArray(mappedTracks)));
 
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
