@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.37.12">
+    <meta name="app-version" content="1.37.13">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -254,8 +254,19 @@
             <div class="w-full flex flex-col gap-2 max-h-[45vh] overflow-y-auto pr-1 pb-2">
                 <button onclick="startHostGame('hitster_classic')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-purple-400/50 shrink-0">
                     <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-compact-disc"></i> The Classic Mix</span>
-                    <span class="text-[10px] text-purple-200 font-normal">All decades bridging 1960 to 2024</span>
+                    <span class="text-[10px] text-purple-200 font-normal">All decades • 50% Hebrew / 50% English</span>
                 </button>
+
+                <div class="grid grid-cols-2 gap-2 shrink-0">
+                    <button onclick="startHostGame('hitster_hebrew_classic')" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex flex-col items-center justify-center gap-0.5 text-xs border border-sky-400/40">
+                        <span><i class="fa-solid fa-language mr-1"></i> Hebrew Classic</span>
+                        <span class="text-[9px] text-sky-100 font-normal">עברית בלבד</span>
+                    </button>
+                    <button onclick="startHostGame('hitster_english_classic')" class="w-full bg-violet-700 hover:bg-violet-600 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex flex-col items-center justify-center gap-0.5 text-xs border border-violet-400/40">
+                        <span><i class="fa-solid fa-globe mr-1"></i> English Classic</span>
+                        <span class="text-[9px] text-violet-100 font-normal">English only</span>
+                    </button>
+                </div>
 
                 <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 ml-1">Genres</h3>
 
@@ -293,7 +304,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.12</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.37.13</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -697,9 +708,10 @@
             return !/(^|[\s\[(\-])(live|acoustic|remix|karaoke|instrumental|radio edit|single version|single edit|sped up|slowed)(?:[\s\])\-]|$)/i.test(name || '');
         }
 
-        // The normal Spotify year search is global. Add a small, deliberate
-        // Israeli/Hebrew slice for every decade so it remains a familiar part
-        // of the mixed decks without turning the whole game into one genre.
+        // Classic mixes use artist searches instead of a general year search.
+        // Spotify localizes broad search results to the account market, which
+        // made the old "mixed" deck overwhelmingly Hebrew in Israel. These
+        // matching decade lists let us choose the language balance explicitly.
         const HEBREW_ARTISTS_BY_ERA = Object.freeze({
             '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי'],
             '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב'],
@@ -714,10 +726,31 @@
             '2021-2024': ['אודיה', 'יסמין מועלם', 'עדן חסון']
         });
 
-        function buildHebrewSearchQuery(era) {
-            const artists = HEBREW_ARTISTS_BY_ERA[era] || HEBREW_ARTISTS_BY_ERA['2010-2024'];
-            const artist = artists[Math.floor(Math.random() * artists.length)];
-            return `artist:"${artist}" year:${era}`;
+        const ENGLISH_ARTISTS_BY_ERA = Object.freeze({
+            '1960-1979': ['The Beatles', 'Queen', 'ABBA'],
+            '1970-1985': ['Queen', 'David Bowie', 'Fleetwood Mac'],
+            '1980-1989': ['Michael Jackson', 'Madonna', 'Prince'],
+            '1986-1999': ['Madonna', 'Nirvana', 'Backstreet Boys'],
+            '1990-1999': ['Backstreet Boys', 'Spice Girls', 'Britney Spears'],
+            '2000-2009': ['Coldplay', 'Beyoncé', 'Eminem'],
+            '2010-2015': ['Adele', 'Bruno Mars', 'Taylor Swift'],
+            '2010-2024': ['Taylor Swift', 'The Weeknd', 'Dua Lipa'],
+            '2016-2020': ['Dua Lipa', 'Billie Eilish', 'The Weeknd'],
+            '2016-2024': ['Dua Lipa', 'The Weeknd', 'Harry Styles'],
+            '2021-2024': ['Sabrina Carpenter', 'Tate McRae', 'Chappell Roan']
+        });
+
+        function getClassicLanguagePlan(mode) {
+            if (mode === 'hitster_hebrew_classic') return ['hebrew', 'hebrew'];
+            if (mode === 'hitster_english_classic') return ['english', 'english'];
+            return ['hebrew', 'english'];
+        }
+
+        function buildLanguageSearchQueries(era, language, count = 1) {
+            const catalog = language === 'hebrew' ? HEBREW_ARTISTS_BY_ERA : ENGLISH_ARTISTS_BY_ERA;
+            const artists = [...(catalog[era] || catalog['2010-2024'])];
+            shuffleArray(artists);
+            return artists.slice(0, Math.min(count, artists.length)).map(artist => `artist:"${artist}" year:${era}`);
         }
 
         // Spotify sometimes returns a reissue or compilation year.  These are the
@@ -981,25 +1014,35 @@
                 else {
                     let eras = [];
                     let genreQuery = "";
-                    if (currentMusicMode === 'hitster_classic') eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    if (['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode)) eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
                     else if (currentMusicMode === 'hitster_pop') { genreQuery = " genre:pop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2020', '2021-2024']; }
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
-                    // Uses the Smart Memory Offset to ensure no repeats across sessions
+                    const isClassicLanguageMode = ['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode);
                     for (const era of eras) {
-                        const offset = getNextOffset(currentMusicMode, era);
-                        const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
-                        if (data.tracks && data.tracks.items) {
-                            rawItems.push(...data.tracks.items.map(t => ({ track: t })));
-                        }
+                        if (isClassicLanguageMode) {
+                            // The standard classic plan is one Hebrew and one
+                            // English query per decade. Language-only plans use
+                            // two different artists per decade for a full deck.
+                            const languageCounts = getClassicLanguagePlan(currentMusicMode).reduce((counts, language) => {
+                                counts[language] = (counts[language] || 0) + 1;
+                                return counts;
+                            }, {});
+                            for (const [language, count] of Object.entries(languageCounts)) {
+                                for (const query of buildLanguageSearchQueries(era, language, count)) {
+                                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5&market=IL`);
+                                    if (data.tracks?.items) rawItems.push(...data.tracks.items.map(t => ({ track: t })));
+                                }
+                            }
+                        } else {
+                            // Uses the Smart Memory Offset to ensure no repeats across sessions.
+                            const offset = getNextOffset(currentMusicMode, era);
+                            const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
+                            if (data.tracks?.items) rawItems.push(...data.tracks.items.map(t => ({ track: t })));
 
-                        // Reserve roughly a quarter of every decade batch for
-                        // Hebrew music. `market=IL` helps Spotify return tracks
-                        // that are actually playable for the local audience.
-                        const hebrewData = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(buildHebrewSearchQuery(era))}&type=track&limit=4&market=IL`);
-                        if (hebrewData.tracks && hebrewData.tracks.items) {
-                            rawItems.push(...hebrewData.tracks.items.map(t => ({ track: t })));
+                            const hebrewData = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(buildLanguageSearchQueries(era, 'hebrew', 1)[0])}&type=track&limit=4&market=IL`);
+                            if (hebrewData.tracks?.items) rawItems.push(...hebrewData.tracks.items.map(t => ({ track: t })));
                         }
                     }
                 }
