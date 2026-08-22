@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#020617">
-    <title>Spotify developer setup | Hitster</title>
+    <title>Make your own Hitster Party | Spotify setup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -12,64 +12,75 @@
     <main class="mx-auto w-full max-w-3xl px-4 py-7 sm:px-6 sm:py-12">
         <div class="mb-7 flex flex-wrap gap-2">
             <a href="party.html" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-indigo-400 hover:text-white"><i class="fa-solid fa-gamepad mr-1.5 text-indigo-300"></i>Back to Party</a>
-            <a href="Jam.html" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-emerald-400 hover:text-white"><i class="fa-solid fa-music mr-1.5 text-emerald-300"></i>Back to Jam</a>
+            <a href="https://github.com/eladbiller/Hitster" target="_blank" rel="noreferrer" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-emerald-400 hover:text-white"><i class="fa-brands fa-github mr-1.5 text-emerald-300"></i>Elad's Hitster code</a>
         </div>
 
         <section class="rounded-3xl border border-indigo-500/40 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-6 shadow-2xl shadow-indigo-950/40 sm:p-9">
-            <p class="mb-3 text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Hitster help</p>
-            <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Set up Spotify developer access</h1>
-            <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-300">Hitster uses Spotify to find tracks and control the host’s music. Spotify apps in development mode only work for the app owner and a small allow-list of test users. This page explains the quick route for a friend and the full route for your own copy of the game.</p>
+            <p class="mb-3 text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Simple setup guide</p>
+            <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Make your own Hitster Party</h1>
+            <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-300">This gives you your own copy of Elad's game and your own Spotify developer app. Follow the steps in order. You only need a GitHub account and a Spotify Premium account for the person who hosts the music.</p>
         </section>
 
         <section class="mt-6 rounded-2xl border border-emerald-500/35 bg-emerald-950/25 p-5 sm:p-6">
-            <h2 class="flex items-center gap-2 text-lg font-extrabold text-emerald-200"><i class="fa-solid fa-bolt"></i>Fastest: ask the app owner to add you</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-300">Use this when you are playing a friend’s published Hitster game. You do not need to edit code or create your own app.</p>
-            <ol class="mt-4 space-y-3 text-sm leading-6 text-slate-200">
-                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">1</span>Send the host the email address on your Spotify account.</li>
-                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">2</span>The app owner opens the <a class="font-bold text-emerald-300 underline underline-offset-2" href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Spotify Developer Dashboard</a>, chooses the app, then opens <strong>Settings → Users Management → Add new user</strong>.</li>
-                <li><span class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 font-black text-slate-950">3</span>After the owner has added you, open Hitster and choose <strong>Connect Spotify</strong> using that same Spotify account.</li>
-            </ol>
-            <p class="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100"><i class="fa-solid fa-circle-info mr-1.5"></i>Spotify currently limits a development-mode app to five authenticated users. If the list is full, the owner must remove an old tester or use Spotify’s extended quota process.</p>
-        </section>
-
-        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
-            <h2 class="flex items-center gap-2 text-lg font-extrabold"><i class="fa-solid fa-screwdriver-wrench text-indigo-300"></i>Make your own developer copy</h2>
-            <ol class="mt-4 space-y-4 text-sm leading-6 text-slate-300">
-                <li><strong class="text-white">1. Create a Spotify app.</strong> Sign in at the Developer Dashboard and choose <strong>Create an app</strong>. Give it a name such as “My Hitster”. The app owner needs an active Spotify Premium subscription while the app is in development mode.</li>
-                <li><strong class="text-white">2. Add the two exact redirect URLs.</strong> In the app’s Settings, add these to <strong>Redirect URIs</strong> after you publish your copy:
-                    <div class="mt-2 space-y-2 font-mono text-[11px] text-indigo-200">
-                        <code class="block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">https://YOUR-NAME.github.io/YOUR-REPOSITORY/party.html</code>
-                        <code class="block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">https://YOUR-NAME.github.io/YOUR-REPOSITORY/Jam.html</code>
-                    </div>
-                    <p class="mt-2 text-xs text-slate-400">The address must match exactly, including capital letters, path, and any trailing slash. Spotify requires HTTPS for published web redirects.</p>
-                </li>
-                <li><strong class="text-white">3. Copy only the Client ID.</strong> Replace the <code class="rounded bg-slate-950 px-1.5 py-0.5 text-indigo-200">CLIENT_ID</code> value near the top of both game HTML files, then publish the files. This game uses PKCE, so never put a Client Secret in an HTML file or share it with players.</li>
-                <li><strong class="text-white">4. Add your hosts as test users.</strong> In <strong>Settings → Users Management</strong>, add each Spotify email that should be allowed to sign in. The player remotes do not need Spotify access merely to join the room; only the person hosting music does.</li>
-            </ol>
-        </section>
-
-        <section class="mt-6 grid gap-4 sm:grid-cols-2">
-            <article class="rounded-2xl border border-indigo-500/35 bg-indigo-950/30 p-5">
-                <h2 class="font-extrabold text-indigo-200"><i class="fa-solid fa-gamepad mr-1.5"></i>Party</h2>
-                <p class="mt-2 text-sm leading-6 text-slate-300">Party plays music in the host browser with Spotify’s Web Playback SDK. The host must use Spotify Premium. Guests use their phones as game remotes; they do not need their own Spotify sign-in.</p>
-            </article>
-            <article class="rounded-2xl border border-emerald-500/35 bg-emerald-950/30 p-5">
-                <h2 class="font-extrabold text-emerald-200"><i class="fa-solid fa-music mr-1.5"></i>Jam</h2>
-                <p class="mt-2 text-sm leading-6 text-slate-300">Jam controls the host’s active Spotify device and can keep the game in step with its play and pause state. Start the music on the host’s Spotify device first, then connect Spotify in Jam.</p>
-            </article>
-        </section>
-
-        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
-            <h2 class="font-extrabold"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-300"></i>Common errors</h2>
-            <ul class="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-                <li><strong class="text-white">“Invalid redirect URI”:</strong> copy the full published page address into Spotify’s Redirect URIs, save, then try again.</li>
-                <li><strong class="text-white">Login succeeds but the game cannot use Spotify:</strong> check that the account’s exact Spotify email is on the app’s test-user list.</li>
-                <li><strong class="text-white">Party cannot play music:</strong> verify that the hosting account is Premium and that the browser is allowed to play audio.</li>
-                <li><strong class="text-white">You changed the Client ID:</strong> publish the edited HTML and wait for GitHub Pages to deploy before retrying.</li>
+            <h2 class="flex items-center gap-2 text-lg font-extrabold text-emerald-200"><i class="fa-solid fa-check-circle"></i> Before you start</h2>
+            <ul class="mt-3 space-y-2 text-sm leading-6 text-slate-200">
+                <li><i class="fa-solid fa-check mr-2 text-emerald-300"></i>You need a free <strong>GitHub</strong> account.</li>
+                <li><i class="fa-solid fa-check mr-2 text-emerald-300"></i>The music host needs <strong>Spotify Premium</strong>.</li>
+                <li><i class="fa-solid fa-check mr-2 text-emerald-300"></i>Players joining the room do <strong>not</strong> need Spotify or developer setup.</li>
             </ul>
         </section>
 
-        <p class="mt-8 text-center text-xs text-slate-500">Spotify access is only used to run the game’s music features. Hitster never needs your Spotify password.</p>
+        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
+            <h2 class="flex items-center gap-2 text-lg font-extrabold"><i class="fa-solid fa-list-ol text-indigo-300"></i>Do these six steps</h2>
+            <ol class="mt-5 space-y-6 text-sm leading-6 text-slate-300">
+                <li>
+                    <h3 class="font-bold text-white">1. Copy Elad's game to your GitHub account</h3>
+                    <p class="mt-1">Open <a class="font-bold text-indigo-300 underline underline-offset-2" href="https://github.com/eladbiller/Hitster" target="_blank" rel="noreferrer">github.com/eladbiller/Hitster</a>. Press <strong>Fork</strong> in the top-right corner, then press <strong>Create fork</strong>. You now have your own copy; leave its name as <strong>Hitster</strong> to make the next steps easiest.</p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">2. Turn on your free game website</h3>
+                    <p class="mt-1">In <strong>your copied repository</strong>, open <strong>Settings → Pages</strong>. Under <strong>Build and deployment</strong>, choose <strong>Deploy from a branch</strong>, select <strong>main</strong> and <strong>/(root)</strong>, then press <strong>Save</strong>.</p>
+                    <p class="mt-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300">After about one minute, your Party page will be:<br><code class="font-mono text-indigo-200">https://YOUR-GITHUB-NAME.github.io/Hitster/party.html</code></p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">3. Create a Spotify developer app</h3>
+                    <p class="mt-1">Open the <a class="font-bold text-indigo-300 underline underline-offset-2" href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Spotify Developer Dashboard</a>, sign in, choose <strong>Create an app</strong>, give it any name (for example, <strong>My Hitster Party</strong>), accept the terms, and create it.</p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">4. Add your exact Party address to Spotify</h3>
+                    <p class="mt-1">Inside the Spotify app, open <strong>Settings</strong>. Under <strong>Redirect URIs</strong>, add your Party page address exactly as it appears in Step 2, then press <strong>Save</strong>.</p>
+                    <p class="mt-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"><i class="fa-solid fa-triangle-exclamation mr-1"></i>It must match exactly: use <strong>https</strong>, your GitHub name, <strong>Hitster</strong>, and <strong>party.html</strong>. Do not add a slash at the end.</p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">5. Put your Client ID into your copy of the game</h3>
+                    <p class="mt-1">In Spotify, copy the <strong>Client ID</strong>. In your GitHub copy, open <strong>party.html</strong> and press the pencil icon to edit it. Find this line:</p>
+                    <code class="mt-2 block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-[11px] text-slate-400">const CLIENT_ID = 'bc721809b5344694abc164c34249aea1';</code>
+                    <p class="mt-2">Replace <strong>only</strong> the letters and numbers between the quotes with your Client ID. Scroll down and press <strong>Commit changes</strong>.</p>
+                    <p class="mt-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100"><i class="fa-solid fa-lock mr-1"></i><strong>Never copy the Client Secret into the HTML.</strong> This game only needs the Client ID.</p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">6. Allow your Spotify account, then play</h3>
+                    <p class="mt-1">Go back to your Spotify app's <strong>Settings → Users Management</strong>. Press <strong>Add new user</strong> and add the Spotify email of every person who will host music, including yourself. Then open your Party link, press <strong>Create Room</strong>, and connect Spotify.</p>
+                </li>
+            </ol>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-indigo-500/35 bg-indigo-950/25 p-5 sm:p-6">
+            <h2 class="font-extrabold text-indigo-100"><i class="fa-solid fa-people-group mr-1.5 text-indigo-300"></i>Sharing with friends</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-300">For a normal Party game, only the person playing music needs to be a Spotify developer user. Everyone else simply opens the QR code or joins with the room PIN. Spotify development mode allows up to five authenticated Spotify users, so add only people who will host music.</p>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
+            <h2 class="font-extrabold"><i class="fa-solid fa-life-ring mr-1.5 text-amber-300"></i>If something goes wrong</h2>
+            <dl class="mt-4 space-y-4 text-sm leading-6 text-slate-300">
+                <div><dt class="font-bold text-white">“Invalid redirect URI”</dt><dd>Go back to Spotify Settings and paste your complete live Party address again. The address must be identical.</dd></div>
+                <div><dt class="font-bold text-white">Spotify login works, but Party does not</dt><dd>Open Users Management and add the host's exact Spotify email. Then wait a minute and try again.</dd></div>
+                <div><dt class="font-bold text-white">Music will not start</dt><dd>Check that the host account is Spotify Premium, then tap the Play Song button once in Party.</dd></div>
+                <div><dt class="font-bold text-white">Your page still has the old Client ID</dt><dd>Wait for GitHub Pages to finish deploying, then refresh the page completely.</dd></div>
+            </dl>
+        </section>
+
+        <p class="mt-8 text-center text-xs text-slate-500">Based on <a class="underline hover:text-slate-300" href="https://github.com/eladbiller/Hitster" target="_blank" rel="noreferrer">Elad Biller's Hitster code</a>. Spotify access is used only to run music in your game; the game never asks for your Spotify password.</p>
     </main>
 </body>
 </html>
