@@ -332,6 +332,44 @@ test('explains fullscreen limitations instead of silently failing', async ({ pag
   await expect(page.locator('#toast-container')).toContainText('does not support fullscreen');
 });
 
+test('lets a player leave fullscreen from the rotate-screen view', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    });
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: () => { window.__exitFullscreenCalls = (window.__exitFullscreenCalls || 0) + 1; },
+    });
+    updateFullScreenIndicator();
+    const visibleBeforeExit = !document.getElementById('portrait-exit-fullscreen').classList.contains('hidden');
+    exitFullScreen();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return { visibleBeforeExit, exitCalls: window.__exitFullscreenCalls || 0 };
+  });
+
+  expect(result).toEqual({ visibleBeforeExit: true, exitCalls: 1 });
+});
+
+test('avoids back-to-back artists and albums whenever another track is available', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    currentHostTrack = { u: 'spotify:track:previous', t: 'Previous', a: 'Same Artist', al: 'same-album', y: 2000, c: '' };
+    tracks = [
+      { u: 'spotify:track:safe', t: 'Safe', a: 'Different Artist', al: 'different-album', y: 2001, c: '' },
+      { u: 'spotify:track:same-album', t: 'Same Album', a: 'Different Artist', al: 'same-album', y: 2002, c: '' },
+      { u: 'spotify:track:same-artist', t: 'Same Artist', a: 'Same Artist', al: 'different-album', y: 2003, c: '' },
+    ];
+    return popTrack();
+  });
+
+  expect(result.u).toBe('spotify:track:safe');
+});
+
 test('places active player counters after the player name', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
@@ -579,6 +617,65 @@ test('pauses a stale player before an expired steal window can score', async ({ 
   });
 });
 
+test('restarts the steal timer when the paused player reconnects', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const state = await page.evaluate(() => {
+    class FakeConnection {
+      open = false;
+      handlers = {};
+      metadata = { playerName: 'Alice', reconnectToken: 'alice-token' };
+      on(name, handler) { this.handlers[name] = handler; }
+      send() {}
+      close() { this.open = false; }
+    }
+
+    class FakePeer {
+      handlers = {};
+      on(name, handler) { this.handlers[name] = handler; }
+    }
+
+    window.Peer = class extends FakePeer {
+      constructor() { super(); window.__rejoinPeer = this; }
+    };
+
+    const previousDeadline = Date.now() - 1000;
+    players = {
+      'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() },
+      alice: { id: 'alice', name: 'Alice', conn: null, online: false, reconnectToken: 'alice-token', tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() - 6000 },
+    };
+    turnOrder = ['host-local-player', 'alice'];
+    turnIndex = 0;
+    gameState = 'PAUSED_DISCONNECT';
+    previousStateBeforePause = 'STEALING';
+    pendingDisconnectPlayerId = 'alice';
+    stealEndTime = previousDeadline;
+    isHostMode = true;
+
+    initHostNetwork(false);
+    window.__rejoinPeer.handlers.open();
+    const reconnect = new FakeConnection();
+    window.__rejoinPeer.handlers.connection(reconnect);
+    reconnect.open = true;
+    reconnect.handlers.open();
+
+    const result = {
+      state: gameState,
+      aliceOnline: players.alice.online,
+      secondsRestored: Math.ceil((stealEndTime - Date.now()) / 1000),
+      pendingDisconnectPlayerId,
+    };
+
+    clearInterval(hostBroadcastInterval);
+    return result;
+  });
+
+  expect(state.state).toBe('STEALING');
+  expect(state.aliceOnline).toBe(true);
+  expect(state.secondsRestored).toBeGreaterThanOrEqual(14);
+  expect(state.pendingDisconnectPlayerId).toBeNull();
+});
+
 test('filters single, live, remix, and acoustic track variants', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
@@ -656,64 +753,4 @@ test('does not offer players a force-reveal control while waiting for steals', a
   });
 
   await expect(page.getByText(/Force Reveal|Skip Bob|Skip Carol/)).toHaveCount(0);
-});
-
-
-test('restarts the steal timer when the paused player reconnects', async ({ page }) => {
-  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
-
-  const state = await page.evaluate(() => {
-    class FakeConnection {
-      open = false;
-      handlers = {};
-      metadata = { playerName: 'Alice', reconnectToken: 'alice-token' };
-      on(name, handler) { this.handlers[name] = handler; }
-      send() {}
-      close() { this.open = false; }
-    }
-
-    class FakePeer {
-      handlers = {};
-      on(name, handler) { this.handlers[name] = handler; }
-    }
-
-    window.Peer = class extends FakePeer {
-      constructor() { super(); window.__rejoinPeer = this; }
-    };
-
-    const previousDeadline = Date.now() - 1000;
-    players = {
-      'host-local-player': { id: 'host-local-player', name: 'Host DJ', conn: null, online: true, tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() },
-      alice: { id: 'alice', name: 'Alice', conn: null, online: false, reconnectToken: 'alice-token', tokens: 2, score: 0, timeline: [], lastPongAt: Date.now() - 6000 },
-    };
-    turnOrder = ['host-local-player', 'alice'];
-    turnIndex = 0;
-    gameState = 'PAUSED_DISCONNECT';
-    previousStateBeforePause = 'STEALING';
-    pendingDisconnectPlayerId = 'alice';
-    stealEndTime = previousDeadline;
-    isHostMode = true;
-
-    initHostNetwork(false);
-    window.__rejoinPeer.handlers.open();
-    const reconnect = new FakeConnection();
-    window.__rejoinPeer.handlers.connection(reconnect);
-    reconnect.open = true;
-    reconnect.handlers.open();
-
-    const result = {
-      state: gameState,
-      aliceOnline: players.alice.online,
-      secondsRestored: Math.ceil((stealEndTime - Date.now()) / 1000),
-      pendingDisconnectPlayerId,
-    };
-
-    clearInterval(hostBroadcastInterval);
-    return result;
-  });
-
-  expect(state.state).toBe('STEALING');
-  expect(state.aliceOnline).toBe(true);
-  expect(state.secondsRestored).toBeGreaterThanOrEqual(14);
-  expect(state.pendingDisconnectPlayerId).toBeNull();
 });
