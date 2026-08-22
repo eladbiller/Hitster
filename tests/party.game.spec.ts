@@ -370,6 +370,23 @@ test('avoids back-to-back artists and albums whenever another track is available
   expect(result.u).toBe('spotify:track:safe');
 });
 
+test('keeps no more than two songs by one artist in the ready batch', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    tracks = [];
+    const accepted = limitTracksPerArtist([
+      { u: 'spotify:track:a1', t: 'A1', a: 'Popular Artist' },
+      { u: 'spotify:track:a2', t: 'A2', a: 'Popular Artist' },
+      { u: 'spotify:track:a3', t: 'A3', a: 'Popular Artist' },
+      { u: 'spotify:track:b1', t: 'B1', a: 'Another Artist' },
+    ]);
+    return accepted.map(track => track.u);
+  });
+
+  expect(result).toEqual(['spotify:track:a1', 'spotify:track:a2', 'spotify:track:b1']);
+});
+
 test('places active player counters after the player name', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
