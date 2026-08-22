@@ -212,3 +212,47 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result).toEqual({ resumeCalls: 1, newGameSetupCalls: 0, resumeIntentSet: true, resumeIntentCleared: true });
   });
 }
+
+test('Party shows the final winning song and lets only the overall winner continue listening', async ({ page }) => {
+  await page.goto(`${ROOT}/party.html`, { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    myPlayerName = 'Alice';
+    const gameOverSync = {
+      state: 'GAME_OVER', isPlaying: false, activePlayerName: 'Alice', isActivePlayer: true,
+      timeline: [], ownTimeline: [], guesses: {}, hasPassedSteal: false, hasStealed: false,
+      allStealsDone: true, waitingOn: [], stealTimeLeft: 0, myScore: 10,
+      myTokens: 2, myCardsCount: 10, activePlayerCardsCount: 10, activePlayerTokens: 2,
+      correctYear: 2008, trackTitle: 'Winning Song', artistName: 'Winning Artist', isWinner: true,
+      bonusTokenClaimed: false, overallWinnerName: 'Alice', winnerName: 'Alice',
+    };
+    handlePlayerSync(gameOverSync);
+    const winnerCanListen = !document.getElementById('p-reveal-listening-control').classList.contains('hidden');
+    const winningSongShown = document.getElementById('p-overlay-desc').textContent;
+
+    players = {
+      alice: { id: 'alice', name: 'Alice', online: true, tokens: 2, score: 10, timeline: [] },
+      bob: { id: 'bob', name: 'Bob', online: true, tokens: 2, score: 8, timeline: [] },
+    };
+    turnOrder = ['alice', 'bob'];
+    turnIndex = 0;
+    currentWinnerId = 'alice';
+    currentHostTrack = { u: 'spotify:track:winning', t: 'Winning Song', a: 'Winning Artist', y: 2008, c: '' };
+    gameState = 'GAME_OVER';
+    isPlaying = false;
+    spotifyPlayer = { resume: () => { window.__resumeCalls = (window.__resumeCalls || 0) + 1; } };
+    handlePlayerAction('alice', { action: 'RESUME_LISTENING' });
+    const winnerResumed = isPlaying && window.__resumeCalls === 1;
+    isPlaying = false;
+    handlePlayerAction('bob', { action: 'RESUME_LISTENING' });
+    const otherPlayerBlocked = window.__resumeCalls === 1 && !isPlaying;
+
+    return { winnerCanListen, winningSongShown, winnerResumed, otherPlayerBlocked };
+  });
+
+  expect(result.winnerCanListen).toBe(true);
+  expect(result.winningSongShown).toContain('Winning Song');
+  expect(result.winningSongShown).toContain('Winning Artist');
+  expect(result.winnerResumed).toBe(true);
+  expect(result.otherPlayerBlocked).toBe(true);
+});
