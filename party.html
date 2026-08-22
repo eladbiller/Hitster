@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.30">
+    <meta name="app-version" content="1.36.31">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -304,7 +304,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.30</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.31</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1784,9 +1784,10 @@
                     broadcastSync();
                 }
             }
-            else if (data.action === 'RESUME_LISTENING' && gameState === 'REVEAL') {
+            else if (data.action === 'RESUME_LISTENING' && (gameState === 'REVEAL' || gameState === 'GAME_OVER')) {
                 const player = players[pId];
-                if (pId !== activePlayerId || !player || !player.online || isPlaying) return;
+                const allowedListenerId = gameState === 'GAME_OVER' ? currentWinnerId : activePlayerId;
+                if (pId !== allowedListenerId || !player || !player.online || isPlaying) return;
                 if (resumeRoundListening()) broadcastSync();
             }
             else if (data.action === 'GUESS' && pId === activePlayerId) {
@@ -2464,10 +2465,17 @@
             overlay.classList.add('flex');
             
             if (data.state === 'GAME_OVER') {
-                revealListeningControl.classList.add('hidden');
                 icon.innerHTML = `<i class="fa-solid fa-trophy text-yellow-400 text-6xl animate-bounce"></i>`;
                 title.innerText = `${data.overallWinnerName} WINS!`;
-                desc.innerHTML = `Reached 10 cards!`;
+                desc.innerHTML = `
+                    <div class="mb-2 text-xs font-bold uppercase tracking-wider text-yellow-300">Winning song</div>
+                    <div class="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3">
+                        <div class="font-black text-white text-base">${data.trackTitle || 'Final song'}</div>
+                        <div class="mt-0.5 text-xs text-slate-300">${data.artistName || 'Unknown artist'}</div>
+                        <div class="mt-2 text-xs text-slate-400">Released <span class="font-black text-yellow-300">${data.correctYear || ''}</span> · Reached 10 cards!</div>
+                    </div>`;
+                if (data.isWinner && !data.isPlaying) revealListeningControl.classList.remove('hidden');
+                else revealListeningControl.classList.add('hidden');
                 nextText.innerText = "Play Again";
                 nextBtn.classList.remove('hidden');
                 waitingText.classList.add('hidden');
