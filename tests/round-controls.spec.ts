@@ -135,7 +135,7 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.topPanelMatchesHeader).toBe(true);
   });
 
-  test(`${game} changes screen-control color immediately and creates a scannable lobby QR join link`, async ({ page }) => {
+  test(`${game} changes screen-control color immediately and creates a scannable lobby QR code`, async ({ page }) => {
     await page.goto(`${ROOT}/${game}`, { waitUntil: 'domcontentloaded' });
 
     const result = await page.evaluate(() => {
@@ -143,9 +143,10 @@ for (const game of ['party.html', 'Jam.html']) {
       gameState = 'IDLE';
       updateHostJoinQr();
       const qrCard = document.getElementById('host-join-qr-card');
-      const qrLink = new URL(document.getElementById('host-join-link').href);
       const qrVisibleInLobby = !qrCard.classList.contains('hidden');
       const qrImageAlt = document.querySelector('#host-join-qr img')?.getAttribute('alt');
+      const qrSource = document.querySelector('#host-join-qr img')?.getAttribute('src');
+      const qrJoinUrl = new URL(new URL(qrSource).searchParams.get('data'));
       const accessibilityButton = document.getElementById('accessibility-toggle');
       const fullscreenButton = document.getElementById('fullscreen-toggle');
       toggleFontSize();
@@ -157,11 +158,12 @@ for (const game of ['party.html', 'Jam.html']) {
       updateHostJoinQr();
 
       return {
-        qrLinkPin: qrLink.searchParams.get('join'),
+        qrLinkPin: qrJoinUrl.searchParams.get('join'),
         qrVisibleInLobby,
         qrImageAlt,
         qrSizeClass: document.getElementById('host-join-qr').classList.contains('w-48'),
-        qrSource: document.querySelector('#host-join-qr img')?.getAttribute('src'),
+        qrSource,
+        openJoinPageLinkPresent: Boolean(document.getElementById('host-join-link')),
         qrHiddenAfterStart: qrCard.classList.contains('hidden'),
         accessibleState,
         accessibilityIndicatorPresent: Boolean(document.getElementById('accessibility-indicator')),
@@ -175,6 +177,7 @@ for (const game of ['party.html', 'Jam.html']) {
     expect(result.qrImageAlt).toContain('4321');
     expect(result.qrSizeClass).toBe(true);
     expect(result.qrSource).toContain('size=360x360');
+    expect(result.openJoinPageLinkPresent).toBe(game === 'Jam.html');
     expect(result.qrHiddenAfterStart).toBe(true);
     expect(result.accessibleState).toEqual({ pressed: 'true', backgroundColor: 'rgb(79, 70, 229)' });
     expect(result.accessibilityIndicatorPresent).toBe(false);
