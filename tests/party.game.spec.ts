@@ -532,7 +532,7 @@ test('offers a broad Spotify Popular Mix without artist search filters', async (
       const currentRequest = requestId++;
       return {
         tracks: {
-          items: Array.from({ length: 50 }, (_, index) => ({
+          items: Array.from({ length: 10 }, (_, index) => ({
             uri: `spotify:track:popular-${currentRequest}-${index}`,
             name: `Popular song ${currentRequest}-${index}`,
             artists: [{ name: `Popular artist ${currentRequest}-${index}` }],
@@ -554,7 +554,7 @@ test('offers a broad Spotify Popular Mix without artist search filters', async (
   });
 
   expect(result.searchCalls).toHaveLength(5);
-  expect(result.searchCalls.every(url => decodeURIComponent(url).includes('year:') && !decodeURIComponent(url).includes('artist:') && url.includes('limit=50') && url.includes('market=IL'))).toBe(true);
+  expect(result.searchCalls.every(url => decodeURIComponent(url).includes('year:') && !decodeURIComponent(url).includes('artist:') && url.includes('limit=10') && !url.includes('market=IL'))).toBe(true);
   expect(result).toMatchObject({ trackCount: 40, artists: 40, albums: 40 });
 });
 
@@ -574,7 +574,7 @@ test('keeps Spotify Popular Mix playable when one decade search fails', async ({
       if (currentRequest === 0) throw new Error('Spotify Error 429');
       return {
         tracks: {
-          items: Array.from({ length: 50 }, (_, index) => ({
+          items: Array.from({ length: 10 }, (_, index) => ({
             uri: `spotify:track:resilient-${currentRequest}-${index}`,
             name: `Resilient song ${currentRequest}-${index}`,
             artists: [{ name: `Resilient artist ${currentRequest}-${index}` }],
