@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.43">
+    <meta name="app-version" content="1.36.44">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.43</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.44</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1050,9 +1050,9 @@
                 // but choose randomly inside it so the same handful of famous
                 // songs does not appear in every game.
                 available.sort((left, right) => (right.popularity || 0) - (left.popularity || 0));
-                const choicePoolSize = Math.min(12, Math.max(3, Math.ceil(available.length / 3)));
+                const choicePoolSize = Math.min(available.length, 12, Math.max(3, Math.ceil(available.length / 3)));
                 const track = available[Math.floor(Math.random() * choicePoolSize)];
-                const artist = track.artists?.[0]?.name.trim().toLocaleLowerCase();
+                const artist = (track.artists?.[0]?.name || '').trim().toLocaleLowerCase();
                 const album = (track.album?.id || track.album?.name || '').trim().toLocaleLowerCase();
                 artistKeys.add(artist);
                 if (album) albumKeys.add(album);
