@@ -145,12 +145,15 @@ test('pauses and saves a host room when Spotify needs an interactive renewal', a
 
 test('tells players that the room will resume while the host renews Spotify', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     handlePlayerSync({ state: 'PAUSED_SPOTIFY', myTokens: 2, myCardsCount: 1, activePlayerName: 'Alice' });
+    const waitsForRenewal = eval('waitingForSpotifyRenewal');
+    handlePlayerSync({ state: 'READY_TO_PLAY', myTokens: 2, myCardsCount: 1, activePlayerName: 'Alice', isActivePlayer: false, isPlaying: false, timeline: [], ownTimeline: [] });
+    return { waitsForRenewal, clearedAfterResume: !eval('waitingForSpotifyRenewal') };
   });
 
-  await expect(page.locator('#p-ui-title')).toContainText('Game Paused');
-  await expect(page.locator('#p-ui-desc')).toContainText('renewing Spotify');
+  expect(result).toEqual({ waitsForRenewal: true, clearedAfterResume: true });
+  await expect(page.locator('#p-ui-title')).toContainText("Alice's Turn");
   await expect(page.locator('#p-music-controls')).toBeHidden();
 });
 
