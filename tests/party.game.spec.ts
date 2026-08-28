@@ -264,7 +264,12 @@ test('returns to the lobby when Spotify session expires', async ({ page }) => {
     localStorage.setItem('party_spotify_token', 'expired-token');
   });
   await page.route('https://api.spotify.com/v1/me', async (route) => {
-    await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: '{}',
+    });
   });
 
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
@@ -471,6 +476,26 @@ test('avoids back-to-back artists and albums whenever another track is available
   });
 
   expect(result.u).toBe('spotify:track:safe');
+});
+
+test('corrects a cached House of the Rising Sun by The Animals to 1964', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    currentHostTrack = null;
+    recentTrackHistory = [];
+    tracks = [{
+      u: 'spotify:track:house-of-the-rising-sun',
+      t: 'House of the Rising Sun',
+      a: 'The Animals',
+      al: 'spotify-1990-reissue',
+      y: 1990,
+      c: '',
+    }];
+    return popTrack();
+  });
+
+  expect(result.y).toBe(1964);
 });
 
 test('keeps every artist to one song in the ready batch', async ({ page }) => {
