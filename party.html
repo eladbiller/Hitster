@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.37">
+    <meta name="app-version" content="1.36.38">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -315,7 +315,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.37</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.38</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -368,6 +368,14 @@
                 <button id="dj-direct-pass-btn" onclick="sendPlayerAction('PASS_STEAL')" class="hidden mt-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-full shadow-lg text-xs transition border border-slate-600">
                     <i class="fa-solid fa-forward mr-1"></i> Pass Steal (Host)
                 </button>
+            </div>
+            <div id="host-spotify-renew-banner" class="hidden absolute inset-3 z-20 rounded-xl border border-amber-400/50 bg-slate-950/95 p-5 text-center flex-col items-center justify-center gap-3">
+                <i class="fa-brands fa-spotify text-3xl text-emerald-400"></i>
+                <div>
+                    <div class="font-black text-white">Spotify needs to reconnect</div>
+                    <p class="mt-1 text-xs leading-5 text-slate-300">The game is saved and paused. Renew Spotify to continue this same room.</p>
+                </div>
+                <button onclick="renewSpotifyForCurrentGame()" class="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-emerald-400">Renew Spotify &amp; Resume</button>
             </div>
         </div>
         
@@ -568,14 +576,17 @@
         const DEFAULT_SPOTIFY_CLIENT_ID = 'bc721809b5344694abc164c34249aea1';
         const CUSTOM_SPOTIFY_CLIENT_ID_KEY = 'party_custom_spotify_client_id';
         const SPOTIFY_TOKEN_CLIENT_ID_KEY = 'party_spotify_token_client_id';
+        const SPOTIFY_REFRESH_TOKEN_KEY = 'party_spotify_refresh_token';
         const REDIRECT_URI = window.location.origin + window.location.pathname;
         let spotifyClientId = localStorage.getItem(CUSTOM_SPOTIFY_CLIENT_ID_KEY) || DEFAULT_SPOTIFY_CLIENT_ID;
         let accessToken = localStorage.getItem('party_spotify_token') || null;
+        let spotifyRefreshPromise = null;
         const HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY = 'party_resume_after_spotify_login';
 
         if (accessToken && (localStorage.getItem(SPOTIFY_TOKEN_CLIENT_ID_KEY) || DEFAULT_SPOTIFY_CLIENT_ID) !== spotifyClientId) {
             localStorage.removeItem('party_spotify_token');
             localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
+            localStorage.removeItem(SPOTIFY_REFRESH_TOKEN_KEY);
             accessToken = null;
         }
 
@@ -653,6 +664,7 @@
                         accessToken = data.access_token;
                         localStorage.setItem('party_spotify_token', accessToken);
                         localStorage.setItem(SPOTIFY_TOKEN_CLIENT_ID_KEY, spotifyClientId);
+                        if (data.refresh_token) localStorage.setItem(SPOTIFY_REFRESH_TOKEN_KEY, data.refresh_token);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         continueAfterSpotifyLogin();
                     }
@@ -681,6 +693,7 @@
         function logoutSpotify() {
             localStorage.removeItem('party_spotify_token');
             localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
+            localStorage.removeItem(SPOTIFY_REFRESH_TOKEN_KEY);
             accessToken = null;
             resetApp();
         }
@@ -706,20 +719,75 @@
             localStorage.setItem(CUSTOM_SPOTIFY_CLIENT_ID_KEY, clientId);
             localStorage.removeItem('party_spotify_token');
             localStorage.removeItem(SPOTIFY_TOKEN_CLIENT_ID_KEY);
+            localStorage.removeItem(SPOTIFY_REFRESH_TOKEN_KEY);
             spotifyClientId = clientId;
             accessToken = null;
             document.getElementById('custom-spotify-client-id-panel').classList.add('hidden');
             showMessage('Your Client ID is saved on this device. You can now log in with Spotify.', 'success');
         }
 
-        async function safeSpotifyFetch(url, options = {}) {
-            options.headers = { ...options.headers, 'Authorization': `Bearer ${accessToken}` };
-            const res = await fetch(url, options);
-            if (res.status === 401) { 
-                saveHostState(); // Save room right before kicking out
-                logoutSpotify(); 
-                throw new Error("Spotify Session expired. Log in again."); 
+        async function refreshSpotifyAccessToken() {
+            if (spotifyRefreshPromise) return spotifyRefreshPromise;
+            const refreshToken = localStorage.getItem(SPOTIFY_REFRESH_TOKEN_KEY);
+            if (!refreshToken) return false;
+            spotifyRefreshPromise = (async () => {
+                try {
+                    const response = await fetch('https://accounts.spotify.com/api/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: spotifyClientId })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.access_token) return false;
+                    accessToken = data.access_token;
+                    localStorage.setItem('party_spotify_token', accessToken);
+                    localStorage.setItem(SPOTIFY_TOKEN_CLIENT_ID_KEY, spotifyClientId);
+                    if (data.refresh_token) localStorage.setItem(SPOTIFY_REFRESH_TOKEN_KEY, data.refresh_token);
+                    return true;
+                } catch (_) {
+                    return false;
+                } finally {
+                    spotifyRefreshPromise = null;
+                }
+            })();
+            return spotifyRefreshPromise;
+        }
+
+        function pauseForSpotifyRenewal() {
+            if (!isHostMode || gameState === 'IDLE') {
+                logoutSpotify();
+                return;
             }
+            if (gameState !== 'PAUSED_SPOTIFY') previousStateBeforePause = gameState;
+            gameState = 'PAUSED_SPOTIFY';
+            isPlaying = false;
+            sessionStorage.setItem(HOST_RESUME_AFTER_SPOTIFY_LOGIN_KEY, 'true');
+            saveHostState();
+            const banner = document.getElementById('host-spotify-renew-banner');
+            if (banner) { banner.classList.remove('hidden'); banner.classList.add('flex'); }
+            broadcastSync();
+            showMessage('Spotify expired. Renew it to continue this room.', 'info');
+        }
+
+        function renewSpotifyForCurrentGame() {
+            if (gameState !== 'PAUSED_SPOTIFY') return;
+            saveHostState();
+            loginSpotify();
+        }
+
+        async function spotifyAuthorizedFetch(url, options = {}) {
+            const request = () => fetch(url, { ...options, headers: { ...options.headers, 'Authorization': `Bearer ${accessToken}` } });
+            let res = await request();
+            if (res.status === 401 && await refreshSpotifyAccessToken()) res = await request();
+            if (res.status === 401) {
+                pauseForSpotifyRenewal();
+            }
+            return res;
+        }
+
+        async function safeSpotifyFetch(url, options = {}) {
+            const res = await spotifyAuthorizedFetch(url, options);
+            if (res.status === 401) throw new Error("Spotify Session expired. Renew Spotify to continue.");
             if (res.status === 204) return {};
             if (!res.ok) { 
                 let errMsg = `Spotify Error ${res.status}`;
@@ -1015,12 +1083,14 @@
             if (hostConnection) { hostConnection.close(); hostConnection = null; }
             
             currentRoomPin = null; players = {}; turnOrder = []; turnIndex = 0;
-            gameState = 'IDLE'; tracks = []; currentHostTrack = null; isPlaying = false;
+            gameState = 'IDLE'; tracks = []; currentHostTrack = null; recentTrackHistory = []; isPlaying = false;
             currentGuesses = {}; stealDecisions = {}; stealEndTime = 0; currentWinnerId = null;
             bonusTokenClaimed = false; isHostMode = false; isHostInPlayerView = false;
             
             document.getElementById('client-disconnect-overlay').classList.add('hidden');
             document.getElementById('client-disconnect-overlay').classList.remove('flex');
+            document.getElementById('host-spotify-renew-banner').classList.add('hidden');
+            document.getElementById('host-spotify-renew-banner').classList.remove('flex');
             
             switchContainer('setup-container');
             switchSetupView('view-roles');
@@ -1054,6 +1124,17 @@
             if (tracks.length > 0) {
                 const previousArtist = getTrackArtistKey(currentHostTrack);
                 const previousAlbum = getTrackAlbumKey(currentHostTrack);
+                const recentArtists = new Set(recentTrackHistory.map(track => track.artist).filter(Boolean));
+                const recentAlbums = new Set(recentTrackHistory.map(track => track.album).filter(Boolean));
+                const freshVarietyIndex = findLastTrackIndex(track => {
+                    const artist = getTrackArtistKey(track);
+                    const album = getTrackAlbumKey(track);
+                    return artist !== previousArtist &&
+                        (!previousAlbum || album !== previousAlbum) &&
+                        !recentArtists.has(artist) &&
+                        (!album || !recentAlbums.has(album));
+                });
+                if (freshVarietyIndex >= 0) return tracks.splice(freshVarietyIndex, 1)[0];
                 const preferredIndex = findLastTrackIndex(track =>
                     getTrackArtistKey(track) !== previousArtist &&
                     (!previousAlbum || getTrackAlbumKey(track) !== previousAlbum)
@@ -1077,6 +1158,14 @@
             return (track?.al || '').trim().toLocaleLowerCase();
         }
 
+        function rememberTrackForVariety(track) {
+            if (!track?.u) return;
+            const entry = { artist: getTrackArtistKey(track), album: getTrackAlbumKey(track), uri: track.u };
+            if (recentTrackHistory.length && recentTrackHistory[recentTrackHistory.length - 1].uri === entry.uri) return;
+            recentTrackHistory.push(entry);
+            recentTrackHistory = recentTrackHistory.slice(-5);
+        }
+
         function findLastTrackIndex(predicate) {
             for (let index = tracks.length - 1; index >= 0; index--) {
                 if (predicate(tracks[index])) return index;
@@ -1086,15 +1175,20 @@
 
         function limitTracksPerArtist(newTracks, maxPerArtist = 2) {
             const artistCounts = new Map();
+            const albumKeys = new Set();
             tracks.forEach(track => {
                 const artistKey = getTrackArtistKey(track);
+                const albumKey = getTrackAlbumKey(track);
                 artistCounts.set(artistKey, (artistCounts.get(artistKey) || 0) + 1);
+                if (albumKey) albumKeys.add(albumKey);
             });
             return newTracks.filter(track => {
                 const artistKey = getTrackArtistKey(track);
+                const albumKey = getTrackAlbumKey(track);
                 const count = artistCounts.get(artistKey) || 0;
-                if (count >= maxPerArtist) return false;
+                if (count >= maxPerArtist || (albumKey && albumKeys.has(albumKey))) return false;
                 artistCounts.set(artistKey, count + 1);
+                if (albumKey) albumKeys.add(albumKey);
                 return true;
             });
         }
@@ -1151,6 +1245,7 @@
 
         let tracks = [];
         let currentHostTrack = null;
+        let recentTrackHistory = [];
         let currentMusicMode = 'hitster_classic';
         let classicHebrewPercentage = 50;
         let isPlaying = false;
@@ -1376,7 +1471,7 @@
                 previousStateBeforePause,
                 currentHostTrack, isPlaying, 
                 currentGuesses, stealDecisions, stealEndTime,
-                currentWinnerId, bonusTokenClaimed, tracks,
+                currentWinnerId, bonusTokenClaimed, tracks, recentTrackHistory,
                 currentMusicMode, classicHebrewPercentage
             };
             for (const [id, p] of Object.entries(players)) {
@@ -1406,7 +1501,7 @@
                 turnOrder = savedState.turnOrder || [];
                 turnIndex = savedState.turnIndex || 0;
                 gameState = savedState.gameState || 'READY_TO_PLAY';
-                if (gameState === 'PAUSED_DISCONNECT') {
+                if (gameState === 'PAUSED_DISCONNECT' || gameState === 'PAUSED_SPOTIFY') {
                     gameState = savedState.previousStateBeforePause || 'READY_TO_PLAY';
                 }
                 currentHostTrack = savedState.currentHostTrack;
@@ -1417,6 +1512,7 @@
                 currentWinnerId = savedState.currentWinnerId;
                 bonusTokenClaimed = savedState.bonusTokenClaimed;
                 tracks = savedState.tracks || [];
+                recentTrackHistory = Array.isArray(savedState.recentTrackHistory) ? savedState.recentTrackHistory.slice(-5) : [];
                 currentMusicMode = savedState.currentMusicMode || 'hitster_classic';
                 if (Number.isFinite(savedState.classicHebrewPercentage)) classicHebrewPercentage = Math.max(5, Math.min(95, savedState.classicHebrewPercentage));
 
@@ -1432,6 +1528,8 @@
                 myId = HOST_PLAYER_ID;
                 myPlayerName = players[HOST_PLAYER_ID]?.name || 'Host DJ';
                 document.getElementById('host-loading-text').innerText = "Resuming Audio Engine...";
+                document.getElementById('host-spotify-renew-banner').classList.add('hidden');
+                document.getElementById('host-spotify-renew-banner').classList.remove('flex');
                 requestWakeLock(); 
 
                 initSpotifyWebPlayer(true); 
@@ -1441,17 +1539,17 @@
             }
         }
 
-        function initSpotifyWebPlayer(isResuming = false) {
+        function initSpotifyWebPlayer(isResuming = false, preserveNetwork = false) {
             spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
 
             spotifyPlayer.addListener('ready', ({ device_id }) => {
                 webDeviceId = device_id;
-                fetch('https://api.spotify.com/v1/me/player', {
+                spotifyAuthorizedFetch('https://api.spotify.com/v1/me/player', {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
                 }).catch(e => console.log(e));
-                initHostNetwork(isResuming); 
+                if (!preserveNetwork) initHostNetwork(isResuming); 
             });
 
             spotifyPlayer.addListener('player_state_changed', state => {
@@ -1463,10 +1561,14 @@
                 broadcastSync();
             });
 
-            spotifyPlayer.addListener('authentication_error', () => {
-                saveHostState(); // Ensure we save before Spotify fully logs us out
-                showMessage("Spotify Auth Error. Log back in.", "error");
-                logoutSpotify();
+            spotifyPlayer.addListener('authentication_error', async () => {
+                if (await refreshSpotifyAccessToken()) {
+                    try { spotifyPlayer.disconnect(); } catch (_) {}
+                    spotifyPlayer = null;
+                    initSpotifyWebPlayer(isResuming, true);
+                } else {
+                    pauseForSpotifyRenewal();
+                }
             });
 
             spotifyPlayer.addListener('account_error', ({ message } = {}) => {
@@ -1745,6 +1847,7 @@
             stealEndTime = 0;
             currentWinnerId = null;
             bonusTokenClaimed = false;
+            rememberTrackForVariety(currentHostTrack);
             currentHostTrack = popTrack();
             isPlaying = false;
             
@@ -1770,9 +1873,9 @@
             if (spotifyPlayer?.pause) {
                 Promise.resolve(spotifyPlayer.pause()).catch(e => console.error(e));
             } else if (webDeviceId) {
-                fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
+                spotifyAuthorizedFetch(`https://api.spotify.com/v1/me/player/pause?device_id=${webDeviceId}`, {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                    headers: {}
                 }).catch(e => console.error(e));
             }
         }
@@ -1799,9 +1902,9 @@
             if (spotifyPlayer?.resume) {
                 Promise.resolve(spotifyPlayer.resume()).catch(() => handlePlaybackStartFailure("Spotify could not resume this song."));
             } else if (webDeviceId) {
-                fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
+                spotifyAuthorizedFetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uris: [currentHostTrack.u] })
                 }).then(async res => {
                     if (!res.ok) handlePlaybackStartFailure(await getSpotifyPlayErrorMessage(res));
@@ -1896,9 +1999,9 @@
                     if (isPlaying) {
                         spotifyPlayer.pause();
                     } else {
-                        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
+                        spotifyAuthorizedFetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                             method: 'PUT',
-                            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uris: [currentHostTrack.u] })
                         }).then(async (res) => {
                             if (!res.ok) handlePlaybackStartFailure(await getSpotifyPlayErrorMessage(res));
@@ -2097,6 +2200,7 @@
                 else if (gameState === 'STEALING') badge.innerText = `STEAL MODE 🎯 (${remainingTime}s)`;
                 else if (gameState === 'REVEAL') badge.innerText = "REVEALING YEAR 👁️";
                 else if (gameState === 'PAUSED_DISCONNECT') badge.innerText = "GAME PAUSED (PLAYER DISCONNECTED)";
+                else if (gameState === 'PAUSED_SPOTIFY') badge.innerText = "GAME PAUSED (SPOTIFY RENEWAL NEEDED)";
                 else if (gameState === 'GAME_OVER') badge.innerText = "🏆 GAME OVER 🏆";
             }
 
@@ -2430,6 +2534,14 @@
                 return;
             }
 
+            if (data.state === 'PAUSED_SPOTIFY') {
+                if (musicBox) musicBox.classList.add('hidden');
+                if (passStealBox) passStealBox.classList.add('hidden');
+                if (viewToggleBtn) viewToggleBtn.classList.add('hidden');
+                setPlayerHeader('bg-amber-950 border-amber-500', 'Game Paused 🎵', 'Host is renewing Spotify. Your room will continue automatically.', 'text-amber-300');
+                return;
+            }
+
             if (!data.isActivePlayer && (data.state === 'READY_TO_PLAY' || data.state === 'PLAYING' || data.state === 'STEALING')) {
                 viewToggleBtn.classList.remove('hidden');
                 if (viewingOwnTimeline) {
@@ -2446,7 +2558,7 @@
 
             // INJECT ACTIVE PLAYER STATS INTO THE HEADER (Matches your top right layout)
             let activePlayerStatsHTML = '';
-            if (!data.isActivePlayer && data.state !== 'IDLE' && data.state !== 'PAUSED_DISCONNECT') {
+            if (!data.isActivePlayer && data.state !== 'IDLE' && data.state !== 'PAUSED_DISCONNECT' && data.state !== 'PAUSED_SPOTIFY') {
                 const cCount = data.activePlayerCardsCount !== undefined ? data.activePlayerCardsCount : 1;
                 const tCount = data.activePlayerTokens !== undefined ? data.activePlayerTokens : 2;
                 activePlayerStatsHTML = `
