@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.42">
+    <meta name="app-version" content="1.36.43">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.42</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.43</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1030,21 +1030,6 @@
             return plan;
         }
 
-        function getNextPopularOffset(era) {
-            const key = `party_popular_offsets_${era}`;
-            let offsets = [];
-            try { offsets = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
-            if (!Array.isArray(offsets) || offsets.length === 0) {
-                // Stay in Spotify's first 250 results so every page still has
-                // a useful popularity signal, while rotating the page from one
-                // game or refill to the next.
-                offsets = shuffleArray([0, 50, 100, 150, 200]);
-            }
-            const offset = offsets.pop();
-            localStorage.setItem(key, JSON.stringify(offsets));
-            return offset;
-        }
-
         function pickPopularTracksForEra(items, target = POPULAR_READY_POOL_PER_ERA) {
             const candidates = (items || []).filter(track =>
                 track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name)
@@ -1469,13 +1454,15 @@
                         });
                     } else if (currentMusicMode === 'hitster_popular_decades') {
                         const searchResults = [];
-                        // Query decade pages one at a time. A temporary Spotify
-                        // error or rate limit for one decade must not throw away
-                        // the other four decades and make the whole room fail.
+                        // Use the established broad-search shape used by the
+                        // genre modes: a ten-track Spotify decade page with a
+                        // rotating offset. It works with more Spotify clients
+                        // than a 50-track market-constrained request, while the
+                        // picker below still favours popular tracks.
                         for (const era of eras) {
                             try {
-                                const offset = getNextPopularOffset(era);
-                                const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=50&offset=${offset}&market=IL`);
+                                const offset = getNextOffset(currentMusicMode, era);
+                                const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=10&offset=${offset}`);
                                 searchResults.push(data.tracks?.items || []);
                             } catch (error) {
                                 console.warn(`Popular Mix could not load ${era}:`, error);
@@ -1537,7 +1524,8 @@
 
             } catch (err) {
                 console.error("Fetch/Refill failed:", err);
-                showMessage("Failed to load tracks. Please try again.", "error");
+                const detail = err?.message ? ` (${err.message})` : '';
+                showMessage(`Failed to load tracks. Please try again.${detail}`, "error");
             }
 
             isFetchingTracks = false;
