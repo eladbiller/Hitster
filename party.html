@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.40">
+    <meta name="app-version" content="1.36.41">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -236,6 +236,11 @@
                     <span class="text-[10px] text-purple-200 font-normal">Choose your Hebrew / English balance</span>
                 </button>
 
+                <button onclick="startHostGame('hitster_popular_decades')" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-0.5 border border-cyan-300/50 shrink-0">
+                    <span class="flex items-center gap-2 text-sm"><i class="fa-solid fa-chart-line"></i> Spotify Popular Mix</span>
+                    <span class="text-[10px] text-cyan-100 font-normal">Broad popular songs by decade · natural language mix</span>
+                </button>
+
                 <div class="grid grid-cols-2 gap-2 shrink-0">
                     <button onclick="startHostGame('hitster_hebrew_classic')" class="w-full bg-sky-700 hover:bg-sky-600 text-white font-bold py-2.5 px-2 rounded-lg shadow transition flex flex-col items-center justify-center gap-0.5 text-xs border border-sky-400/40">
                         <span><i class="fa-solid fa-language mr-1"></i> Hebrew Classic</span>
@@ -315,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.40</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.41</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -978,6 +983,7 @@
         // player-card songs that are dealt from the same queue.
         const CLASSIC_READY_POOL_SIZE = 30;
         const CLASSIC_ERAS = Object.freeze(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']);
+        const POPULAR_READY_POOL_PER_ERA = 8;
 
         function getClassicLanguageTargets(mode) {
             if (mode === 'hitster_hebrew_classic') return { hebrew: CLASSIC_READY_POOL_SIZE, english: 0 };
@@ -1022,6 +1028,52 @@
                 }
             }
             return plan;
+        }
+
+        function getNextPopularOffset(era) {
+            const key = `party_popular_offsets_${era}`;
+            let offsets = [];
+            try { offsets = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+            if (!Array.isArray(offsets) || offsets.length === 0) {
+                // Stay in Spotify's first 250 results so every page still has
+                // a useful popularity signal, while rotating the page from one
+                // game or refill to the next.
+                offsets = shuffleArray([0, 50, 100, 150, 200]);
+            }
+            const offset = offsets.pop();
+            localStorage.setItem(key, JSON.stringify(offsets));
+            return offset;
+        }
+
+        function pickPopularTracksForEra(items, target = POPULAR_READY_POOL_PER_ERA) {
+            const candidates = (items || []).filter(track =>
+                track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name)
+            );
+            const selected = [];
+            const artistKeys = new Set();
+            const albumKeys = new Set();
+
+            while (selected.length < target) {
+                const available = candidates.filter(track => {
+                    const artist = (track.artists?.[0]?.name || '').trim().toLocaleLowerCase();
+                    const album = (track.album?.id || track.album?.name || '').trim().toLocaleLowerCase();
+                    return artist && !artistKeys.has(artist) && (!album || !albumKeys.has(album));
+                });
+                if (!available.length) break;
+
+                // Prefer the popular part of Spotify's broad decade result,
+                // but choose randomly inside it so the same handful of famous
+                // songs does not appear in every game.
+                available.sort((left, right) => (right.popularity || 0) - (left.popularity || 0));
+                const choicePoolSize = Math.min(12, Math.max(3, Math.ceil(available.length / 3)));
+                const track = available[Math.floor(Math.random() * choicePoolSize)];
+                const artist = track.artists?.[0]?.name.trim().toLocaleLowerCase();
+                const album = (track.album?.id || track.album?.name || '').trim().toLocaleLowerCase();
+                artistKeys.add(artist);
+                if (album) albumKeys.add(album);
+                selected.push(track);
+            }
+            return selected;
         }
 
         function selectClassicLanguageItems(languageItems) {
@@ -1393,7 +1445,7 @@
                 else {
                     let eras = [];
                     let genreQuery = "";
-                    if (['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode)) eras = ['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024'];
+                    if (['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic', 'hitster_popular_decades'].includes(currentMusicMode)) eras = CLASSIC_ERAS;
                     else if (currentMusicMode === 'hitster_pop') { genreQuery = " genre:pop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2020', '2021-2024']; }
                     else if (currentMusicMode === 'hitster_rock') { genreQuery = " genre:rock"; eras = ['1970-1985', '1986-1999', '2000-2009', '2010-2024']; }
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
@@ -1415,6 +1467,13 @@
                             );
                             if (track) rawItems.push({ track });
                         });
+                    } else if (currentMusicMode === 'hitster_popular_decades') {
+                        const searchResults = await Promise.all(eras.map(async era => {
+                            const offset = getNextPopularOffset(era);
+                            const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=50&offset=${offset}&market=IL`);
+                            return data.tracks?.items || [];
+                        }));
+                        searchResults.forEach(items => rawItems.push(...pickPopularTracksForEra(items).map(track => ({ track }))));
                     } else {
                         for (const era of eras) {
                             // Uses the Smart Memory Offset to ensure no repeats across sessions.
@@ -1460,9 +1519,9 @@
                 });
                 mappedTracks = Array.from(earliestByKey.values());
 
-                // One song per artist and album in the ready pool. The Classic
-                // search plan above fetches enough different artists to keep
-                // this rule from shrinking the pool or losing genre coverage.
+                // One song per artist and album in every ready pool. Both the
+                // curated Classic and broad Popular Mix fetch enough candidates
+                // to keep this rule from shrinking the usable batch.
                 tracks = tracks.concat(limitTracksPerArtist(shuffleArray(mappedTracks)));
 
             } catch (err) {
