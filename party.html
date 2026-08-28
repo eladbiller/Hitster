@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.41">
+    <meta name="app-version" content="1.36.42">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.41</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.42</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1468,12 +1468,23 @@
                             if (track) rawItems.push({ track });
                         });
                     } else if (currentMusicMode === 'hitster_popular_decades') {
-                        const searchResults = await Promise.all(eras.map(async era => {
-                            const offset = getNextPopularOffset(era);
-                            const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=50&offset=${offset}&market=IL`);
-                            return data.tracks?.items || [];
-                        }));
+                        const searchResults = [];
+                        // Query decade pages one at a time. A temporary Spotify
+                        // error or rate limit for one decade must not throw away
+                        // the other four decades and make the whole room fail.
+                        for (const era of eras) {
+                            try {
+                                const offset = getNextPopularOffset(era);
+                                const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=50&offset=${offset}&market=IL`);
+                                searchResults.push(data.tracks?.items || []);
+                            } catch (error) {
+                                console.warn(`Popular Mix could not load ${era}:`, error);
+                            }
+                        }
                         searchResults.forEach(items => rawItems.push(...pickPopularTracksForEra(items).map(track => ({ track }))));
+                        if (!rawItems.length && gameState !== 'PAUSED_SPOTIFY') {
+                            throw new Error('Spotify did not return playable Popular Mix tracks.');
+                        }
                     } else {
                         for (const era of eras) {
                             // Uses the Smart Memory Offset to ensure no repeats across sessions.
