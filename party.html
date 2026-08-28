@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.38">
+    <meta name="app-version" content="1.36.39">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -315,7 +315,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.38</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.39</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1086,6 +1086,7 @@
             gameState = 'IDLE'; tracks = []; currentHostTrack = null; recentTrackHistory = []; isPlaying = false;
             currentGuesses = {}; stealDecisions = {}; stealEndTime = 0; currentWinnerId = null;
             bonusTokenClaimed = false; isHostMode = false; isHostInPlayerView = false;
+            waitingForSpotifyRenewal = false;
             
             document.getElementById('client-disconnect-overlay').classList.add('hidden');
             document.getElementById('client-disconnect-overlay').classList.remove('flex');
@@ -1267,7 +1268,9 @@
         let hostConnectionTimer = null;
         let reconnectAttempts = 0;
         let reconnectEnabled = true;
+        let waitingForSpotifyRenewal = false;
         const MAX_AUTO_RECONNECT_ATTEMPTS = 3;
+        const MAX_SPOTIFY_RECONNECT_ATTEMPTS = 30;
         const RECONNECT_DELAYS_MS = [250, 500, 1000];
         const HOST_CONNECTION_TIMEOUT_MS = 4000;
         // Every join gets an identity so delayed PeerJS events from an older
@@ -2280,7 +2283,8 @@
         function schedulePlayerReconnect() {
             if (!reconnectEnabled || reconnectTimer || !localStorage.getItem('party_last_pin')) return;
 
-            if (reconnectAttempts >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+            const maxAttempts = waitingForSpotifyRenewal ? MAX_SPOTIFY_RECONNECT_ATTEMPTS : MAX_AUTO_RECONNECT_ATTEMPTS;
+            if (reconnectAttempts >= maxAttempts) {
                 reconnectEnabled = false;
                 document.getElementById('btn-connect').classList.remove('hidden');
                 const status = document.getElementById('player-status');
@@ -2291,11 +2295,13 @@
                 return;
             }
 
-            const delay = RECONNECT_DELAYS_MS[reconnectAttempts] ?? RECONNECT_DELAYS_MS[RECONNECT_DELAYS_MS.length - 1];
+            const delay = waitingForSpotifyRenewal ? 3000 : (RECONNECT_DELAYS_MS[reconnectAttempts] ?? RECONNECT_DELAYS_MS[RECONNECT_DELAYS_MS.length - 1]);
             reconnectAttempts++;
             document.getElementById('btn-connect').classList.add('hidden');
             const status = document.getElementById('player-status');
-            status.innerText = `Reconnecting... attempt ${reconnectAttempts}/${MAX_AUTO_RECONNECT_ATTEMPTS}`;
+            status.innerText = waitingForSpotifyRenewal
+                ? `Waiting for the host to renew Spotify... ${reconnectAttempts}/${maxAttempts}`
+                : `Reconnecting... attempt ${reconnectAttempts}/${maxAttempts}`;
             status.classList.remove('hidden');
             status.classList.add('animate-pulse');
             const reconnectSession = clientConnectionAttempt;
@@ -2497,6 +2503,8 @@
         function handlePlayerSync(data) {
             if (!data) return;
             cachedSyncData = data;
+            if (data.state === 'PAUSED_SPOTIFY') waitingForSpotifyRenewal = true;
+            else if (data.state) waitingForSpotifyRenewal = false;
             
             const pNameEl = document.getElementById('p-ui-name');
             const pScoreEl = document.getElementById('p-ui-score');
