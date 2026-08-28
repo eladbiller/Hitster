@@ -558,6 +558,42 @@ test('offers a broad Spotify Popular Mix without artist search filters', async (
   expect(result).toMatchObject({ trackCount: 40, artists: 40, albums: 40 });
 });
 
+test('keeps Spotify Popular Mix playable when one decade search fails', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    const originalSpotifyFetch = safeSpotifyFetch;
+    eval('accessToken = "test-token"');
+    currentMusicMode = 'hitster_popular_decades';
+    tracks = [];
+    players = {};
+    currentHostTrack = null;
+    let requestId = 0;
+    safeSpotifyFetch = async () => {
+      const currentRequest = requestId++;
+      if (currentRequest === 0) throw new Error('Spotify Error 429');
+      return {
+        tracks: {
+          items: Array.from({ length: 50 }, (_, index) => ({
+            uri: `spotify:track:resilient-${currentRequest}-${index}`,
+            name: `Resilient song ${currentRequest}-${index}`,
+            artists: [{ name: `Resilient artist ${currentRequest}-${index}` }],
+            album: { id: `resilient-album-${currentRequest}-${index}`, release_date: '2005-01-01', images: [] },
+            popularity: 100 - index,
+            is_local: false,
+          })),
+        },
+      };
+    };
+    await fetchTracksFromSpotify();
+    safeSpotifyFetch = originalSpotifyFetch;
+    return { trackCount: tracks.length, errors: document.getElementById('toast-container').innerText };
+  });
+
+  expect(result.trackCount).toBe(32);
+  expect(result.errors).not.toContain('Failed to load tracks');
+});
+
 test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
