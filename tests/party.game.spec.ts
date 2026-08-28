@@ -74,6 +74,86 @@ test('lets a host save a personal Spotify Client ID without changing the game co
   });
 });
 
+test('silently refreshes an expired Spotify token without resetting the room', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    const originalFetch = window.fetch;
+    let apiCalls = 0;
+    eval('accessToken = "expired-token"');
+    localStorage.setItem('party_spotify_refresh_token', 'refresh-token');
+    window.fetch = async (url) => {
+      if (String(url).includes('accounts.spotify.com/api/token')) {
+        return new Response(JSON.stringify({ access_token: 'fresh-token', refresh_token: 'next-refresh-token' }), { status: 200 });
+      }
+      apiCalls++;
+      if (apiCalls === 1) return new Response('{}', { status: 401 });
+      return new Response(JSON.stringify({ email: 'host@example.com' }), { status: 200 });
+    };
+    try {
+      const profile = await safeSpotifyFetch('https://api.spotify.com/v1/me');
+      return {
+        profileEmail: profile.email,
+        apiCalls,
+        accessToken: eval('accessToken'),
+        refreshToken: localStorage.getItem('party_spotify_refresh_token'),
+      };
+    } finally {
+      window.fetch = originalFetch;
+    }
+  });
+
+  expect(result).toEqual({
+    profileEmail: 'host@example.com',
+    apiCalls: 2,
+    accessToken: 'fresh-token',
+    refreshToken: 'next-refresh-token',
+  });
+});
+
+test('pauses and saves a host room when Spotify needs an interactive renewal', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    isHostMode = true;
+    gameState = 'PLAYING';
+    previousStateBeforePause = 'READY_TO_PLAY';
+    currentRoomPin = 4321;
+    players = { 'host-local-player': { id: 'host-local-player', name: 'Host', online: true, timeline: [], tokens: 2, score: 0 } };
+    turnOrder = ['host-local-player'];
+    pauseForSpotifyRenewal();
+    const saved = JSON.parse(localStorage.getItem('party_host_state'));
+    return {
+      state: gameState,
+      previousState: previousStateBeforePause,
+      bannerVisible: !document.getElementById('host-spotify-renew-banner').classList.contains('hidden'),
+      savedPin: saved.pin,
+      savedState: saved.gameState,
+      shouldResume: sessionStorage.getItem('party_resume_after_spotify_login'),
+    };
+  });
+
+  expect(result).toEqual({
+    state: 'PAUSED_SPOTIFY',
+    previousState: 'PLAYING',
+    bannerVisible: true,
+    savedPin: 4321,
+    savedState: 'PAUSED_SPOTIFY',
+    shouldResume: 'true',
+  });
+});
+
+test('tells players that the room will resume while the host renews Spotify', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    handlePlayerSync({ state: 'PAUSED_SPOTIFY', myTokens: 2, myCardsCount: 1, activePlayerName: 'Alice' });
+  });
+
+  await expect(page.locator('#p-ui-title')).toContainText('Game Paused');
+  await expect(page.locator('#p-ui-desc')).toContainText('renewing Spotify');
+  await expect(page.locator('#p-music-controls')).toBeHidden();
+});
+
 test('validates the player PIN and name before connecting', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /Join Room/ }).click();
@@ -404,6 +484,32 @@ test('keeps no more than two songs by one artist in the ready batch', async ({ p
   });
 
   expect(result).toEqual(['spotify:track:a1', 'spotify:track:a2', 'spotify:track:b1']);
+});
+
+test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    tracks = [];
+    const accepted = limitTracksPerArtist([
+      { u: 'spotify:track:a1', t: 'A1', a: 'Artist A', al: 'album-one' },
+      { u: 'spotify:track:b1', t: 'B1', a: 'Artist B', al: 'album-one' },
+      { u: 'spotify:track:c1', t: 'C1', a: 'Artist C', al: 'album-two' },
+    ]);
+    recentTrackHistory = [{ artist: 'recent artist', album: 'recent-album', uri: 'spotify:track:recent' }];
+    tracks = [
+      { u: 'spotify:track:recent-artist', t: 'Recent Artist', a: 'Recent Artist', al: 'different-album' },
+      { u: 'spotify:track:recent-album', t: 'Recent Album', a: 'Different Artist', al: 'recent-album' },
+      { u: 'spotify:track:safe', t: 'Safe', a: 'Fresh Artist', al: 'fresh-album' },
+    ];
+    const next = popTrack();
+    return { accepted: accepted.map(track => track.u), next: next.u };
+  });
+
+  expect(result).toEqual({
+    accepted: ['spotify:track:a1', 'spotify:track:c1'],
+    next: 'spotify:track:safe',
+  });
 });
 
 test('places active player counters after the player name', async ({ page }) => {
