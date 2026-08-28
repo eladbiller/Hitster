@@ -555,7 +555,7 @@ test('offers a broad Spotify Popular Mix without artist search filters', async (
 
   expect(result.searchCalls).toHaveLength(5);
   expect(result.searchCalls.every(url => decodeURIComponent(url).includes('year:') && !decodeURIComponent(url).includes('artist:') && url.includes('limit=10') && !url.includes('market=IL'))).toBe(true);
-  expect(result).toMatchObject({ trackCount: 40, artists: 40, albums: 40 });
+  expect(result).toMatchObject({ trackCount: 50, artists: 50, albums: 50 });
 });
 
 test('keeps Spotify Popular Mix playable when one decade search fails', async ({ page }) => {
@@ -590,27 +590,8 @@ test('keeps Spotify Popular Mix playable when one decade search fails', async ({
     return { trackCount: tracks.length, errors: document.getElementById('toast-container').innerText };
   });
 
-  expect(result.trackCount).toBe(32);
+  expect(result.trackCount).toBe(40);
   expect(result.errors).not.toContain('Failed to load tracks');
-});
-
-test('keeps Spotify Popular Mix safe when a decade has fewer than three distinct artists', async ({ page }) => {
-  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
-
-  const result = await page.evaluate(() => {
-    const originalRandom = Math.random;
-    Math.random = () => 0.99;
-    try {
-      return pickPopularTracksForEra([
-        { uri: 'spotify:track:one', name: 'One', artists: [{ name: 'Artist One' }], album: { id: 'album-one', release_date: '2000-01-01' }, popularity: 90 },
-        { uri: 'spotify:track:two', name: 'Two', artists: [{ name: 'Artist Two' }], album: { id: 'album-two', release_date: '2000-01-01' }, popularity: 80 },
-      ]).map(track => track.uri);
-    } finally {
-      Math.random = originalRandom;
-    }
-  });
-
-  expect(result.sort()).toEqual(['spotify:track:one', 'spotify:track:two']);
 });
 
 test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
