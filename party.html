@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.44">
+    <meta name="app-version" content="1.36.45">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.44</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.45</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -983,7 +983,6 @@
         // player-card songs that are dealt from the same queue.
         const CLASSIC_READY_POOL_SIZE = 30;
         const CLASSIC_ERAS = Object.freeze(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']);
-        const POPULAR_READY_POOL_PER_ERA = 8;
 
         function getClassicLanguageTargets(mode) {
             if (mode === 'hitster_hebrew_classic') return { hebrew: CLASSIC_READY_POOL_SIZE, english: 0 };
@@ -1028,37 +1027,6 @@
                 }
             }
             return plan;
-        }
-
-        function pickPopularTracksForEra(items, target = POPULAR_READY_POOL_PER_ERA) {
-            const candidates = (items || []).filter(track =>
-                track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name)
-            );
-            const selected = [];
-            const artistKeys = new Set();
-            const albumKeys = new Set();
-
-            while (selected.length < target) {
-                const available = candidates.filter(track => {
-                    const artist = (track.artists?.[0]?.name || '').trim().toLocaleLowerCase();
-                    const album = (track.album?.id || track.album?.name || '').trim().toLocaleLowerCase();
-                    return artist && !artistKeys.has(artist) && (!album || !albumKeys.has(album));
-                });
-                if (!available.length) break;
-
-                // Prefer the popular part of Spotify's broad decade result,
-                // but choose randomly inside it so the same handful of famous
-                // songs does not appear in every game.
-                available.sort((left, right) => (right.popularity || 0) - (left.popularity || 0));
-                const choicePoolSize = Math.min(available.length, 12, Math.max(3, Math.ceil(available.length / 3)));
-                const track = available[Math.floor(Math.random() * choicePoolSize)];
-                const artist = (track.artists?.[0]?.name || '').trim().toLocaleLowerCase();
-                const album = (track.album?.id || track.album?.name || '').trim().toLocaleLowerCase();
-                artistKeys.add(artist);
-                if (album) albumKeys.add(album);
-                selected.push(track);
-            }
-            return selected;
         }
 
         function selectClassicLanguageItems(languageItems) {
@@ -1454,11 +1422,9 @@
                         });
                     } else if (currentMusicMode === 'hitster_popular_decades') {
                         const searchResults = [];
-                        // Use the established broad-search shape used by the
-                        // genre modes: a ten-track Spotify decade page with a
-                        // rotating offset. It works with more Spotify clients
-                        // than a 50-track market-constrained request, while the
-                        // picker below still favours popular tracks.
+                        // This is the original, proven broad-decade flow: keep
+                        // Spotify's full result page, then let the normal queue
+                        // deduplication below enforce artist and album variety.
                         for (const era of eras) {
                             try {
                                 const offset = getNextOffset(currentMusicMode, era);
@@ -1468,7 +1434,7 @@
                                 console.warn(`Popular Mix could not load ${era}:`, error);
                             }
                         }
-                        searchResults.forEach(items => rawItems.push(...pickPopularTracksForEra(items).map(track => ({ track }))));
+                        searchResults.forEach(items => rawItems.push(...items.map(track => ({ track }))));
                         if (!rawItems.length && gameState !== 'PAUSED_SPOTIFY') {
                             throw new Error('Spotify did not return playable Popular Mix tracks.');
                         }
