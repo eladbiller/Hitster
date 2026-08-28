@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.45">
+    <meta name="app-version" content="1.36.46">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.45</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.46</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1066,6 +1066,8 @@
         // original recording years for versions that Spotify consistently labels
         // with a much later compilation release year.
         const ORIGINAL_RELEASE_YEAR_OVERRIDES = Object.freeze({
+            'houseoftherisingsun|frijidpink': 1970,
+            'houseoftherisingsun|theanimals': 1964,
             'thehouseoftherisingsun|frijidpink': 1970,
             'thehouseoftherisingsun|theanimals': 1964
         });
@@ -1078,6 +1080,29 @@
             return `${title || ''}|${artist || ''}`.normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}|]/gu, '');
         }
 
+        function getKnownOriginalReleaseYear(title, artist) {
+            const identityKey = getTrackIdentityKey(title, artist);
+            const exactOverride = ORIGINAL_RELEASE_YEAR_OVERRIDES[identityKey];
+            if (exactOverride) return exactOverride;
+
+            // Some Spotify releases append extra text to the credited artist.
+            // Keep this fallback deliberately narrow so unrelated recordings of
+            // the same traditional song retain their own release year.
+            const [titleKey, artistKey = ''] = identityKey.split('|');
+            const isHouseOfTheRisingSun = titleKey === 'houseoftherisingsun' || titleKey === 'thehouseoftherisingsun';
+            if (isHouseOfTheRisingSun && artistKey.includes('theanimals')) return 1964;
+            return null;
+        }
+
+        function applyKnownOriginalReleaseYear(track) {
+            if (!track) return track;
+            const title = track.t || cleanTrackTitle(track.name || '');
+            const artist = track.a || track.artists?.[0]?.name || '';
+            const override = getKnownOriginalReleaseYear(title, artist);
+            if (override) track.y = override;
+            return track;
+        }
+
         function getAlbumReleaseYear(track) {
             return Number.parseInt(track?.album?.release_date?.substring(0, 4), 10);
         }
@@ -1086,7 +1111,7 @@
             const fallbackYear = getAlbumReleaseYear(track);
             const title = cleanTrackTitle(track?.name || '');
             const artist = track?.artists?.[0]?.name || '';
-            const override = ORIGINAL_RELEASE_YEAR_OVERRIDES[getTrackIdentityKey(title, artist)];
+            const override = getKnownOriginalReleaseYear(title, artist);
             if (override) return override;
 
             const isrc = track?.external_ids?.isrc;
@@ -1192,18 +1217,18 @@
                         !recentArtists.has(artist) &&
                         (!album || !recentAlbums.has(album));
                 });
-                if (freshVarietyIndex >= 0) return tracks.splice(freshVarietyIndex, 1)[0];
+                if (freshVarietyIndex >= 0) return applyKnownOriginalReleaseYear(tracks.splice(freshVarietyIndex, 1)[0]);
                 const preferredIndex = findLastTrackIndex(track =>
                     getTrackArtistKey(track) !== previousArtist &&
                     (!previousAlbum || getTrackAlbumKey(track) !== previousAlbum)
                 );
-                if (preferredIndex >= 0) return tracks.splice(preferredIndex, 1)[0];
+                if (preferredIndex >= 0) return applyKnownOriginalReleaseYear(tracks.splice(preferredIndex, 1)[0]);
 
                 // A very small remaining pool may not offer both. Still avoid
                 // repeating the artist when any other artist is available.
                 const differentArtistIndex = findLastTrackIndex(track => getTrackArtistKey(track) !== previousArtist);
-                if (differentArtistIndex >= 0) return tracks.splice(differentArtistIndex, 1)[0];
-                return tracks.pop();
+                if (differentArtistIndex >= 0) return applyKnownOriginalReleaseYear(tracks.splice(differentArtistIndex, 1)[0]);
+                return applyKnownOriginalReleaseYear(tracks.pop());
             }
             return { y: 2024, t: "Out of Songs! Click Refetch.", a: "System", c: "" };
         }
@@ -1574,19 +1599,20 @@
                 if (gameState === 'PAUSED_DISCONNECT' || gameState === 'PAUSED_SPOTIFY') {
                     gameState = savedState.previousStateBeforePause || 'READY_TO_PLAY';
                 }
-                currentHostTrack = savedState.currentHostTrack;
+                currentHostTrack = applyKnownOriginalReleaseYear(savedState.currentHostTrack);
                 isPlaying = false; 
                 currentGuesses = savedState.currentGuesses || {};
                 stealDecisions = savedState.stealDecisions || {};
                 stealEndTime = savedState.stealEndTime || 0;
                 currentWinnerId = savedState.currentWinnerId;
                 bonusTokenClaimed = savedState.bonusTokenClaimed;
-                tracks = savedState.tracks || [];
+                tracks = (savedState.tracks || []).map(applyKnownOriginalReleaseYear);
                 recentTrackHistory = Array.isArray(savedState.recentTrackHistory) ? savedState.recentTrackHistory.slice(-5) : [];
                 currentMusicMode = savedState.currentMusicMode || 'hitster_classic';
                 if (Number.isFinite(savedState.classicHebrewPercentage)) classicHebrewPercentage = Math.max(5, Math.min(95, savedState.classicHebrewPercentage));
 
                 Object.values(players).forEach(p => {
+                    p.timeline = (p.timeline || []).map(applyKnownOriginalReleaseYear);
                     p.conn = null;
                     p.online = (p.id === HOST_PLAYER_ID); 
                     p.lastPongAt = Date.now();
