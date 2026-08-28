@@ -260,6 +260,7 @@ test('resumed host sends Spotify play requests', async ({ page }) => {
 
 test('returns to the lobby when Spotify session expires', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.clear();
     localStorage.setItem('party_spotify_token', 'expired-token');
   });
   await page.route('https://api.spotify.com/v1/me', async (route) => {
@@ -472,7 +473,7 @@ test('avoids back-to-back artists and albums whenever another track is available
   expect(result.u).toBe('spotify:track:safe');
 });
 
-test('keeps no more than two songs by one artist in the ready batch', async ({ page }) => {
+test('keeps every artist to one song in the ready batch', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
   const result = await page.evaluate(() => {
@@ -486,7 +487,30 @@ test('keeps no more than two songs by one artist in the ready batch', async ({ p
     return accepted.map(track => track.u);
   });
 
-  expect(result).toEqual(['spotify:track:a1', 'spotify:track:a2', 'spotify:track:b1']);
+  expect(result).toEqual(['spotify:track:a1', 'spotify:track:b1']);
+});
+
+test('builds Classic fetches from distinct artists and honours the language limits', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    const summarize = (percentage) => {
+      classicHebrewPercentage = percentage;
+      const plan = getClassicArtistSearchPlan('hitster_classic');
+      return {
+        total: plan.length,
+        hebrew: plan.filter(item => item.language === 'hebrew').length,
+        english: plan.filter(item => item.language === 'english').length,
+        uniqueArtists: new Set(plan.map(item => `${item.language}:${item.artist.toLocaleLowerCase()}`)).size,
+        eras: new Set(plan.map(item => item.era)).size,
+      };
+    };
+    return { balanced: summarize(50), mostlyEnglish: summarize(5), mostlyHebrew: summarize(95) };
+  });
+
+  expect(result.balanced).toEqual({ total: 30, hebrew: 15, english: 15, uniqueArtists: 30, eras: 5 });
+  expect(result.mostlyEnglish).toEqual({ total: 30, hebrew: 2, english: 28, uniqueArtists: 30, eras: 5 });
+  expect(result.mostlyHebrew).toEqual({ total: 30, hebrew: 28, english: 2, uniqueArtists: 30, eras: 5 });
 });
 
 test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
