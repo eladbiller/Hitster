@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.46">
+    <meta name="app-version" content="1.36.47">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.46</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.47</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -941,31 +941,31 @@
         // made the old "mixed" deck overwhelmingly Hebrew in Israel. These
         // matching decade lists let us choose the language balance explicitly.
         const HEBREW_ARTISTS_BY_ERA = Object.freeze({
-            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי', 'שלום חנוך', 'חוה אלברשטיין', 'יהורם גאון', 'מתי כספי'],
-            '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב'],
-            '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה', 'ריטה', 'ירדנה ארזי', 'גידי גוב'],
-            '1986-1999': ['משינה', 'יהודה פוליקר', 'שלמה ארצי'],
-            '1990-1999': ['משינה', 'החברים של נטאשה', 'אייל גולן', 'שרית חדד', 'אביב גפן', 'הדג נחש'],
-            '2000-2009': ['עידן רייכל', 'הדג נחש', 'מוקי', 'שירי מימון', 'הראל סקעת', 'קובי פרץ'],
-            '2010-2015': ['קרן פלס', 'עידן עמדי', 'ישי ריבו'],
-            '2010-2024': ['עידן רייכל', 'נועה קירל', 'יסמין מועלם', 'עומר אדם', 'נסרין קדרי', 'טונה'],
-            '2016-2020': ['נועה קירל', 'סטטיק ובן אל', 'עדן חסון'],
-            '2016-2024': ['נועה קירל', 'אודיה', 'יסמין מועלם'],
-            '2021-2024': ['אודיה', 'יסמין מועלם', 'עדן חסון']
+            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי', 'שלום חנוך', 'חוה אלברשטיין', 'יהורם גאון', 'מתי כספי', 'אילנית', 'צביקה פיק', 'גזוז', 'החלונות הגבוהים', 'יגאל בשן', 'יהודית רביץ', 'יוני רכטר', 'דני סנדרסון', 'שושנה דמארי', 'התרנגולים', 'הפרברים', 'אושיק לוי', 'נורית גלרון', 'אריק לביא', 'שמוליק קראוס'],
+            '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב', 'אריק איינשטיין', 'שלמה ארצי', 'מתי כספי', 'צביקה פיק', 'יהודית רביץ', 'יוני רכטר', 'דני סנדרסון', 'תיסלם', 'בנזין'],
+            '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה', 'ריטה', 'ירדנה ארזי', 'גידי גוב', 'שלמה ארצי', 'שלום חנוך', 'יהודית רביץ', 'קורין אלאל', 'בנזין', 'תיסלם', 'חיים משה', 'זוהר ארגוב', 'מרגלית צנעני', 'דני סנדרסון', 'מאיר אריאל', 'רמי קלינשטיין', 'אריק סיני', 'נורית גלרון', 'אהוד בנאי', 'סי היימן'],
+            '1986-1999': ['משינה', 'יהודה פוליקר', 'שלמה ארצי', 'ריטה', 'החברים של נטאשה', 'אתניקס', 'טיפקס', 'ברי סחרוף', 'מאיר בנאי', 'דנה אינטרנשיונל', 'אביב גפן', 'מוניקה סקס'],
+            '1990-1999': ['משינה', 'החברים של נטאשה', 'אייל גולן', 'שרית חדד', 'אביב גפן', 'הדג נחש', 'שלמה ארצי', 'ריטה', 'אתניקס', 'טיפקס', 'איפה הילד', 'מוניקה סקס', 'היהודים', 'ברי סחרוף', 'מאיר בנאי', 'דנה אינטרנשיונל', 'זהבה בן', 'חיים משה', 'כנסיית השכל', 'ירמי קפלן', 'נקמת הטרקטור', 'עמיר בניון'],
+            '2000-2009': ['עידן רייכל', 'הדג נחש', 'מוקי', 'שירי מימון', 'הראל סקעת', 'קובי פרץ', 'מירי מסיקה', 'קרן פלס', 'נינט טייב', 'עברי לידר', 'סאבלימינל', 'משה פרץ', 'דודו אהרון', 'ליאור נרקיס', 'עמיר בניון', 'ברי סחרוף', 'מוש בן ארי', 'אהוד בנאי', 'שי גבסו', 'רוני דלומי', 'פבלו רוזנברג', 'התקווה 6'],
+            '2010-2015': ['קרן פלס', 'עידן עמדי', 'ישי ריבו', 'עומר אדם', 'אייל גולן', 'שרית חדד', 'משה פרץ', 'דודו אהרון', 'עידן רייכל', 'אברהם טל', 'התקווה 6', 'רביד פלוטניק'],
+            '2010-2024': ['עידן רייכל', 'נועה קירל', 'יסמין מועלם', 'עומר אדם', 'נסרין קדרי', 'טונה', 'עדן חסון', 'אודיה', 'ישי ריבו', 'עידן עמדי', 'חנן בן ארי', 'סטטיק ובן אל', 'פאר טסי', 'אושר כהן', 'נטע ברזילי', 'נרקיס', 'רביד פלוטניק', 'התקווה 6', 'אליעד', 'מרגי', 'אגם בוחבוט', 'איתי לוי', 'משה פרץ', 'דודו אהרון', 'שרית חדד', 'קרן פלס', 'אייל גולן', 'עדן בן זקן', 'אברהם טל', 'רותם כהן'],
+            '2016-2020': ['נועה קירל', 'סטטיק ובן אל', 'עדן חסון', 'עומר אדם', 'טונה', 'חנן בן ארי', 'נטע ברזילי', 'עידן עמדי', 'ישי ריבו', 'איתי לוי', 'עדן בן זקן', 'אליעד'],
+            '2016-2024': ['נועה קירל', 'אודיה', 'יסמין מועלם', 'עדן חסון', 'עומר אדם', 'טונה', 'חנן בן ארי', 'פאר טסי', 'אושר כהן', 'מרגי', 'נרקיס', 'רביד פלוטניק'],
+            '2021-2024': ['אודיה', 'יסמין מועלם', 'עדן חסון', 'נועה קירל', 'אושר כהן', 'פאר טסי', 'מרגי', 'נרקיס', 'אגם בוחבוט', 'איתי לוי', 'חנן בן ארי', 'טונה']
         });
 
         const ENGLISH_ARTISTS_BY_ERA = Object.freeze({
-            '1960-1979': ['The Beatles', 'Queen', 'ABBA', 'Bee Gees', 'Fleetwood Mac', 'David Bowie', 'Pink Floyd'],
-            '1970-1985': ['Queen', 'David Bowie', 'Fleetwood Mac'],
-            '1980-1989': ['Michael Jackson', 'Madonna', 'Prince', 'Whitney Houston', 'Guns N Roses', 'Metallica', 'Depeche Mode'],
-            '1986-1999': ['Madonna', 'Nirvana', 'Backstreet Boys'],
-            '1990-1999': ['Backstreet Boys', 'Spice Girls', 'Britney Spears', 'Nirvana', 'Tupac Shakur', 'Mariah Carey', 'Radiohead'],
-            '2000-2009': ['Coldplay', 'Beyoncé', 'Eminem', 'Linkin Park', 'Avril Lavigne', 'Rihanna', 'Arctic Monkeys'],
-            '2010-2015': ['Adele', 'Bruno Mars', 'Taylor Swift'],
-            '2010-2024': ['Taylor Swift', 'The Weeknd', 'Dua Lipa', 'Adele', 'Bruno Mars', 'Drake', 'Lady Gaga', 'Imagine Dragons'],
-            '2016-2020': ['Dua Lipa', 'Billie Eilish', 'The Weeknd'],
-            '2016-2024': ['Dua Lipa', 'The Weeknd', 'Harry Styles'],
-            '2021-2024': ['Sabrina Carpenter', 'Tate McRae', 'Chappell Roan']
+            '1960-1979': ['The Beatles', 'Queen', 'ABBA', 'Bee Gees', 'Fleetwood Mac', 'David Bowie', 'Pink Floyd', 'The Rolling Stones', 'Led Zeppelin', 'Elton John', 'Stevie Wonder', 'Eagles', 'The Who', 'The Doors', 'Simon & Garfunkel', 'Earth Wind & Fire', 'Donna Summer', 'Aretha Franklin', 'Marvin Gaye', 'Bob Dylan', 'Black Sabbath', 'Electric Light Orchestra', 'Supertramp', 'Blondie', 'The Police'],
+            '1970-1985': ['Queen', 'David Bowie', 'Fleetwood Mac', 'Elton John', 'Eagles', 'Led Zeppelin', 'ABBA', 'Bee Gees', 'Stevie Wonder', 'The Police', 'Blondie', 'Bruce Springsteen'],
+            '1980-1989': ['Michael Jackson', 'Madonna', 'Prince', 'Whitney Houston', 'Guns N Roses', 'Metallica', 'Depeche Mode', 'George Michael', 'U2', 'Bon Jovi', 'Cyndi Lauper', 'A-ha', 'Duran Duran', 'Tears for Fears', 'Eurythmics', 'Phil Collins', 'Tina Turner', 'Bruce Springsteen', 'Dire Straits', 'The Cure', 'Pet Shop Boys', 'New Order', 'AC/DC', 'Bryan Adams', 'INXS', 'Roxette', 'R.E.M.', 'Janet Jackson'],
+            '1986-1999': ['Madonna', 'Nirvana', 'Backstreet Boys', 'Mariah Carey', 'Radiohead', 'Oasis', 'Blur', 'Pearl Jam', 'Red Hot Chili Peppers', 'Celine Dion', 'Green Day', 'Tupac Shakur'],
+            '1990-1999': ['Backstreet Boys', 'Spice Girls', 'Britney Spears', 'Nirvana', 'Tupac Shakur', 'Mariah Carey', 'Radiohead', 'Oasis', 'Blur', 'Pearl Jam', 'Red Hot Chili Peppers', 'Celine Dion', 'Alanis Morissette', 'TLC', 'Destiny\'s Child', 'Green Day', 'The Cranberries', 'Soundgarden', 'No Doubt', 'Foo Fighters', 'Shania Twain', 'Jamiroquai', 'Robbie Williams', 'NSYNC', 'Dr. Dre', 'Snoop Dogg', 'Lauryn Hill', 'Ace of Base', 'The Prodigy'],
+            '2000-2009': ['Coldplay', 'Beyoncé', 'Eminem', 'Linkin Park', 'Avril Lavigne', 'Rihanna', 'Arctic Monkeys', 'Lady Gaga', 'Britney Spears', 'Kanye West', 'Alicia Keys', 'Usher', 'The Black Eyed Peas', 'Maroon 5', 'Amy Winehouse', 'Muse', 'Green Day', 'Gorillaz', 'The Killers', 'Katy Perry', 'Justin Timberlake', 'Christina Aguilera', 'P!nk', 'Shakira', 'Nelly Furtado', 'Snow Patrol', 'Kings of Leon', 'Jay-Z'],
+            '2010-2015': ['Adele', 'Bruno Mars', 'Taylor Swift', 'Ed Sheeran', 'Ariana Grande', 'Justin Bieber', 'Drake', 'Rihanna', 'Katy Perry', 'Imagine Dragons', 'Maroon 5', 'Calvin Harris'],
+            '2010-2024': ['Taylor Swift', 'The Weeknd', 'Dua Lipa', 'Adele', 'Bruno Mars', 'Drake', 'Lady Gaga', 'Imagine Dragons', 'Ed Sheeran', 'Billie Eilish', 'Ariana Grande', 'Justin Bieber', 'Harry Styles', 'Olivia Rodrigo', 'Post Malone', 'Sia', 'Lana Del Rey', 'Miley Cyrus', 'Doja Cat', 'Kendrick Lamar', 'Hozier', 'Lewis Capaldi', 'Sam Smith', 'Calvin Harris', 'David Guetta', 'Lizzo', 'Sabrina Carpenter', 'Tate McRae', 'Chappell Roan', 'Twenty One Pilots', 'OneRepublic', 'One Direction', 'Camila Cabello', 'Shawn Mendes'],
+            '2016-2020': ['Dua Lipa', 'Billie Eilish', 'The Weeknd', 'Ed Sheeran', 'Ariana Grande', 'Post Malone', 'Harry Styles', 'Drake', 'Doja Cat', 'Imagine Dragons', 'Camila Cabello', 'Shawn Mendes'],
+            '2016-2024': ['Dua Lipa', 'The Weeknd', 'Harry Styles', 'Billie Eilish', 'Olivia Rodrigo', 'Doja Cat', 'Post Malone', 'Sabrina Carpenter', 'Tate McRae', 'Hozier', 'Miley Cyrus', 'Ariana Grande'],
+            '2021-2024': ['Sabrina Carpenter', 'Tate McRae', 'Chappell Roan', 'Olivia Rodrigo', 'Billie Eilish', 'Harry Styles', 'Doja Cat', 'Miley Cyrus', 'The Weeknd', 'Dua Lipa', 'Hozier', 'Benson Boone']
         });
 
         function getClassicLanguagePlan(mode) {
@@ -983,6 +983,64 @@
         // player-card songs that are dealt from the same queue.
         const CLASSIC_READY_POOL_SIZE = 30;
         const CLASSIC_ERAS = Object.freeze(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']);
+        const CLASSIC_RECENT_ARTISTS_KEY = 'party_classic_recent_artists_v1';
+        const CLASSIC_RECENT_TRACKS_KEY = 'party_classic_recent_tracks_v1';
+        const CLASSIC_SEARCH_RESULT_LIMIT = 10;
+
+        function getClassicArtistMemoryKey(artist) {
+            return (artist || '').trim().toLocaleLowerCase();
+        }
+
+        function getClassicArtistHistory() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(CLASSIC_RECENT_ARTISTS_KEY) || '{}');
+                return {
+                    hebrew: Array.isArray(stored.hebrew) ? stored.hebrew : [],
+                    english: Array.isArray(stored.english) ? stored.english : []
+                };
+            } catch (_) {
+                return { hebrew: [], english: [] };
+            }
+        }
+
+        function rememberClassicArtistPlan(plan) {
+            const history = getClassicArtistHistory();
+            for (const language of ['hebrew', 'english']) {
+                const selected = plan
+                    .filter(item => item.language === language)
+                    .map(item => getClassicArtistMemoryKey(item.artist));
+                if (selected.length) history[language] = selected;
+            }
+            try { localStorage.setItem(CLASSIC_RECENT_ARTISTS_KEY, JSON.stringify(history)); } catch (_) {}
+        }
+
+        function getRecentClassicTrackUris() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(CLASSIC_RECENT_TRACKS_KEY) || '[]');
+                return new Set(Array.isArray(stored) ? stored.filter(Boolean) : []);
+            } catch (_) {
+                return new Set();
+            }
+        }
+
+        function rememberClassicTrackSelections(selectedTracks) {
+            const selectedUris = selectedTracks.map(track => track?.uri).filter(Boolean);
+            if (!selectedUris.length) return;
+            const selectedSet = new Set(selectedUris);
+            const previous = [...getRecentClassicTrackUris()].filter(uri => !selectedSet.has(uri));
+            try {
+                localStorage.setItem(CLASSIC_RECENT_TRACKS_KEY, JSON.stringify([...selectedUris, ...previous].slice(0, 240)));
+            } catch (_) {}
+        }
+
+        function selectClassicArtistTrack(items, activeUris = new Set(), recentUris = getRecentClassicTrackUris()) {
+            const usable = (items || []).filter(track =>
+                track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name) && !activeUris.has(track.uri)
+            );
+            const fresh = usable.filter(track => !recentUris.has(track.uri));
+            const candidates = fresh.length ? fresh : usable;
+            return candidates.length ? shuffleArray([...candidates])[0] : null;
+        }
 
         function getClassicLanguageTargets(mode) {
             if (mode === 'hitster_hebrew_classic') return { hebrew: CLASSIC_READY_POOL_SIZE, english: 0 };
@@ -998,11 +1056,19 @@
         function getClassicArtistSearchPlan(mode) {
             const targets = getClassicLanguageTargets(mode);
             const plan = [];
+            const artistHistory = getClassicArtistHistory();
 
             for (const [language, target] of Object.entries(targets)) {
                 if (!target) continue;
                 const catalog = language === 'hebrew' ? HEBREW_ARTISTS_BY_ERA : ENGLISH_ARTISTS_BY_ERA;
-                const choices = new Map(CLASSIC_ERAS.map(era => [era, shuffleArray([...(catalog[era] || [])])]));
+                const recentArtists = new Set(artistHistory[language] || []);
+                const choices = new Map(CLASSIC_ERAS.map(era => {
+                    const shuffled = shuffleArray([...(catalog[era] || [])]);
+                    return [era, [
+                        ...shuffled.filter(artist => !recentArtists.has(getClassicArtistMemoryKey(artist))),
+                        ...shuffled.filter(artist => recentArtists.has(getClassicArtistMemoryKey(artist)))
+                    ]];
+                }));
                 const usedArtists = new Set();
                 let cursor = Math.floor(Math.random() * CLASSIC_ERAS.length);
 
@@ -1014,10 +1080,10 @@
                     for (let offset = 0; offset < CLASSIC_ERAS.length; offset++) {
                         const era = CLASSIC_ERAS[(cursor + offset) % CLASSIC_ERAS.length];
                         const artists = choices.get(era) || [];
-                        const artist = artists.find(candidate => !usedArtists.has(candidate.trim().toLocaleLowerCase()));
+                        const artist = artists.find(candidate => !usedArtists.has(getClassicArtistMemoryKey(candidate)));
                         if (!artist) continue;
                         artists.splice(artists.indexOf(artist), 1);
-                        usedArtists.add(artist.trim().toLocaleLowerCase());
+                        usedArtists.add(getClassicArtistMemoryKey(artist));
                         plan.push({ era, language, artist, query: `artist:"${artist}" year:${era}` });
                         addedThisPass = true;
                         if (plan.filter(item => item.language === language).length >= target) break;
@@ -1026,6 +1092,7 @@
                     if (!addedThisPass) break;
                 }
             }
+            rememberClassicArtistPlan(plan);
             return plan;
         }
 
@@ -1431,20 +1498,29 @@
                     const isClassicLanguageMode = ['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode);
                     if (isClassicLanguageMode) {
                         const searchPlan = getClassicArtistSearchPlan(currentMusicMode);
+                        const recentTrackUris = getRecentClassicTrackUris();
+                        const activeTrackUris = new Set(tracks.map(track => track.u).filter(Boolean));
+                        if (currentHostTrack?.u) activeTrackUris.add(currentHostTrack.u);
+                        Object.values(players).forEach(player => {
+                            (player.timeline || []).forEach(track => {
+                                if (track?.u) activeTrackUris.add(track.u);
+                            });
+                        });
                         const searchResults = await Promise.all(searchPlan.map(async item => ({
                             item,
-                            data: await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(item.query)}&type=track&limit=5&market=IL`)
+                            data: await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(item.query)}&type=track&limit=${CLASSIC_SEARCH_RESULT_LIMIT}&market=IL`)
                         })));
                         searchResults.forEach(({ data }) => {
-                            // The search is deliberately for one chosen artist.
-                            // Retain its first usable result, not five songs
-                            // from that same artist. This also prevents dozens
-                            // of unnecessary original-release-year API lookups.
-                            const track = (data.tracks?.items || []).find(candidate =>
-                                candidate?.uri && candidate.album?.release_date && !candidate.is_local && isPreferredTrack(candidate.name)
-                            );
-                            if (track) rawItems.push({ track });
+                            // Keep one song per chosen artist, but rotate within
+                            // a deeper result page instead of replaying Spotify's
+                            // first result in every game.
+                            const track = selectClassicArtistTrack(data.tracks?.items || [], activeTrackUris, recentTrackUris);
+                            if (track) {
+                                rawItems.push({ track });
+                                recentTrackUris.add(track.uri);
+                            }
                         });
+                        rememberClassicTrackSelections(rawItems.map(item => item.track));
                     } else if (currentMusicMode === 'hitster_popular_decades') {
                         const searchResults = [];
                         // This is the original, proven broad-decade flow: keep
