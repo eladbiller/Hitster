@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.39">
+    <meta name="app-version" content="1.36.40">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -315,7 +315,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.39</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.40</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -936,7 +936,7 @@
         // made the old "mixed" deck overwhelmingly Hebrew in Israel. These
         // matching decade lists let us choose the language balance explicitly.
         const HEBREW_ARTISTS_BY_ERA = Object.freeze({
-            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי', 'שלום חנוך', 'חוה אלברשטיין', 'יהורם גאון'],
+            '1960-1979': ['אריק איינשטיין', 'כוורת', 'שלמה ארצי', 'שלום חנוך', 'חוה אלברשטיין', 'יהורם גאון', 'מתי כספי'],
             '1970-1985': ['כוורת', 'שלום חנוך', 'גידי גוב'],
             '1980-1989': ['עפרה חזה', 'יהודה פוליקר', 'משינה', 'ריטה', 'ירדנה ארזי', 'גידי גוב'],
             '1986-1999': ['משינה', 'יהודה פוליקר', 'שלמה ארצי'],
@@ -970,6 +970,58 @@
             // room much broader pop, rock, hip-hop, dance, Mizrahi and singer-
             // songwriter coverage than a single-artist search can provide.
             return ['hebrew', 'hebrew', 'english', 'english'];
+        }
+
+        // A Classic ready pool needs enough different artists to avoid pairs,
+        // rather than several results from only a couple of artist searches.
+        // Thirty is enough for a full game start while leaving room for the
+        // player-card songs that are dealt from the same queue.
+        const CLASSIC_READY_POOL_SIZE = 30;
+        const CLASSIC_ERAS = Object.freeze(['1960-1979', '1980-1989', '1990-1999', '2000-2009', '2010-2024']);
+
+        function getClassicLanguageTargets(mode) {
+            if (mode === 'hitster_hebrew_classic') return { hebrew: CLASSIC_READY_POOL_SIZE, english: 0 };
+            if (mode === 'hitster_english_classic') return { hebrew: 0, english: CLASSIC_READY_POOL_SIZE };
+            // Thirty cards cannot represent 5% as a whole card. Two cards is
+            // 6.7%, so clamp to two per language rather than ever showing
+            // less than the slider's promised five-percent minimum.
+            const hebrew = Math.max(2, Math.min(CLASSIC_READY_POOL_SIZE - 2,
+                Math.round(CLASSIC_READY_POOL_SIZE * (classicHebrewPercentage / 100))));
+            return { hebrew, english: CLASSIC_READY_POOL_SIZE - hebrew };
+        }
+
+        function getClassicArtistSearchPlan(mode) {
+            const targets = getClassicLanguageTargets(mode);
+            const plan = [];
+
+            for (const [language, target] of Object.entries(targets)) {
+                if (!target) continue;
+                const catalog = language === 'hebrew' ? HEBREW_ARTISTS_BY_ERA : ENGLISH_ARTISTS_BY_ERA;
+                const choices = new Map(CLASSIC_ERAS.map(era => [era, shuffleArray([...(catalog[era] || [])])]));
+                const usedArtists = new Set();
+                let cursor = Math.floor(Math.random() * CLASSIC_ERAS.length);
+
+                // Round-robin across decades: broad chronology first, then a
+                // second artist in a decade only when the selected balance
+                // needs it. Never issue a duplicate artist search in a batch.
+                while (plan.filter(item => item.language === language).length < target) {
+                    let addedThisPass = false;
+                    for (let offset = 0; offset < CLASSIC_ERAS.length; offset++) {
+                        const era = CLASSIC_ERAS[(cursor + offset) % CLASSIC_ERAS.length];
+                        const artists = choices.get(era) || [];
+                        const artist = artists.find(candidate => !usedArtists.has(candidate.trim().toLocaleLowerCase()));
+                        if (!artist) continue;
+                        artists.splice(artists.indexOf(artist), 1);
+                        usedArtists.add(artist.trim().toLocaleLowerCase());
+                        plan.push({ era, language, artist, query: `artist:"${artist}" year:${era}` });
+                        addedThisPass = true;
+                        if (plan.filter(item => item.language === language).length >= target) break;
+                    }
+                    cursor = (cursor + 1) % CLASSIC_ERAS.length;
+                    if (!addedThisPass) break;
+                }
+            }
+            return plan;
         }
 
         function selectClassicLanguageItems(languageItems) {
@@ -1174,7 +1226,7 @@
             return -1;
         }
 
-        function limitTracksPerArtist(newTracks, maxPerArtist = 2) {
+        function limitTracksPerArtist(newTracks, maxPerArtist = 1) {
             const artistCounts = new Map();
             const albumKeys = new Set();
             tracks.forEach(track => {
@@ -1347,34 +1399,24 @@
                     else if (currentMusicMode === 'hitster_hiphop') { genreQuery = " genre:hiphop"; eras = ['1990-1999', '2000-2009', '2010-2015', '2016-2024']; }
 
                     const isClassicLanguageMode = ['hitster_classic', 'hitster_hebrew_classic', 'hitster_english_classic'].includes(currentMusicMode);
-                    for (const era of eras) {
-                        if (isClassicLanguageMode) {
-                            // Every Classic plan uses two different artists per
-                            // selected language in each decade, for a fuller
-                            // and more varied deck.
-                            const languageCounts = getClassicLanguagePlan(currentMusicMode).reduce((counts, language) => {
-                                counts[language] = (counts[language] || 0) + 1;
-                                return counts;
-                            }, {});
-                            const languageItems = {};
-                            for (const [language, count] of Object.entries(languageCounts)) {
-                                for (const query of buildLanguageSearchQueries(era, language, count)) {
-                                    const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5&market=IL`);
-                                    if (data.tracks?.items) {
-                                        languageItems[language] = (languageItems[language] || []).concat(data.tracks.items);
-                                    }
-                                }
-                            }
-                            if (currentMusicMode === 'hitster_classic') {
-                                // The API does not always return the requested
-                                // count for an artist/year query. Use the same
-                                // count from both languages per decade so the
-                                // final Classic deck remains truly 50/50.
-                                rawItems.push(...selectClassicLanguageItems(languageItems).map(track => ({ track })));
-                            } else {
-                                Object.values(languageItems).forEach(items => rawItems.push(...items.map(track => ({ track }))));
-                            }
-                        } else {
+                    if (isClassicLanguageMode) {
+                        const searchPlan = getClassicArtistSearchPlan(currentMusicMode);
+                        const searchResults = await Promise.all(searchPlan.map(async item => ({
+                            item,
+                            data: await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(item.query)}&type=track&limit=5&market=IL`)
+                        })));
+                        searchResults.forEach(({ data }) => {
+                            // The search is deliberately for one chosen artist.
+                            // Retain its first usable result, not five songs
+                            // from that same artist. This also prevents dozens
+                            // of unnecessary original-release-year API lookups.
+                            const track = (data.tracks?.items || []).find(candidate =>
+                                candidate?.uri && candidate.album?.release_date && !candidate.is_local && isPreferredTrack(candidate.name)
+                            );
+                            if (track) rawItems.push({ track });
+                        });
+                    } else {
+                        for (const era of eras) {
                             // Uses the Smart Memory Offset to ensure no repeats across sessions.
                             const offset = getNextOffset(currentMusicMode, era);
                             const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}${genreQuery}`)}&type=track&limit=10&offset=${offset}`);
@@ -1418,8 +1460,9 @@
                 });
                 mappedTracks = Array.from(earliestByKey.values());
 
-                // Keep a varied ready pool. A popular artist can appear in many
-                // search results, but should never fill a whole game batch.
+                // One song per artist and album in the ready pool. The Classic
+                // search plan above fetches enough different artists to keep
+                // this rule from shrinking the pool or losing genre coverage.
                 tracks = tracks.concat(limitTracksPerArtist(shuffleArray(mappedTracks)));
 
             } catch (err) {
