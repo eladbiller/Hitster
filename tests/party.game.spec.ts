@@ -538,6 +538,56 @@ test('builds Classic fetches from distinct artists and honours the language limi
   expect(result.mostlyHebrew).toEqual({ total: 30, hebrew: 28, english: 2, uniqueArtists: 30, eras: 5 });
 });
 
+test('rotates Classic artist subsets between games from much deeper catalogs', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem(CLASSIC_RECENT_ARTISTS_KEY);
+    classicHebrewPercentage = 50;
+    const first = getClassicArtistSearchPlan('hitster_classic');
+    const second = getClassicArtistSearchPlan('hitster_classic');
+    const artistKey = item => `${item.language}:${getClassicArtistMemoryKey(item.artist)}`;
+    const firstArtists = new Set(first.map(artistKey));
+    const secondArtists = new Set(second.map(artistKey));
+    const overlap = [...firstArtists].filter(key => secondArtists.has(key));
+    const catalogSizes = Object.fromEntries(['hebrew', 'english'].map(language => {
+      const catalog = language === 'hebrew' ? HEBREW_ARTISTS_BY_ERA : ENGLISH_ARTISTS_BY_ERA;
+      const unique = new Set(CLASSIC_ERAS.flatMap(era => catalog[era]).map(getClassicArtistMemoryKey));
+      const smallestEra = Math.min(...CLASSIC_ERAS.map(era => catalog[era].length));
+      return [language, { unique: unique.size, smallestEra }];
+    }));
+    return { firstCount: first.length, secondCount: second.length, overlap, catalogSizes };
+  });
+
+  expect(result.firstCount).toBe(30);
+  expect(result.secondCount).toBe(30);
+  expect(result.overlap).toEqual([]);
+  expect(result.catalogSizes.hebrew.unique).toBeGreaterThan(45);
+  expect(result.catalogSizes.english.unique).toBeGreaterThan(70);
+  expect(result.catalogSizes.hebrew.smallestEra).toBeGreaterThanOrEqual(22);
+  expect(result.catalogSizes.english.smallestEra).toBeGreaterThanOrEqual(25);
+});
+
+test('chooses an unplayed song from ten results for each Classic artist', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    localStorage.removeItem(CLASSIC_RECENT_TRACKS_KEY);
+    const candidates = Array.from({ length: 10 }, (_, index) => ({
+      uri: `spotify:track:deep-${index}`,
+      name: `Deep song ${index}`,
+      artists: [{ name: 'Deep Artist' }],
+      album: { release_date: '2005-01-01' },
+      is_local: false,
+    }));
+    rememberClassicTrackSelections(candidates.slice(0, 9));
+    const selected = selectClassicArtistTrack(candidates);
+    return { selectedUri: selected?.uri, resultLimit: CLASSIC_SEARCH_RESULT_LIMIT };
+  });
+
+  expect(result).toEqual({ selectedUri: 'spotify:track:deep-9', resultLimit: 10 });
+});
+
 test('offers a broad Spotify Popular Mix without artist search filters', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => switchSetupView('view-host-setup'));
