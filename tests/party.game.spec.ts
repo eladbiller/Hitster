@@ -594,6 +594,25 @@ test('keeps Spotify Popular Mix playable when one decade search fails', async ({
   expect(result.errors).not.toContain('Failed to load tracks');
 });
 
+test('keeps Spotify Popular Mix safe when a decade has fewer than three distinct artists', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      return pickPopularTracksForEra([
+        { uri: 'spotify:track:one', name: 'One', artists: [{ name: 'Artist One' }], album: { id: 'album-one', release_date: '2000-01-01' }, popularity: 90 },
+        { uri: 'spotify:track:two', name: 'Two', artists: [{ name: 'Artist Two' }], album: { id: 'album-two', release_date: '2000-01-01' }, popularity: 80 },
+      ]).map(track => track.uri);
+    } finally {
+      Math.random = originalRandom;
+    }
+  });
+
+  expect(result.sort()).toEqual(['spotify:track:one', 'spotify:track:two']);
+});
+
 test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
