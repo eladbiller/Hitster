@@ -513,6 +513,51 @@ test('builds Classic fetches from distinct artists and honours the language limi
   expect(result.mostlyHebrew).toEqual({ total: 30, hebrew: 28, english: 2, uniqueArtists: 30, eras: 5 });
 });
 
+test('offers a broad Spotify Popular Mix without artist search filters', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => switchSetupView('view-host-setup'));
+  await expect(page.getByRole('button', { name: /Spotify Popular Mix/ })).toBeVisible();
+
+  const result = await page.evaluate(async () => {
+    const originalSpotifyFetch = safeSpotifyFetch;
+    const searchCalls = [];
+    eval('accessToken = "test-token"');
+    currentMusicMode = 'hitster_popular_decades';
+    tracks = [];
+    players = {};
+    currentHostTrack = null;
+    let requestId = 0;
+    safeSpotifyFetch = async (url) => {
+      searchCalls.push(url);
+      const currentRequest = requestId++;
+      return {
+        tracks: {
+          items: Array.from({ length: 50 }, (_, index) => ({
+            uri: `spotify:track:popular-${currentRequest}-${index}`,
+            name: `Popular song ${currentRequest}-${index}`,
+            artists: [{ name: `Popular artist ${currentRequest}-${index}` }],
+            album: { id: `popular-album-${currentRequest}-${index}`, release_date: '2005-01-01', images: [] },
+            popularity: 100 - index,
+            is_local: false,
+          })),
+        },
+      };
+    };
+    await fetchTracksFromSpotify();
+    safeSpotifyFetch = originalSpotifyFetch;
+    return {
+      searchCalls,
+      trackCount: tracks.length,
+      artists: new Set(tracks.map(track => track.a)).size,
+      albums: new Set(tracks.map(track => track.al)).size,
+    };
+  });
+
+  expect(result.searchCalls).toHaveLength(5);
+  expect(result.searchCalls.every(url => decodeURIComponent(url).includes('year:') && !decodeURIComponent(url).includes('artist:') && url.includes('limit=50') && url.includes('market=IL'))).toBe(true);
+  expect(result).toMatchObject({ trackCount: 40, artists: 40, albums: 40 });
+});
+
 test('keeps albums unique in the ready batch and avoids recently played artists and albums', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
