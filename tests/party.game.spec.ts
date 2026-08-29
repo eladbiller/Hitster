@@ -295,7 +295,7 @@ test('returns to the lobby when Spotify session expires', async ({ page }) => {
 test('shows Spotify SDK playback errors to the host', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
-  await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const listeners = {};
     window.Spotify = {
       Player: class {
@@ -307,13 +307,23 @@ test('shows Spotify SDK playback errors to the host', async ({ page }) => {
     listeners.account_error({ message: 'Premium account required' });
     listeners.initialization_error({ message: 'Browser playback unavailable' });
     listeners.playback_error({ message: 'Track unavailable' });
+    eval('gameState = "PLAYING"; isPlaying = true');
+    for (let index = 0; index < 6; index++) listeners.playback_error({ message: 'Playback error' });
     listeners.autoplay_failed();
+    return {
+      gameState: eval('gameState'),
+      isPlaying: eval('isPlaying'),
+      genericPlaybackErrors: Array.from(document.querySelectorAll('#toast-container > div'))
+        .filter(toast => toast.textContent?.includes('Spotify could not play audio in this browser')).length,
+    };
   });
 
   await expect(page.locator('#toast-container')).toContainText('Premium account required');
   await expect(page.locator('#toast-container')).toContainText('Browser playback unavailable');
-  await expect(page.locator('#toast-container')).toContainText('Track unavailable');
+  await expect(page.locator('#toast-container')).toContainText('Spotify playback failed: Track unavailable');
+  await expect(page.locator('#toast-container')).toContainText('Spotify could not play audio in this browser');
   await expect(page.locator('#toast-container')).toContainText('Tap Play Song');
+  expect(result).toEqual({ gameState: 'READY_TO_PLAY', isPlaying: false, genericPlaybackErrors: 1 });
 });
 
 test('releases the player form when a duplicate name is rejected', async ({ page }) => {
