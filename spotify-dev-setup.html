@@ -30,25 +30,39 @@
             </ul>
         </section>
 
+        <section class="mt-6 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-5 sm:p-6">
+            <h2 class="flex items-center gap-2 text-lg font-extrabold text-amber-100"><i class="fa-solid fa-mobile-screen-button"></i> First: phone users need Desktop site</h2>
+            <p class="mt-3 text-sm leading-6 text-amber-50">Spotify’s developer dashboard is much easier to use in its desktop layout. If you are setting this up on a phone, turn on <strong>Desktop site</strong> before you try to create the app.</p>
+            <div class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <div class="rounded-xl border border-amber-300/25 bg-slate-950/35 p-3"><strong class="text-white">Android / Chrome</strong><br>Tap <strong>⋮</strong> in Chrome, then turn on <strong>Desktop site</strong>.</div>
+                <div class="rounded-xl border border-amber-300/25 bg-slate-950/35 p-3"><strong class="text-white">iPhone / Safari</strong><br>Tap <strong>aA</strong> in the address bar, then choose <strong>Request Desktop Website</strong>.</div>
+            </div>
+            <p class="mt-3 text-xs font-semibold text-amber-200">Then open the Dashboard link below, sign in with the same Spotify account that will host the music, and continue.</p>
+        </section>
+
         <section class="mt-6 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 sm:p-6">
-            <h2 class="flex items-center gap-2 text-lg font-extrabold"><i class="fa-solid fa-list-ol text-indigo-300"></i>Four simple steps</h2>
+            <h2 class="flex items-center gap-2 text-lg font-extrabold"><i class="fa-solid fa-list-ol text-indigo-300"></i>Five simple steps</h2>
             <ol class="mt-5 space-y-6 text-sm leading-6 text-slate-300">
                 <li>
-                    <h3 class="font-bold text-white">1. Create your Spotify developer app</h3>
-                    <p class="mt-1">Open the <a class="font-bold text-indigo-300 underline underline-offset-2" href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Spotify Developer Dashboard</a>, sign in, press <strong>Create an app</strong>, give it any name (for example, <strong>My Hitster</strong>), accept the terms, and create it.</p>
+                    <h3 class="font-bold text-white">1. Open Spotify Developer Dashboard and sign in</h3>
+                    <p class="mt-1">Open the <a class="font-bold text-indigo-300 underline underline-offset-2" href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">Spotify Developer Dashboard</a> and sign in with the Spotify account that will host music in Party. On a phone, make sure you turned on <strong>Desktop site</strong> first. You should now see a <strong>Create app</strong> button.</p>
                 </li>
                 <li>
-                    <h3 class="font-bold text-white">2. Add this exact Redirect URI</h3>
+                    <h3 class="font-bold text-white">2. Create your Spotify developer app</h3>
+                    <p class="mt-1">Press <strong>Create an app</strong>, give it any name (for example, <strong>My Hitster</strong>), accept the terms, and create it.</p>
+                </li>
+                <li>
+                    <h3 class="font-bold text-white">3. Add this exact Redirect URI</h3>
                     <p class="mt-1">Open your new app’s <strong>Settings</strong>. Under <strong>Redirect URIs</strong>, paste this exact address and press <strong>Save</strong>:</p>
                     <code class="mt-2 block overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-[11px] text-indigo-200">https://eladbiller.github.io/Hitster/party.html</code>
                     <p class="mt-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Copy it exactly. No extra slash, no spaces, and do not use the Jam address.</p>
                 </li>
                 <li>
-                    <h3 class="font-bold text-white">3. Allow yourself to use the app</h3>
+                    <h3 class="font-bold text-white">4. Allow yourself to use the app</h3>
                     <p class="mt-1">Still in your Spotify app, open <strong>Settings → Users Management</strong>. Press <strong>Add new user</strong> and add your Spotify email address. Add any other person only if they will host music with your Spotify app.</p>
                 </li>
                 <li>
-                    <h3 class="font-bold text-white">4. Paste the Client ID into Party</h3>
+                    <h3 class="font-bold text-white">5. Paste the Client ID into Party</h3>
                     <p class="mt-1">Copy your app’s <strong>Client ID</strong> from Spotify. Open <a class="font-bold text-indigo-300 underline underline-offset-2" href="party.html">Hitster Party</a>, press <strong>Create Room</strong>, then press <strong>Use your own Spotify Client ID</strong>. Paste the Client ID, press <strong>Use this Client ID</strong>, then log in with Spotify.</p>
                     <p class="mt-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100"><i class="fa-solid fa-lock mr-1"></i>Paste the <strong>Client ID</strong> only. Never paste or share the Client Secret.</p>
                 </li>
