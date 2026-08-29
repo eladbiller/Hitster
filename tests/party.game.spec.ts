@@ -309,6 +309,7 @@ test('shows Spotify SDK playback errors to the host', async ({ page }) => {
     listeners.playback_error({ message: 'Track unavailable' });
     eval('gameState = "PLAYING"; isPlaying = true');
     for (let index = 0; index < 6; index++) listeners.playback_error({ message: 'Playback error' });
+    listeners.player_state_changed({ paused: false });
     listeners.autoplay_failed();
     return {
       gameState: eval('gameState'),
