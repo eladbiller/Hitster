@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+test('shows the deployed Party version in the setup screen', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => ({
+    metaVersion: document.querySelector('meta[name="app-version"]')?.getAttribute('content'),
+    visibleVersion: Array.from(document.querySelectorAll('p')).map(node => node.textContent?.trim()).find(text => /^v\d/.test(text || '')),
+  }));
+
+  expect(result.visibleVersion).toBe(`v${result.metaVersion}`);
+});
+
 test('shows the host disconnect controls and pauses the room', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
