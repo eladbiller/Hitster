@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.48">
+    <meta name="app-version" content="1.36.49">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.48</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.49</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1510,6 +1510,8 @@
         let currentMusicMode = 'hitster_classic';
         let classicHebrewPercentage = 50;
         let isPlaying = false;
+        let lastPlaybackFailureMessage = '';
+        let lastPlaybackFailureAt = 0;
         let spotifyPlayer = null;
         let webDeviceId = null;
         let isHostMode = false;
@@ -1865,7 +1867,11 @@
             });
 
             spotifyPlayer.addListener('playback_error', ({ message } = {}) => {
-                showMessage(message || "Spotify could not play this song.", "error");
+                const detail = (message || '').trim();
+                const usefulMessage = !detail || /^playback error$/i.test(detail)
+                    ? 'Spotify could not play audio in this browser. Try Play again. If every song fails, open the host page in Chrome or Safari and reconnect Spotify.'
+                    : `Spotify playback failed: ${detail}`;
+                handlePlaybackStartFailure(usefulMessage);
             });
 
             spotifyPlayer.addListener('autoplay_failed', () => {
@@ -2178,7 +2184,12 @@
             isPlaying = false;
             if (gameState === 'PLAYING') gameState = 'READY_TO_PLAY';
             broadcastSync();
-            showMessage(message, 'error');
+            const now = Date.now();
+            if (message !== lastPlaybackFailureMessage || now - lastPlaybackFailureAt > 5000) {
+                lastPlaybackFailureMessage = message;
+                lastPlaybackFailureAt = now;
+                showMessage(message, 'error');
+            }
         }
 
         function resumeRoundListening() {
