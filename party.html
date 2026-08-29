@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.51">
+    <meta name="app-version" content="1.36.52">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.51</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.52</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1830,6 +1830,17 @@
         function initSpotifyWebPlayer(isResuming = false, preserveNetwork = false) {
             spotifyPlayer = new Spotify.Player({ name: 'Hitster Party DJ', getOAuthToken: cb => { cb(accessToken); }, volume: 0.8 });
 
+            let playerStartupFinished = false;
+            const finishPlayerStartup = (failureMessage = '') => {
+                if (playerStartupFinished) return;
+                playerStartupFinished = true;
+                if (failureMessage) handlePlaybackStartFailure(failureMessage);
+                // Keep the room usable even when this browser cannot create a
+                // Spotify audio device. A late ready event is harmless because
+                // initHostNetwork is guarded by the existing Peer instance.
+                if (!preserveNetwork && !myPeer) initHostNetwork(isResuming);
+            };
+
             spotifyPlayer.addListener('ready', ({ device_id }) => {
                 webDeviceId = device_id;
                 spotifyAuthorizedFetch('https://api.spotify.com/v1/me/player', {
@@ -1837,7 +1848,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_ids: [device_id], play: false })
                 }).catch(e => console.log(e));
-                if (!preserveNetwork) initHostNetwork(isResuming); 
+                finishPlayerStartup();
             });
 
             spotifyPlayer.addListener('player_state_changed', state => {
@@ -1884,7 +1895,18 @@
                 showMessage("Tap Play Song to start Spotify playback.", "info");
             });
 
-            spotifyPlayer.connect();
+            Promise.resolve(spotifyPlayer.connect()).then(connected => {
+                if (connected === false) {
+                    finishPlayerStartup('Spotify audio could not start in this browser. The room was restored; open the host page in Chrome or Safari to play music.');
+                }
+            }).catch(() => {
+                finishPlayerStartup('Spotify audio could not start in this browser. The room was restored; open the host page in Chrome or Safari to play music.');
+            });
+            setTimeout(() => {
+                if (!webDeviceId) {
+                    finishPlayerStartup('Spotify audio did not become ready. The room was restored; reconnect Spotify or open the host page in Chrome or Safari.');
+                }
+            }, 8000);
         }
 
         function initHostNetwork(isResuming = false) {
