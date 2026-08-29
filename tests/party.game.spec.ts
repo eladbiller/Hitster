@@ -498,6 +498,95 @@ test('corrects a cached House of the Rising Sun by The Animals to 1964', async (
   expect(result.y).toBe(1964);
 });
 
+test('checks suspicious compilation years once without extra Spotify searches', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    const originalFetch = window.fetch;
+    const requests: string[] = [];
+    const suspiciousTrack = {
+      name: 'Catalog Song',
+      artists: [{ name: 'Catalog Artist' }],
+      duration_ms: 200000,
+      album: { album_type: 'compilation', name: 'The Complete Collection', release_date: '1990-01-01' },
+    };
+    const normalTrack = {
+      name: 'Normal Song',
+      artists: [{ name: 'Normal Artist' }],
+      duration_ms: 200000,
+      album: { album_type: 'album', name: 'Studio Album', release_date: '2005-01-01' },
+    };
+
+    localStorage.removeItem(INDEPENDENT_RELEASE_YEAR_CACHE_KEY);
+    independentReleaseYearCache.clear();
+    persistentIndependentReleaseYearCache = null;
+    window.fetch = (async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (!url.startsWith('https://itunes.apple.com/search?')) throw new Error(`Unexpected request: ${url}`);
+      return new Response(JSON.stringify({
+        results: [{
+          trackName: 'Catalog Song',
+          artistName: 'Catalog Artist',
+          collectionName: 'Catalog Song',
+          releaseDate: '1985-06-01T12:00:00Z',
+          trackTimeMillis: 200100,
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof window.fetch;
+
+    try {
+      const firstYear = await getOriginalReleaseYear(suspiciousTrack);
+      const cachedYear = await getOriginalReleaseYear(suspiciousTrack);
+      const normalYear = await getOriginalReleaseYear(normalTrack);
+      return { firstYear, cachedYear, normalYear, requests };
+    } finally {
+      window.fetch = originalFetch;
+    }
+  });
+
+  expect(result).toMatchObject({ firstYear: 1985, cachedYear: 1985, normalYear: 2005 });
+  expect(result.requests).toHaveLength(1);
+  expect(result.requests[0]).toContain('itunes.apple.com/search');
+  expect(result.requests[0]).not.toContain('api.spotify.com');
+});
+
+test('explains Spotify quota limits separately from a short rate limit', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    const originalFetch = window.fetch;
+    eval('accessToken = "test-token"');
+    const getError = async (error: Record<string, string>, retryAfter?: string) => {
+      window.fetch = (async () => new Response(JSON.stringify({ error }), {
+        status: 429,
+        headers: retryAfter ? { 'Content-Type': 'application/json', 'Retry-After': retryAfter } : { 'Content-Type': 'application/json' },
+      })) as typeof window.fetch;
+      try {
+        await safeSpotifyFetch('https://api.spotify.com/v1/search?q=test&type=track');
+      } catch (caught) {
+        const spotifyError = caught as Error & { status?: number; reason?: string; retryAfterSeconds?: number | null };
+        return { message: spotifyError.message, status: spotifyError.status, reason: spotifyError.reason, retryAfterSeconds: spotifyError.retryAfterSeconds };
+      }
+      return null;
+    };
+
+    try {
+      return {
+        quota: await getError({ reason: 'QUOTA_EXCEEDED', message: 'Quota exceeded' }),
+        rate: await getError({ message: 'Too many requests' }, '17'),
+      };
+    } finally {
+      window.fetch = originalFetch;
+    }
+  });
+
+  expect(result.quota).toMatchObject({ status: 429, reason: 'QUOTA_EXCEEDED', retryAfterSeconds: null });
+  expect(result.quota.message).toContain('developer quota reached');
+  expect(result.rate).toMatchObject({ status: 429, reason: '', retryAfterSeconds: 17 });
+  expect(result.rate.message).toContain('Wait 17 seconds');
+});
+
 test('keeps every artist to one song in the ready batch', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
 
