@@ -147,6 +147,8 @@ test('Spotify developer setup guide explains using a personal Client ID without 
   await page.goto(`${ROOT}/spotify-dev-setup.html`, { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveTitle(/own Spotify.*Hitster Party/i);
   await expect(page.getByText('Users Management', { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /phone users need Desktop site/i })).toBeVisible();
+  await expect(page.getByText('Desktop site', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('Client Secret', { exact: false }).first()).toContainText('Never paste');
   await expect(page.getByText('No GitHub needed')).toBeVisible();
   await expect(page.getByText('https://eladbiller.github.io/Hitster/party.html')).toBeVisible();
