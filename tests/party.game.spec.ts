@@ -352,6 +352,28 @@ test('shows Spotify SDK playback errors to the host', async ({ page }) => {
   expect(result).toEqual({ gameState: 'READY_TO_PLAY', isPlaying: false, genericPlaybackErrors: 1 });
 });
 
+test('restores the host room when the Spotify browser player cannot start', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(async () => {
+    let networkStarts = 0;
+    window.Spotify = {
+      Player: class {
+        addListener() {}
+        connect() { return Promise.resolve(false); }
+      },
+    };
+    initHostNetwork = () => { networkStarts++; };
+    eval('gameState = "PLAYING"; isPlaying = true; myPeer = null; webDeviceId = null');
+    initSpotifyWebPlayer(true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return { networkStarts, gameState: eval('gameState'), isPlaying: eval('isPlaying') };
+  });
+
+  expect(result).toEqual({ networkStarts: 1, gameState: 'READY_TO_PLAY', isPlaying: false });
+  await expect(page.locator('#toast-container')).toContainText('The room was restored');
+});
+
 test('releases the player form when a duplicate name is rejected', async ({ page }) => {
   await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#view-roles')).toBeVisible();
