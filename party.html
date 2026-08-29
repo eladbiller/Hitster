@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.50">
+    <meta name="app-version" content="1.36.51">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.50</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.51</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -2077,6 +2077,17 @@
 
             if (wasActivePlayer) {
                 turnIndex = turnIndex % turnOrder.length;
+                let attempts = 0;
+                while (!players[turnOrder[turnIndex]]?.online && attempts < turnOrder.length) {
+                    turnIndex = (turnIndex + 1) % turnOrder.length;
+                    attempts++;
+                }
+                if (attempts >= turnOrder.length) {
+                    showMessage("Everyone is offline!", "error");
+                    updateHostPlayerList();
+                    broadcastSync();
+                    return;
+                }
                 loadTurn();
             } else {
                 if (gameState === 'STEALING' && checkAllStealsSubmitted()) {
