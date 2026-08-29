@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.49">
+    <meta name="app-version" content="1.36.50">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -320,7 +320,7 @@
             <button onclick="resetApp()" class="text-xs text-slate-500 hover:text-white underline mt-1">Cancel</button>
         </div>
 
-        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.49</p>
+        <p class="text-slate-500 text-[10px] font-mono shrink-0 pt-2 pb-2">v1.36.50</p>
     </div>
 
     <!-- HOST DJ BACKGROUND UI -->
@@ -1512,6 +1512,7 @@
         let isPlaying = false;
         let lastPlaybackFailureMessage = '';
         let lastPlaybackFailureAt = 0;
+        let playbackFailureActive = false;
         let spotifyPlayer = null;
         let webDeviceId = null;
         let isHostMode = false;
@@ -1841,7 +1842,12 @@
 
             spotifyPlayer.addListener('player_state_changed', state => {
                 if (!state) return;
-                isPlaying = !state.paused;
+                const spotifyReportsPlaying = !state.paused;
+                // A failed SDK load can emit one late, stale "playing" state.
+                // Keep every client on Play Song until a player explicitly
+                // retries instead of immediately undoing the error recovery.
+                if (playbackFailureActive && spotifyReportsPlaying) return;
+                isPlaying = spotifyReportsPlaying;
                 if (gameState === 'READY_TO_PLAY' || gameState === 'PLAYING') {
                     gameState = isPlaying ? 'PLAYING' : 'READY_TO_PLAY';
                 }
@@ -2181,6 +2187,7 @@
         }
 
         function handlePlaybackStartFailure(message) {
+            playbackFailureActive = true;
             isPlaying = false;
             if (gameState === 'PLAYING') gameState = 'READY_TO_PLAY';
             broadcastSync();
@@ -2194,6 +2201,7 @@
 
         function resumeRoundListening() {
             if (!currentHostTrack) return false;
+            playbackFailureActive = false;
             isPlaying = true;
             if (spotifyPlayer?.resume) {
                 Promise.resolve(spotifyPlayer.resume()).catch(() => handlePlaybackStartFailure("Spotify could not resume this song."));
@@ -2295,6 +2303,7 @@
                     if (isPlaying) {
                         spotifyPlayer.pause();
                     } else {
+                        playbackFailureActive = false;
                         spotifyAuthorizedFetch(`https://api.spotify.com/v1/me/player/play?device_id=${webDeviceId}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
