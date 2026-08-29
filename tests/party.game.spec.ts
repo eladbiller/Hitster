@@ -198,6 +198,31 @@ test('kicks a disconnected player and returns the room to active play', async ({
   expect(remainingPlayers).not.toContain('alice');
 });
 
+test('skips offline players after the active disconnected player is kicked', async ({ page }) => {
+  await page.goto('/party.html', { waitUntil: 'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    players = {
+      alice: { id: 'alice', name: 'Alice', online: false, conn: null, tokens: 2, score: 0, timeline: [{ y: 1990 }] },
+      bob: { id: 'bob', name: 'Bob', online: false, conn: null, tokens: 2, score: 0, timeline: [{ y: 2000 }] },
+      'host-local-player': { id: 'host-local-player', name: 'Host DJ', online: true, conn: null, tokens: 2, score: 0, timeline: [{ y: 2010 }] },
+    };
+    turnOrder = ['alice', 'bob', 'host-local-player'];
+    turnIndex = 0;
+    tracks = [{ u: 'spotify:track:next', t: 'Next Song', a: 'Artist', y: 2020, c: '', al: 'next-album' }];
+    currentHostTrack = { u: 'spotify:track:current', t: 'Current Song', a: 'Artist', y: 2015, c: '', al: 'current-album' };
+    gameState = 'PAUSED_DISCONNECT';
+    previousStateBeforePause = 'READY_TO_PLAY';
+    pendingDisconnectPlayerId = 'alice';
+    isHostMode = true;
+
+    kickDisconnectedPlayer();
+    return { activePlayerId: turnOrder[turnIndex], gameState, remaining: Object.keys(players) };
+  });
+
+  expect(result).toEqual({ activePlayerId: 'host-local-player', gameState: 'READY_TO_PLAY', remaining: ['bob', 'host-local-player'] });
+});
+
 test('resumes a paused host game in a playable state', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('party_spotify_token', 'resume-test-token');
