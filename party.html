@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="app-version" content="1.36.47">
+    <meta name="app-version" content="1.36.48">
     <title>Hitster Party (Multiplayer)</title>
     
     <!-- Tailwind CSS -->
@@ -795,12 +795,26 @@
             if (res.status === 401) throw new Error("Spotify Session expired. Renew Spotify to continue.");
             if (res.status === 204) return {};
             if (!res.ok) { 
-                let errMsg = `Spotify Error ${res.status}`;
+                let errData = null;
                 try {
-                    const errData = await res.json();
-                    if (errData.error && errData.error.message) errMsg += `: ${errData.error.message}`;
+                    errData = await res.json();
                 } catch(e) {}
-                throw new Error(errMsg); 
+
+                let errMsg = `Spotify Error ${res.status}`;
+                const retryAfterSeconds = Number.parseInt(res.headers?.get?.('Retry-After') || '', 10);
+                const quotaExceeded = errData?.error?.reason === 'QUOTA_EXCEEDED';
+                if (res.status === 429) {
+                    errMsg = quotaExceeded
+                        ? 'Spotify developer quota reached. Spotify has stopped this development app temporarily; try again after its quota resets or use your own Spotify Client ID.'
+                        : `Spotify is temporarily rate limiting this app.${Number.isFinite(retryAfterSeconds) ? ` Wait ${retryAfterSeconds} seconds, then try again.` : ' Wait a moment, then try again.'}`;
+                } else if (errData?.error?.message) {
+                    errMsg += `: ${errData.error.message}`;
+                }
+                const error = new Error(errMsg);
+                error.status = res.status;
+                error.reason = errData?.error?.reason || '';
+                error.retryAfterSeconds = Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null;
+                throw error; 
             }
             return await res.json();
         }
@@ -1138,7 +1152,13 @@
             'thehouseoftherisingsun|frijidpink': 1970,
             'thehouseoftherisingsun|theanimals': 1964
         });
-        const originalReleaseYearCache = new Map();
+        // Spotify's release_date belongs to the returned album.  A compilation,
+        // deluxe edition, or remaster can therefore be years newer than the song.
+        // Only those suspicious cases use the independent metadata check below.
+        // Crucially, this never makes one extra Spotify request per card.
+        const INDEPENDENT_RELEASE_YEAR_CACHE_KEY = 'party_independent_release_year_v1';
+        const independentReleaseYearCache = new Map();
+        let persistentIndependentReleaseYearCache = null;
 
         function getTrackIdentityKey(title, artist) {
             // Keep letters and numbers from every language. The old ASCII-only
@@ -1174,30 +1194,121 @@
             return Number.parseInt(track?.album?.release_date?.substring(0, 4), 10);
         }
 
+        function getComparisonKey(value) {
+            return cleanTrackTitle(value || '')
+                .normalize('NFKD')
+                .toLowerCase()
+                .replace(/[^\p{L}\p{N}]/gu, '');
+        }
+
+        function isSuspiciousSpotifyRelease(track) {
+            const album = track?.album || {};
+            const label = `${album.album_type || ''} ${album.name || ''} ${track?.name || ''}`;
+            return album.album_type === 'compilation'
+                || /\b(best of|greatest hits|anthology|collection|complete|retrospective|essential|deluxe|remaster(?:ed)?|anniversary|edition|hits)\b/i.test(label);
+        }
+
+        function getIndependentReleaseYearCacheKey(track) {
+            const title = cleanTrackTitle(track?.name || '');
+            const artist = track?.artists?.[0]?.name || '';
+            const duration = Number.isFinite(track?.duration_ms) ? Math.round(track.duration_ms / 1000) : '';
+            return `${getTrackIdentityKey(title, artist)}|${duration}`;
+        }
+
+        function getPersistentIndependentReleaseYearCache() {
+            if (persistentIndependentReleaseYearCache) return persistentIndependentReleaseYearCache;
+            try {
+                const saved = JSON.parse(localStorage.getItem(INDEPENDENT_RELEASE_YEAR_CACHE_KEY) || '{}');
+                persistentIndependentReleaseYearCache = saved && typeof saved === 'object' ? saved : {};
+            } catch (error) {
+                persistentIndependentReleaseYearCache = {};
+            }
+            return persistentIndependentReleaseYearCache;
+        }
+
+        function rememberIndependentReleaseYear(cacheKey, year) {
+            const saved = getPersistentIndependentReleaseYearCache();
+            saved[cacheKey] = year;
+            const entries = Object.entries(saved).slice(-300);
+            persistentIndependentReleaseYearCache = Object.fromEntries(entries);
+            try {
+                localStorage.setItem(INDEPENDENT_RELEASE_YEAR_CACHE_KEY, JSON.stringify(persistentIndependentReleaseYearCache));
+            } catch (error) {}
+        }
+
+        function isIndependentOriginalReleaseCandidate(candidate, track) {
+            const sourceTitle = getComparisonKey(track?.name || '');
+            const sourceArtist = getComparisonKey(track?.artists?.[0]?.name || '');
+            if (!sourceTitle || !sourceArtist) return false;
+            if (getComparisonKey(candidate?.trackName || '') !== sourceTitle) return false;
+            if (getComparisonKey(candidate?.artistName || '') !== sourceArtist) return false;
+            const sourceDuration = track?.duration_ms;
+            const candidateDuration = candidate?.trackTimeMillis;
+            if (Number.isFinite(sourceDuration) && Number.isFinite(candidateDuration)) {
+                const tolerance = Math.max(5000, Math.round(sourceDuration * 0.04));
+                if (Math.abs(sourceDuration - candidateDuration) > tolerance) return false;
+            }
+            return isPreferredTrack(candidate?.trackName || '');
+        }
+
+        function isSuspiciousIndependentCollection(candidate) {
+            return /\b(best of|greatest hits|anthology|collection|complete|retrospective|essential|deluxe|remaster(?:ed)?|anniversary|edition|hits)\b/i.test(candidate?.collectionName || '');
+        }
+
+        async function lookupIndependentReleaseYear(track, fallbackYear) {
+            const title = cleanTrackTitle(track?.name || '');
+            const artist = track?.artists?.[0]?.name || '';
+            if (!title || !artist) return fallbackYear;
+            const term = encodeURIComponent(`${title} ${artist}`);
+            const response = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=25&country=US`);
+            if (!response.ok) throw new Error(`Independent release-year lookup failed (${response.status}).`);
+            const data = await response.json();
+            const candidates = (data.results || [])
+                .filter(candidate => isIndependentOriginalReleaseCandidate(candidate, track));
+            const preferredCandidates = candidates.filter(candidate => !isSuspiciousIndependentCollection(candidate));
+            const years = (preferredCandidates.length ? preferredCandidates : candidates)
+                .map(candidate => Number.parseInt((candidate.releaseDate || '').substring(0, 4), 10))
+                .filter(year => Number.isFinite(year) && year >= 1900 && year <= fallbackYear);
+            return years.length ? Math.min(...years) : fallbackYear;
+        }
+
         async function getOriginalReleaseYear(track) {
             const fallbackYear = getAlbumReleaseYear(track);
             const title = cleanTrackTitle(track?.name || '');
             const artist = track?.artists?.[0]?.name || '';
             const override = getKnownOriginalReleaseYear(title, artist);
             if (override) return override;
+            if (!Number.isFinite(fallbackYear) || !isSuspiciousSpotifyRelease(track)) return fallbackYear;
 
-            const isrc = track?.external_ids?.isrc;
-            if (!isrc || !accessToken || !Number.isFinite(fallbackYear)) return fallbackYear;
+            const cacheKey = getIndependentReleaseYearCacheKey(track);
+            if (independentReleaseYearCache.has(cacheKey)) return independentReleaseYearCache.get(cacheKey);
+            const savedYear = getPersistentIndependentReleaseYearCache()[cacheKey];
+            if (Number.isFinite(savedYear)) return savedYear;
 
-            if (!originalReleaseYearCache.has(isrc)) {
-                const request = safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`isrc:${isrc}`)}&type=track&limit=50`)
-                    .then(data => {
-                        const years = (data.tracks?.items || [])
-                            .filter(candidate => candidate.external_ids?.isrc === isrc)
-                            .map(getAlbumReleaseYear)
-                            .filter(Number.isFinite);
-                        return years.length > 0 ? Math.min(fallbackYear, ...years) : fallbackYear;
-                    })
-                    .catch(() => fallbackYear);
-                originalReleaseYearCache.set(isrc, request);
-            }
+            const request = lookupIndependentReleaseYear(track, fallbackYear)
+                // This is an accuracy enhancement, never a reason to prevent
+                // a game from starting. If it is unavailable, retain Spotify's
+                // album year and avoid touching the Spotify request quota.
+                .catch(() => fallbackYear)
+                .then(year => {
+                    if (Number.isFinite(year)) rememberIndependentReleaseYear(cacheKey, year);
+                    return year;
+                });
+            independentReleaseYearCache.set(cacheKey, request);
+            return request;
+        }
 
-            return originalReleaseYearCache.get(isrc);
+        async function mapWithConcurrency(items, maximumConcurrent, mapper) {
+            const results = new Array(items.length);
+            let nextIndex = 0;
+            const worker = async () => {
+                while (nextIndex < items.length) {
+                    const index = nextIndex++;
+                    results[index] = await mapper(items[index], index);
+                }
+            };
+            await Promise.all(Array.from({ length: Math.min(maximumConcurrent, items.length) }, worker));
+            return results;
         }
 
         function switchContainer(id) {
@@ -1523,6 +1634,7 @@
                         rememberClassicTrackSelections(rawItems.map(item => item.track));
                     } else if (currentMusicMode === 'hitster_popular_decades') {
                         const searchResults = [];
+                        let lastSearchError = null;
                         // This is the original, proven broad-decade flow: keep
                         // Spotify's full result page, then let the normal queue
                         // deduplication below enforce artist and album variety.
@@ -1532,12 +1644,13 @@
                                 const data = await safeSpotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(`year:${era}`)}&type=track&limit=10&offset=${offset}`);
                                 searchResults.push(data.tracks?.items || []);
                             } catch (error) {
+                                lastSearchError = error;
                                 console.warn(`Popular Mix could not load ${era}:`, error);
                             }
                         }
                         searchResults.forEach(items => rawItems.push(...items.map(track => ({ track }))));
                         if (!rawItems.length && gameState !== 'PAUSED_SPOTIFY') {
-                            throw new Error('Spotify did not return playable Popular Mix tracks.');
+                            throw lastSearchError || new Error('Spotify did not return playable Popular Mix tracks.');
                         }
                     } else {
                         for (const era of eras) {
@@ -1555,14 +1668,14 @@
                 const sourceTracks = rawItems
                     .map(i => i?.track)
                     .filter(track => track?.uri && track.album?.release_date && !track.is_local && isPreferredTrack(track.name));
-                let mappedTracks = await Promise.all(sourceTracks.map(async track => ({
+                let mappedTracks = await mapWithConcurrency(sourceTracks, 3, async track => ({
                     u: track.uri,
                     t: cleanTrackTitle(track.name).substring(0, 32),
                     a: track.artists ? track.artists[0].name.substring(0, 24) : 'Unknown',
                     y: await getOriginalReleaseYear(track),
                     c: track.album.images?.[0]?.url.split('/').pop() || '',
                     al: track.album?.id || track.album?.name || ''
-                })));
+                }));
 
                 const activeKeys = new Set();
                 tracks.forEach(t => activeKeys.add(getTrackIdentityKey(t.t, t.a)));
