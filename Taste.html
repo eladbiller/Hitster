@@ -228,8 +228,6 @@
           now: null,
           player: null,
           device: null,
-          endTimer: null,
-          endAt: 0,
           startedAt: 0,
           listenedMs: 0,
           lastPlayAt: 0,
@@ -242,6 +240,7 @@
           spotifyPosition: 0,
           spotifyDuration: 0,
           spotifyWasPlaying: false,
+          wakeLock: null,
         };
         try {
           Object.assign(s, JSON.parse(localStorage.getItem(KEY) || "{}"));
@@ -677,6 +676,25 @@
             .sort((x, y) => y.p - x.p);
           return { t: ranked[0].t, discovery: false };
         }
+        function playbackQueue() {
+          let current = s.now?.t,
+            upcoming = s.tracks
+              .filter((t) => t.id !== current?.id && !s.used[t.id])
+              .map((t) => ({ t, p: nnPredict(t) }))
+              .sort((a, b) => b.p - a.p)
+              .map((x) => x.t);
+          // Spotify owns this queue and can continue it while a mobile browser
+          // is backgrounded. Keep it broad enough for discovery and long
+          // enough that a sleeping page never creates a gap between tracks.
+          if (upcoming.length > 6) {
+            let discovery = upcoming.splice(
+              Math.floor(Math.random() * Math.min(upcoming.length, 24)),
+              1,
+            )[0];
+            upcoming.splice(4, 0, discovery);
+          }
+          return [current, ...upcoming.slice(0, 35)].filter(Boolean);
+        }
         function draw() {
           let x = s.now,
             t = x.t,
@@ -763,11 +781,24 @@
         function listenedMs() {
           return s.listenedMs + (s.lastPlayAt ? Date.now() - s.lastPlayAt : 0);
         }
-        function pauseClock(keepEndFallback = false) {
-          if (!keepEndFallback) {
-            clearTimeout(s.endTimer);
-            s.endAt = 0;
+        function releaseWakeLock() {
+          if (s.wakeLock) {
+            s.wakeLock.release().catch(() => {});
+            s.wakeLock = null;
           }
+        }
+        async function keepScreenAwake() {
+          if (!navigator.wakeLock || document.visibilityState !== "visible")
+            return;
+          try {
+            s.wakeLock = await navigator.wakeLock.request("screen");
+            s.wakeLock.addEventListener("release", () => (s.wakeLock = null));
+          } catch (e) {
+            console.warn("Screen wake lock unavailable", e);
+          }
+        }
+        function pauseClock() {
+          releaseWakeLock();
           if (s.lastPlayAt) {
             s.listenedMs += Date.now() - s.lastPlayAt;
             s.lastPlayAt = 0;
@@ -775,6 +806,7 @@
         }
         function resumeClock() {
           if (!s.lastPlayAt) s.lastPlayAt = Date.now();
+          keepScreenAwake();
         }
         async function next(auto = false) {
           pauseClock();
@@ -939,38 +971,27 @@
           let elapsed = listenedMs(),
             wasSkipped = elapsed < s.now.t.duration_ms - 2500;
           if (!s.rated[previous] && wasSkipped) rate(skipScore(), true);
-          setTimeout(
-            () =>
-              next(true)
-                .catch((e) => console.warn(e))
-                .finally(() => (s.handlingSpotifyTransition = false)),
-            0,
-          );
-        }
-        function finishCurrentSong() {
-          if (s.handlingSpotifyTransition || !s.now) return;
-          s.handlingSpotifyTransition = true;
-          pauseClock();
-          playerMessage("Song finished — choosing the next track…");
-          setTimeout(
-            () =>
-              next(true)
-                .catch((e) => console.warn(e))
-                .finally(() => (s.handlingSpotifyTransition = false)),
-            0,
-          );
-        }
-        function scheduleConfirmedEnd(duration, position) {
-          clearTimeout(s.endTimer);
-          s.endAt = 0;
-          if (!Number.isFinite(duration) || duration <= 0) return;
-          let remaining = Math.max(0, duration - position);
-          // This starts only once Spotify reports active playback and uses
-          // Spotify's actual position. The margin prevents an early cut-off.
-          s.endAt = Date.now() + remaining + 1600;
-          s.endTimer = setTimeout(() => {
-            if (s.now && (s.lastPlayAt || s.endAt)) finishCurrentSong();
-          }, remaining + 1600);
+          let track = s.tracks.find((t) => t.id === id);
+          if (track) {
+            s.now = { t: track, discovery: false };
+            s.lastArtist = track.artists?.[0]?.id || null;
+            s.startedAt = Date.now();
+            s.listenedMs = Number.isFinite(st.position) ? st.position : 0;
+            s.lastPlayAt = st.paused ? 0 : Date.now();
+            s.hasStarted = !st.paused;
+            s.used[id] = 1;
+            draw();
+            save();
+            s.handlingSpotifyTransition = false;
+            return;
+          }
+          // A track not supplied by this app is treated as an external
+          // Spotify transition; restore the app's adaptive queue.
+          setTimeout(() =>
+            next(true)
+              .catch((e) => console.warn(e))
+              .finally(() => (s.handlingSpotifyTransition = false)),
+          0);
         }
         function initPlayer() {
           if (s.player) return;
@@ -1023,38 +1044,15 @@
             let on = !st.paused,
               duration = st.duration || s.now?.t?.duration_ms || 0,
               position = Number.isFinite(st.position) ? st.position : 0,
-              wasPlaying = s.spotifyWasPlaying,
-              reachedEnd = !!(
-                s.now &&
-                s.hasStarted &&
-                wasPlaying &&
-                st.paused &&
-                Math.max(position, s.spotifyPosition) >= Math.max(0, duration - 800)
-              );
+              wasPlaying = s.spotifyWasPlaying;
             s.spotifyPosition = position;
             s.spotifyDuration = duration;
             s.spotifyWasPlaying = on;
             observeSpotifyTrack(st);
-            if (reachedEnd) {
-              finishCurrentSong();
-              return;
-            }
             if (on) {
               s.hasStarted = true;
               resumeClock();
-              scheduleConfirmedEnd(duration, position);
-            } else {
-              // Spotify may report "paused" immediately after a natural end,
-              // before it exposes a useful final position. Preserve a timer
-              // that is already within its final grace window; an earlier
-              // pause is treated as the user's intentional stop.
-              let nearConfirmedEnd =
-                s.endAt &&
-                Date.now() >= s.endAt - 2200 &&
-                s.hasStarted &&
-                wasPlaying;
-              pauseClock(nearConfirmedEnd);
-            }
+            } else pauseClock();
             if ("mediaSession" in navigator)
               try {
                 navigator.mediaSession.playbackState = on
@@ -1087,7 +1085,9 @@
                     Authorization: "Bearer " + s.token,
                     "Content-Type": "application/json",
                   },
-                  body: JSON.stringify({ uris: ["spotify:track:" + t.id] }),
+                  body: JSON.stringify({
+                    uris: playbackQueue().map((x) => "spotify:track:" + x.id),
+                  }),
                 },
               );
             if (!r.ok) {
@@ -1100,6 +1100,7 @@
             s.hasStarted = true;
             s.listenedMs = 0;
             s.lastPlayAt = Date.now();
+            keepScreenAwake();
             playerMessage("Starting full song…");
           } catch (e) {
             playerFailure(e.message);
@@ -1131,6 +1132,10 @@
         $("skip").onclick = skipCurrent;
         $("exportTaste").onclick = exportTaste;
         $("importTaste").onchange = (e) => importTaste(e.target.files?.[0]);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible" && s.lastPlayAt)
+            keepScreenAwake();
+        });
         $("vibe").value = s.cfg.vibe;
         $("discovery").value = s.cfg.d;
         $("note").value = s.cfg.note;
