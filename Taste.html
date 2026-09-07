@@ -771,7 +771,6 @@
         }
         function resumeClock() {
           if (!s.lastPlayAt) s.lastPlayAt = Date.now();
-          scheduleSpotifyEndCheck(750);
         }
         async function next(auto = false) {
           pauseClock();
@@ -957,45 +956,15 @@
             0,
           );
         }
-        function scheduleSpotifyEndCheck(delay = 900) {
+        function scheduleConfirmedEnd(duration, position) {
           clearTimeout(s.endTimer);
-          s.endTimer = setTimeout(watchSpotifyEnd, delay);
-        }
-        async function watchSpotifyEnd() {
-          if (!s.now || !s.lastPlayAt || !s.player || s.handlingSpotifyTransition)
-            return;
-          try {
-            let st = await s.player.getCurrentState(),
-              priorPosition = s.spotifyPosition,
-              priorDuration = s.spotifyDuration;
-            if (!st) {
-              if (
-                priorDuration &&
-                priorPosition >= Math.max(0, priorDuration - 1400)
-              )
-                finishCurrentSong();
-              return;
-            }
-            let on = !st.paused,
-              duration = st.duration || priorDuration,
-              position = Number.isFinite(st.position) ? st.position : priorPosition,
-              remaining = Math.max(0, duration - position);
-            s.spotifyPosition = position;
-            s.spotifyDuration = duration;
-            s.spotifyWasPlaying = on;
-            if (!on) {
-              if (position >= Math.max(0, duration - 800)) finishCurrentSong();
-              return;
-            }
-            // This timeout starts from Spotify's reported position, not the
-            // track metadata or the browser clock. The extra margin avoids
-            // moving on before the audible final beat.
-            scheduleSpotifyEndCheck(
-              Math.max(900, Math.min(3000, remaining + 450)),
-            );
-          } catch (e) {
-            console.warn("Could not check Spotify playback position", e);
-          }
+          if (!Number.isFinite(duration) || duration <= 0) return;
+          let remaining = Math.max(0, duration - position);
+          // This starts only once Spotify reports active playback and uses
+          // Spotify's actual position. The margin prevents an early cut-off.
+          s.endTimer = setTimeout(() => {
+            if (s.now && s.lastPlayAt) finishCurrentSong();
+          }, remaining + 1600);
         }
         function initPlayer() {
           if (s.player) return;
@@ -1067,6 +1036,7 @@
             if (on) {
               s.hasStarted = true;
               resumeClock();
+              scheduleConfirmedEnd(duration, position);
             } else pauseClock();
             if ("mediaSession" in navigator)
               try {
