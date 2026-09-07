@@ -229,6 +229,7 @@
           player: null,
           device: null,
           endTimer: null,
+          endAt: 0,
           startedAt: 0,
           listenedMs: 0,
           lastPlayAt: 0,
@@ -762,8 +763,11 @@
         function listenedMs() {
           return s.listenedMs + (s.lastPlayAt ? Date.now() - s.lastPlayAt : 0);
         }
-        function pauseClock() {
-          clearTimeout(s.endTimer);
+        function pauseClock(keepEndFallback = false) {
+          if (!keepEndFallback) {
+            clearTimeout(s.endTimer);
+            s.endAt = 0;
+          }
           if (s.lastPlayAt) {
             s.listenedMs += Date.now() - s.lastPlayAt;
             s.lastPlayAt = 0;
@@ -958,12 +962,14 @@
         }
         function scheduleConfirmedEnd(duration, position) {
           clearTimeout(s.endTimer);
+          s.endAt = 0;
           if (!Number.isFinite(duration) || duration <= 0) return;
           let remaining = Math.max(0, duration - position);
           // This starts only once Spotify reports active playback and uses
           // Spotify's actual position. The margin prevents an early cut-off.
+          s.endAt = Date.now() + remaining + 1600;
           s.endTimer = setTimeout(() => {
-            if (s.now && s.lastPlayAt) finishCurrentSong();
+            if (s.now && (s.lastPlayAt || s.endAt)) finishCurrentSong();
           }, remaining + 1600);
         }
         function initPlayer() {
@@ -1037,7 +1043,18 @@
               s.hasStarted = true;
               resumeClock();
               scheduleConfirmedEnd(duration, position);
-            } else pauseClock();
+            } else {
+              // Spotify may report "paused" immediately after a natural end,
+              // before it exposes a useful final position. Preserve a timer
+              // that is already within its final grace window; an earlier
+              // pause is treated as the user's intentional stop.
+              let nearConfirmedEnd =
+                s.endAt &&
+                Date.now() >= s.endAt - 2200 &&
+                s.hasStarted &&
+                wasPlaying;
+              pauseClock(nearConfirmedEnd);
+            }
             if ("mediaSession" in navigator)
               try {
                 navigator.mediaSession.playbackState = on
