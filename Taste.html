@@ -699,21 +699,8 @@
           let x = s.now,
             t = x.t,
             locked = !!s.rated[t.id],
-            signals = s.samples.length,
-            p = Math.round(nnPredict(t) * 100),
-            phase =
-              signals < 8
-                ? "calibrating"
-                : signals < 25
-                  ? "learning"
-                  : "trained";
-          $("prediction").textContent =
-            "Taste model estimate: " +
-            p +
-            "% match · " +
-            signals +
-            " signals · " +
-            phase;
+            signals = s.samples.length;
+          refreshLearningUi(t);
           $("cover").src = t.album.images[0].url;
           $("title").textContent = t.name;
           $("artist").textContent =
@@ -777,6 +764,50 @@
                   "</b></li>",
               )
               .join("") || "<li>Nothing learned yet.</li>";
+        }
+        function refreshLearningUi(t = s.now?.t) {
+          if (!t) return;
+          let signals = s.samples.length,
+            p = Math.round(nnPredict(t) * 100),
+            phase =
+              signals < 8
+                ? "calibrating"
+                : signals < 25
+                  ? "learning"
+                  : "trained";
+          $("prediction").textContent =
+            "Taste model estimate: " +
+            p +
+            "% match · " +
+            signals +
+            " signals · " +
+            phase;
+          $("summary").textContent =
+            signals < 8
+              ? "The model is calibrating from " +
+                signals +
+                " signals. Early percentages are intentionally low-confidence."
+              : signals < 25
+                ? "The model is learning from " +
+                  signals +
+                  " signals; discovery still protects variety."
+                : "Your neural model is trained on " +
+                  signals +
+                  " signals and still reserves room for discovery.";
+          let top = Object.entries(s.aff)
+            .filter((x) => x[1] > 0.5)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4);
+          $("tags").innerHTML =
+            top
+              .map(
+                (x) =>
+                  '<span class="rounded-full bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">' +
+                  x[0].replace(/^genre:/, "").replace(/^era:/, "") +
+                  "</span>",
+              )
+              .join("") ||
+            '<span class="text-xs text-slate-500">No strong pattern yet — the mix stays wide.</span>';
         }
         function listenedMs() {
           return s.listenedMs + (s.lastPlayAt ? Date.now() - s.lastPlayAt : 0);
@@ -852,6 +883,7 @@
           keys
             .filter(Boolean)
             .forEach((k) => (s.aff[k] = (s.aff[k] || 0) + signal));
+          refreshLearningUi(t);
           s.history.unshift({ name: t.name, score });
           s.history = s.history.slice(0, 30);
           $("lane").textContent =
