@@ -1195,7 +1195,17 @@
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ device_ids: [device_id], play: false }),
-            }).catch(() => {});
+            })
+              .catch(() => {})
+              .finally(() =>
+                // A reconnected player may already have a Spotify track
+                // before player_state_changed fires. Adopt it immediately so
+                // the card and the completion score stay in sync.
+                s.player
+                  .getCurrentState()
+                  .then((state) => state && observeSpotifyTrack(state))
+                  .catch(() => {}),
+              );
             playerMessage("Full player ready — press Play.");
             $("reconnect").classList.add("hidden");
           });
