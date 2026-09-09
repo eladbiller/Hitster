@@ -243,6 +243,7 @@
           pendingTrack: null,
           pendingFeedback: null,
           pendingTimer: null,
+          commandError: null,
           playbackGeneration: 0,
           spotifyPosition: 0,
           spotifyDuration: 0,
@@ -914,7 +915,10 @@
           s.pendingTrack = null;
           s.pendingFeedback = null;
           s.changingTrack = false;
-          if (message) playerMessage(message);
+          if (message) {
+            s.commandError = message;
+            playerMessage(message);
+          }
         }
         function schedulePendingCheck(generation) {
           clearPendingTimer();
@@ -989,6 +993,7 @@
               return;
             }
             s.pendingTrack = x;
+            s.commandError = null;
             playerMessage("Loading next song…");
             let started = await playFull(true, generation);
             if (!started && s.pendingTrack)
@@ -1158,6 +1163,7 @@
         function playerFailure(m) {
           s.device = null;
           rollbackPending();
+          s.commandError = null;
           playerMessage(m || "Full player needs a Spotify Premium reconnect.");
           $("reconnect").classList.remove("hidden");
           console.warn(m);
@@ -1304,7 +1310,9 @@
               ? "▶ Resume"
               : "▶ Play full song"
             : "● Playing";
-          playerMessage(st.paused ? "Paused." : "Playing full song in this tab.");
+          playerMessage(
+            s.commandError || (st.paused ? "Paused." : "Playing full song in this tab."),
+          );
         }
         function queueSpotifyState(st) {
           s.pendingSpotifyState = st;
@@ -1391,6 +1399,7 @@
               if (!auto) await s.player.activateElement();
               s.manualPause = false;
               s.externalPause = false;
+              s.commandError = null;
               s.changingTrack = true;
               await setPlaybackMode();
               if (generation !== s.playbackGeneration) return false;
@@ -1414,7 +1423,7 @@
               if (generation !== s.playbackGeneration) return false;
               if (!r.ok) {
                 let d = await r.json().catch(() => ({}));
-                playerFailure(d.error?.message || "Playback could not start.");
+                rollbackPending(d.error?.message || "Playback could not start.");
                 return false;
               }
               s.transientRetries = 0;
@@ -1422,7 +1431,9 @@
               setTimeout(checkPlaybackHealth, 3500);
               return true;
             } catch (e) {
-              playerFailure(e.message);
+              if (/session expired|no player device/i.test(e.message || ""))
+                playerFailure(e.message);
+              else rollbackPending(e.message || "Spotify playback failed.");
               return false;
             }
           })();
