@@ -240,6 +240,9 @@
           processingSpotifyState: false,
           advancePromise: null,
           playPromise: null,
+          pendingTrack: null,
+          pendingFeedback: null,
+          pendingTimer: null,
           playbackGeneration: 0,
           spotifyPosition: 0,
           spotifyDuration: 0,
@@ -740,7 +743,7 @@
           return { t: ranked[0].t, discovery: false };
         }
         function playbackQueue() {
-          let current = s.now?.t,
+          let current = s.pendingTrack?.t || s.now?.t,
             upcoming = s.tracks
               .filter((t) => t.id !== current?.id && !s.used[t.id])
               .map((t) => ({ t, p: nnPredict(t) }))
@@ -902,6 +905,27 @@
           s.lastPlayAt = Date.now();
           keepScreenAwake();
         }
+        function clearPendingTimer() {
+          if (s.pendingTimer) clearTimeout(s.pendingTimer);
+          s.pendingTimer = null;
+        }
+        function rollbackPending(message) {
+          clearPendingTimer();
+          s.pendingTrack = null;
+          s.pendingFeedback = null;
+          s.changingTrack = false;
+          if (message) playerMessage(message);
+        }
+        function schedulePendingCheck(generation) {
+          clearPendingTimer();
+          s.pendingTimer = setTimeout(async () => {
+            if (!s.pendingTrack || generation !== s.playbackGeneration) return;
+            let st = await s.player?.getCurrentState().catch(() => null);
+            if (st) await processSpotifyState(st);
+            if (s.pendingTrack && generation === s.playbackGeneration)
+              rollbackPending("Spotify kept the current song. Try Next again.");
+          }, 8000);
+        }
         async function checkPlaybackHealth() {
           if (!s.player || !s.hasStarted) return;
           let st = await s.player.getCurrentState().catch(() => null);
@@ -936,8 +960,6 @@
             s.manualPause = false;
             s.externalPause = false;
             s.changingTrack = true;
-            pauseClock();
-            if (s.now) await s.player?.pause().catch(() => {});
             if (s.tracks.filter((t) => !s.used[t.id]).length < 4) await fill();
             if (generation !== s.playbackGeneration) return;
             let x = pick();
@@ -948,19 +970,30 @@
             if (!x?.t)
               throw Error("No fresh songs are available yet. Try Play again in a moment.");
             if (generation !== s.playbackGeneration) return;
-            s.now = x;
-            s.lastArtist = x.t.artists?.[0]?.id || null;
-            s.startedAt = 0;
-            s.listenedMs = 0;
-            s.lastPlayAt = 0;
-            s.hasStarted = false;
-            s.spotifyPosition = 0;
-            s.spotifyDuration = 0;
-            s.spotifyWasPlaying = false;
-            s.used[x.t.id] = 1;
-            draw();
-            save();
-            if (auto) await playFull(true, generation);
+            if (!auto || !s.now) {
+              // Initial browsing has no confirmed audio yet, so it is safe to
+              // show a selected card. Every in-playback advance is different:
+              // it remains pending until the SDK confirms what is audible.
+              s.now = x;
+              s.lastArtist = x.t.artists?.[0]?.id || null;
+              s.startedAt = 0;
+              s.listenedMs = 0;
+              s.lastPlayAt = 0;
+              s.hasStarted = false;
+              s.spotifyPosition = 0;
+              s.spotifyDuration = 0;
+              s.spotifyWasPlaying = false;
+              s.used[x.t.id] = 1;
+              draw();
+              save();
+              return;
+            }
+            s.pendingTrack = x;
+            playerMessage("Loading next song…");
+            let started = await playFull(true, generation);
+            if (!started && s.pendingTrack)
+              rollbackPending("Spotify did not change the song. Try Next again.");
+            else schedulePendingCheck(generation);
           })();
           s.advancePromise = run;
           try {
@@ -968,15 +1001,18 @@
           } finally {
             if (s.advancePromise === run) {
               s.advancePromise = null;
-              // An automatic advance remains pending until Spotify confirms
-              // the requested track. Clearing this here lets an old SDK
-              // event overwrite the new card after the /play request wins.
               if (!auto) s.changingTrack = false;
             }
           }
         }
-        function rate(score, implicit = false) {
-          let t = s.now.t;
+        function rate(track, score, implicit = false) {
+          if (typeof track === "number") {
+            implicit = score || false;
+            score = track;
+            track = s.now?.t;
+          }
+          let t = track;
+          if (!t) return;
           if (s.rated[t.id]) return;
           s.rated[t.id] = score;
           for (let n = 1; n <= 10; n++) {
@@ -996,13 +1032,14 @@
           keys
             .filter(Boolean)
             .forEach((k) => (s.aff[k] = (s.aff[k] || 0) + signal));
-          refreshLearningUi(t);
+          refreshLearningUi(s.now?.t);
           s.history.unshift({ name: t.name, score });
           s.history = s.history.slice(0, 30);
-          $("lane").textContent =
-            score < 5
-              ? "Less like this — replay-training the mix"
-              : "More like this — replay-training the mix";
+          if (s.now?.t?.id === t.id)
+            $("lane").textContent =
+              score < 5
+                ? "Less like this — replay-training the mix"
+                : "More like this — replay-training the mix";
           save();
           $("history").innerHTML =
             '<li class="flex justify-between gap-2"><span class="truncate">' +
@@ -1043,7 +1080,14 @@
           return playFull(false);
         }
         function likeCurrent() {
-          if (s.now && !s.rated[s.now.t.id]) rate(10);
+          if (
+            s.now &&
+            !s.pendingTrack &&
+            !s.advancePromise &&
+            s.observedTrack === s.now.t.id &&
+            !s.rated[s.now.t.id]
+          )
+            rate(s.now.t, 10);
         }
         function skipScore() {
           if (!s.now) return 1;
@@ -1054,13 +1098,26 @@
           return Math.max(1, Math.min(9, Math.round(1 + 8 * ratio)));
         }
         async function skipCurrent() {
-          if (!s.now) return;
-          if (!s.rated[s.now.t.id]) rate(skipScore(), true);
+          if (
+            !s.now ||
+            s.pendingTrack ||
+            s.advancePromise ||
+            s.playPromise ||
+            s.observedTrack !== s.now.t.id
+          )
+            return;
+          if (!s.rated[s.now.t.id])
+            s.pendingFeedback = {
+              id: s.now.t.id,
+              track: s.now.t,
+              score: skipScore(),
+            };
           await next(true);
         }
         function mediaPause() {
           s.manualPause = true;
-          s.changingTrack = false;
+          s.playbackGeneration++;
+          rollbackPending();
           pauseClock();
           s.player?.pause();
         }
@@ -1100,7 +1157,7 @@
         }
         function playerFailure(m) {
           s.device = null;
-          s.changingTrack = false;
+          rollbackPending();
           playerMessage(m || "Full player needs a Spotify Premium reconnect.");
           $("reconnect").classList.remove("hidden");
           console.warn(m);
@@ -1155,31 +1212,65 @@
         async function processSpotifyState(st) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
-          // While a new queue is being requested, the SDK can still emit the
-          // old device's last state. It is not a transition and must not be
-          // allowed to adopt/rate a different card.
-          if (s.changingTrack && s.now?.t?.id && id !== s.now.t.id) return;
           let position = Number.isFinite(st.position) ? st.position : 0,
             duration = st.duration || st.track_window?.current_track?.duration_ms || 0,
             wasPlaying = s.spotifyWasPlaying,
             previous = s.observedTrack,
             previousPosition = s.spotifyPosition,
-            previousDuration = s.spotifyDuration;
+            previousDuration = s.spotifyDuration,
+            active = s.now?.t,
+            pending = s.pendingTrack;
 
-          // Do not mark a state as observed until it is actually processed.
-          // If two rapid SDK events arrive, queueSpotifyState keeps the latest
-          // one rather than silently losing a card update.
-          if (previous && id !== previous) {
-            let oldTrack = s.now?.t?.id === previous ? s.now.t : null;
+          // A pending request never changes the card by itself. If Spotify
+          // reports the old track, retain it. If it reports *any* other track
+          // (including a different-than-requested C), that real state wins.
+          if (pending && active?.id && id !== active.id) {
+            if (
+              s.pendingFeedback?.id === active.id &&
+              !s.rated[active.id]
+            )
+              rate(s.pendingFeedback.track, s.pendingFeedback.score, true);
+            else if (!s.rated[active.id])
+              rate(
+                active,
+                scoreFromSpotifyPosition(
+                  previousPosition,
+                  previousDuration || active.duration_ms,
+                ),
+                true,
+              );
+            clearPendingTimer();
+            s.pendingTrack = null;
+            s.pendingFeedback = null;
+            s.observedTrack = id;
+            let track =
+              (pending.t.id === id && pending.t) ||
+              s.tracks.find((t) => t.id === id) ||
+              trackFromSpotifyState(st);
+            if (!adoptSpotifyTrack(st, track)) return;
+          } else if (pending && active?.id === id) {
+            // The command is still pending but the old audio is confirmed.
+            // Continue showing its card and position; do not score a
+            // candidate that Spotify has not played.
+            s.observedTrack = id;
+          } else if (previous && id !== previous) {
+            let oldTrack = active?.id === previous ? active : null;
             if (oldTrack && !s.rated[previous])
-              rate(scoreFromSpotifyPosition(previousPosition, previousDuration || oldTrack.duration_ms), true);
+              rate(
+                oldTrack,
+                scoreFromSpotifyPosition(
+                  previousPosition,
+                  previousDuration || oldTrack.duration_ms,
+                ),
+                true,
+              );
             let track =
               s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st);
             s.observedTrack = id;
             if (!adoptSpotifyTrack(st, track)) return;
           } else if (!previous) {
             s.observedTrack = id;
-            if (s.now?.t?.id !== id)
+            if (active?.id !== id)
               adoptSpotifyTrack(
                 st,
                 s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st),
@@ -1192,7 +1283,7 @@
           if (!st.paused) {
             s.manualPause = false;
             s.externalPause = false;
-            s.changingTrack = false;
+            s.changingTrack = !!s.pendingTrack;
             s.hasStarted = true;
             resumeClock();
           } else {
@@ -1287,17 +1378,23 @@
           });
         }
         async function playFull(auto = false, generation = s.playbackGeneration) {
-          if (!s.device) return playerFailure("No player device");
-          if (s.playPromise) return s.playPromise;
+          if (!s.device) {
+            playerFailure("No player device");
+            return false;
+          }
+          // Commands are serialized, but never coalesced across generations:
+          // a pending play for A must finish before we send the newer play B.
+          if (s.playPromise) await s.playPromise;
+          if (generation !== s.playbackGeneration) return false;
           let run = (async () => {
-          try {
-            if (!auto) s.player.activateElement();
-            s.manualPause = false;
-            s.externalPause = false;
-            s.changingTrack = true;
-            await setPlaybackMode();
-            if (generation !== s.playbackGeneration) return;
-            let r = await spotifyFetch(
+            try {
+              if (!auto) await s.player.activateElement();
+              s.manualPause = false;
+              s.externalPause = false;
+              s.changingTrack = true;
+              await setPlaybackMode();
+              if (generation !== s.playbackGeneration) return false;
+              let r = await spotifyFetch(
                 "https://api.spotify.com/v1/me/player/play?device_id=" +
                   encodeURIComponent(s.device),
                 {
@@ -1310,38 +1407,23 @@
                   }),
                 },
               );
-            if (generation !== s.playbackGeneration) return;
-            if (s.manualPause) {
-              await s.player?.pause().catch(() => {});
-              return;
-            }
-            if (!r.ok) {
-              let d = await r.json().catch(() => ({}));
-              return playerFailure(
-                d.error?.message || "Playback could not start.",
-              );
-            }
-            s.startedAt = Date.now();
-            s.hasStarted = true;
-            s.transientRetries = 0;
-            s.listenedMs = 0;
-            s.lastPlayAt = Date.now();
-            keepScreenAwake();
-            playerMessage("Starting full song…");
-            setTimeout(checkPlaybackHealth, 3500);
-            } catch (e) {
-              s.changingTrack = false;
-              if (/fetch|network|timeout/i.test(e.message || "")) {
-                s.transientRetries = (s.transientRetries || 0) + 1;
-                if (s.transientRetries <= 2) {
-                  playerMessage("Connection hiccup — retrying Spotify playback…");
-                  setTimeout(() => playFull(true), 1700);
-                } else {
-                  playerMessage("Connection interrupted. Tap Play to retry.");
-                }
-                return;
+              if (s.manualPause) {
+                await s.player?.pause().catch(() => {});
+                return false;
               }
+              if (generation !== s.playbackGeneration) return false;
+              if (!r.ok) {
+                let d = await r.json().catch(() => ({}));
+                playerFailure(d.error?.message || "Playback could not start.");
+                return false;
+              }
+              s.transientRetries = 0;
+              playerMessage("Waiting for Spotify to change song…");
+              setTimeout(checkPlaybackHealth, 3500);
+              return true;
+            } catch (e) {
               playerFailure(e.message);
+              return false;
             }
           })();
           s.playPromise = run;
