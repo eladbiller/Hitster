@@ -968,7 +968,10 @@
           } finally {
             if (s.advancePromise === run) {
               s.advancePromise = null;
-              s.changingTrack = false;
+              // An automatic advance remains pending until Spotify confirms
+              // the requested track. Clearing this here lets an old SDK
+              // event overwrite the new card after the /play request wins.
+              if (!auto) s.changingTrack = false;
             }
           }
         }
@@ -1023,6 +1026,7 @@
           if (score < 5 && !implicit) setTimeout(() => next(true), 180);
         }
         async function resumePlayback() {
+          if (s.advancePromise) return s.advancePromise;
           s.manualPause = false;
           s.externalPause = false;
           if (s.player && s.hasStarted) {
@@ -1056,6 +1060,7 @@
         }
         function mediaPause() {
           s.manualPause = true;
+          s.changingTrack = false;
           pauseClock();
           s.player?.pause();
         }
@@ -1150,6 +1155,10 @@
         async function processSpotifyState(st) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
+          // While a new queue is being requested, the SDK can still emit the
+          // old device's last state. It is not a transition and must not be
+          // allowed to adopt/rate a different card.
+          if (s.changingTrack && s.now?.t?.id && id !== s.now.t.id) return;
           let position = Number.isFinite(st.position) ? st.position : 0,
             duration = st.duration || st.track_window?.current_track?.duration_ms || 0,
             wasPlaying = s.spotifyWasPlaying,
@@ -1281,10 +1290,11 @@
           if (!s.device) return playerFailure("No player device");
           if (s.playPromise) return s.playPromise;
           let run = (async () => {
-            try {
+          try {
             if (!auto) s.player.activateElement();
             s.manualPause = false;
             s.externalPause = false;
+            s.changingTrack = true;
             await setPlaybackMode();
             if (generation !== s.playbackGeneration) return;
             let r = await spotifyFetch(
@@ -1301,6 +1311,10 @@
                 },
               );
             if (generation !== s.playbackGeneration) return;
+            if (s.manualPause) {
+              await s.player?.pause().catch(() => {});
+              return;
+            }
             if (!r.ok) {
               let d = await r.json().catch(() => ({}));
               return playerFailure(
@@ -1309,7 +1323,6 @@
             }
             s.startedAt = Date.now();
             s.hasStarted = true;
-            s.changingTrack = false;
             s.transientRetries = 0;
             s.listenedMs = 0;
             s.lastPlayAt = Date.now();
