@@ -1079,11 +1079,56 @@
         function implicitScore(elapsed) {
           return elapsed < 20 ? 1 : elapsed < 45 ? 3 : elapsed < 100 ? 5 : 7;
         }
+        function trackFromSpotifyState(st) {
+          let t = st.track_window?.current_track;
+          if (!t?.id) return null;
+          let image =
+            t.album?.images?.[0]?.url || s.now?.t?.album?.images?.[0]?.url;
+          return {
+            id: t.id,
+            name: t.name || "Unknown track",
+            artists: t.artists || [],
+            album: {
+              name: t.album?.name || "Spotify",
+              release_date: t.album?.release_date || "",
+              images: t.album?.images?.length
+                ? t.album.images
+                : [{ url: image || "https://placehold.co/640x640?text=Spotify" }],
+            },
+            duration_ms: t.duration_ms || st.duration || 0,
+            popularity: t.popularity || 0,
+            explicit: !!t.explicit,
+            _genres: [],
+          };
+        }
+        function adoptSpotifyTrack(st, track) {
+          if (!track) return false;
+          if (!s.tracks.some((t) => t.id === track.id))
+            s.tracks.unshift(track);
+          s.now = { t: track, discovery: false };
+          s.lastArtist = track.artists?.[0]?.id || null;
+          s.startedAt = Date.now();
+          s.listenedMs = Number.isFinite(st.position) ? st.position : 0;
+          s.lastPlayAt = st.paused ? 0 : Date.now();
+          s.hasStarted = !st.paused;
+          s.manualPause = false;
+          s.changingTrack = false;
+          clearEndRecovery();
+          s.used[track.id] = 1;
+          draw();
+          save();
+          return true;
+        }
         function observeSpotifyTrack(st, previousPosition = 0, previousDuration = 0) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
           if (!s.observedTrack) {
             s.observedTrack = id;
+            if (s.now?.t?.id !== id)
+              adoptSpotifyTrack(
+                st,
+                s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st),
+              );
             return;
           }
           if (id === s.observedTrack) {
@@ -1101,25 +1146,16 @@
           }
           let previous = s.observedTrack;
           s.observedTrack = id;
-          if (s.handlingSpotifyTransition || s.now?.t?.id !== previous) return;
+          if (s.handlingSpotifyTransition) return;
           s.handlingSpotifyTransition = true;
           let elapsed = listenedMs(),
-            wasSkipped = elapsed < s.now.t.duration_ms - 2500;
-          if (!s.rated[previous] && wasSkipped) rate(skipScore(), true);
-          let track = s.tracks.find((t) => t.id === id);
-          if (track) {
-            s.now = { t: track, discovery: false };
-            s.lastArtist = track.artists?.[0]?.id || null;
-            s.startedAt = Date.now();
-            s.listenedMs = Number.isFinite(st.position) ? st.position : 0;
-            s.lastPlayAt = st.paused ? 0 : Date.now();
-            s.hasStarted = !st.paused;
-            s.manualPause = false;
-            s.changingTrack = false;
-            clearEndRecovery();
-            s.used[id] = 1;
-            draw();
-            save();
+            wasSkipped =
+              s.now?.t?.id === previous &&
+              elapsed < s.now.t.duration_ms - 2500;
+          if (s.now?.t?.id === previous && !s.rated[previous] && wasSkipped)
+            rate(skipScore(), true);
+          let track = s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st);
+          if (adoptSpotifyTrack(st, track)) {
             s.handlingSpotifyTransition = false;
             return;
           }
