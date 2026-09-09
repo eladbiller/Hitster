@@ -246,6 +246,7 @@
           lastRecoveryAt: 0,
           endRecoveryTimer: null,
           healthTimer: null,
+          transientRetries: 0,
           wakeLock: null,
         };
         try {
@@ -1293,12 +1294,27 @@
             s.startedAt = Date.now();
             s.hasStarted = true;
             s.changingTrack = false;
+            s.transientRetries = 0;
             s.listenedMs = 0;
             s.lastPlayAt = Date.now();
             keepScreenAwake();
             playerMessage("Starting full song…");
             setTimeout(checkPlaybackHealth, 3500);
           } catch (e) {
+            s.changingTrack = false;
+            if (/fetch|network|timeout/i.test(e.message || "")) {
+              s.transientRetries = (s.transientRetries || 0) + 1;
+              if (s.transientRetries <= 2) {
+                playerMessage("Connection hiccup — retrying Spotify playback…");
+                setTimeout(
+                  () => playFull(true),
+                  1700,
+                );
+              } else {
+                playerMessage("Connection interrupted. Tap Play to retry.");
+              }
+              return;
+            }
             playerFailure(e.message);
           }
         }
