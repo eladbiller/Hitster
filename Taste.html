@@ -240,6 +240,12 @@
           spotifyPosition: 0,
           spotifyDuration: 0,
           spotifyWasPlaying: false,
+          manualPause: false,
+          changingTrack: false,
+          recoveryInFlight: false,
+          lastRecoveryAt: 0,
+          endRecoveryTimer: null,
+          healthTimer: null,
           wakeLock: null,
         };
         try {
@@ -839,7 +845,86 @@
           if (!s.lastPlayAt) s.lastPlayAt = Date.now();
           keepScreenAwake();
         }
+        function clearEndRecovery() {
+          if (s.endRecoveryTimer) clearTimeout(s.endRecoveryTimer);
+          s.endRecoveryTimer = null;
+        }
+        async function restorePlayback(reason, advance = false) {
+          if (
+            s.manualPause ||
+            s.recoveryInFlight ||
+            !s.player ||
+            Date.now() - s.lastRecoveryAt < 5000
+          )
+            return;
+          s.recoveryInFlight = true;
+          s.lastRecoveryAt = Date.now();
+          try {
+            playerMessage(
+              advance
+                ? "Spotify stopped at the end — loading the next song…"
+                : "Restoring Spotify playback…",
+            );
+            if (advance) await next(true);
+            else await playFull(true);
+          } catch (e) {
+            console.warn("Playback recovery failed", reason, e);
+          } finally {
+            setTimeout(() => (s.recoveryInFlight = false), 1200);
+          }
+        }
+        function scheduleEndRecovery(id) {
+          clearEndRecovery();
+          s.endRecoveryTimer = setTimeout(async () => {
+            if (s.manualPause || s.observedTrack !== id || !s.player) return;
+            let st = await s.player.getCurrentState().catch(() => null),
+              atEnd =
+                st &&
+                st.paused &&
+                st.track_window?.current_track?.id === id &&
+                st.position >= Math.max(0, (st.duration || 0) - 750);
+            if (!st || atEnd) restorePlayback("ended without a queue transition", true);
+          }, 2200);
+        }
+        async function checkPlaybackHealth() {
+          if (!s.player || !s.hasStarted || s.manualPause || s.recoveryInFlight)
+            return;
+          let st = await s.player.getCurrentState().catch(() => null);
+          if (!st) {
+            // Do not disturb a backgrounded native queue. When the page is
+            // visible again, a missing player state means it is genuinely
+            // stale and should be rebuilt from the adaptive queue.
+            if (document.visibilityState === "visible")
+              restorePlayback("missing player state", true);
+            return;
+          }
+          let id = st.track_window?.current_track?.id,
+            atEnd =
+              st.paused &&
+              st.position >= Math.max(0, (st.duration || 0) - 750);
+          if (id && atEnd) scheduleEndRecovery(id);
+        }
+        function startPlaybackHealthChecks() {
+          if (s.healthTimer) clearInterval(s.healthTimer);
+          s.healthTimer = setInterval(checkPlaybackHealth, 15000);
+        }
+        async function setPlaybackMode() {
+          if (!s.device) return;
+          let base = "https://api.spotify.com/v1/me/player/",
+            opts = {
+              method: "PUT",
+              headers: { Authorization: "Bearer " + s.token },
+            },
+            device = "device_id=" + encodeURIComponent(s.device);
+          await Promise.allSettled([
+            fetch(base + "repeat?state=off&" + device, opts),
+            fetch(base + "shuffle?state=false&" + device, opts),
+          ]);
+        }
         async function next(auto = false) {
+          clearEndRecovery();
+          s.manualPause = false;
+          s.changingTrack = true;
           pauseClock();
           if (s.now) s.player?.pause().catch(() => {});
           if (s.tracks.filter((t) => !s.used[t.id]).length < 4) await fill();
@@ -913,11 +998,14 @@
           if (score < 5 && !implicit) setTimeout(() => next(true), 180);
         }
         async function resumePlayback() {
+          s.manualPause = false;
+          clearEndRecovery();
           if (s.player && s.hasStarted) {
             try {
               await s.player.resume();
               resumeClock();
               playerMessage("Resuming full song…");
+              setTimeout(checkPlaybackHealth, 1800);
               return;
             } catch (e) {
               console.warn("Resume failed", e);
@@ -942,6 +1030,8 @@
           await next(true);
         }
         function mediaPause() {
+          s.manualPause = true;
+          clearEndRecovery();
           pauseClock();
           s.player?.pause();
         }
@@ -981,6 +1071,7 @@
         }
         function playerFailure(m) {
           s.device = null;
+          s.changingTrack = false;
           playerMessage(m || "Full player needs a Spotify Premium reconnect.");
           $("reconnect").classList.remove("hidden");
           console.warn(m);
@@ -988,14 +1079,26 @@
         function implicitScore(elapsed) {
           return elapsed < 20 ? 1 : elapsed < 45 ? 3 : elapsed < 100 ? 5 : 7;
         }
-        function observeSpotifyTrack(st) {
+        function observeSpotifyTrack(st, previousPosition = 0, previousDuration = 0) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
           if (!s.observedTrack) {
             s.observedTrack = id;
             return;
           }
-          if (id === s.observedTrack) return;
+          if (id === s.observedTrack) {
+            // Repeat-one can make Spotify restart the same id at position 0.
+            // The app owns its mix, so replace that loop with a fresh queue.
+            if (
+              !st.paused &&
+              previousDuration &&
+              previousPosition >= previousDuration - 1200 &&
+              st.position < 1200 &&
+              !s.manualPause
+            )
+              restorePlayback("same track restarted", true);
+            return;
+          }
           let previous = s.observedTrack;
           s.observedTrack = id;
           if (s.handlingSpotifyTransition || s.now?.t?.id !== previous) return;
@@ -1011,6 +1114,9 @@
             s.listenedMs = Number.isFinite(st.position) ? st.position : 0;
             s.lastPlayAt = st.paused ? 0 : Date.now();
             s.hasStarted = !st.paused;
+            s.manualPause = false;
+            s.changingTrack = false;
+            clearEndRecovery();
             s.used[id] = 1;
             draw();
             save();
@@ -1076,15 +1182,31 @@
             let on = !st.paused,
               duration = st.duration || s.now?.t?.duration_ms || 0,
               position = Number.isFinite(st.position) ? st.position : 0,
-              wasPlaying = s.spotifyWasPlaying;
+              wasPlaying = s.spotifyWasPlaying,
+              previousPosition = s.spotifyPosition,
+              previousDuration = s.spotifyDuration;
             s.spotifyPosition = position;
             s.spotifyDuration = duration;
             s.spotifyWasPlaying = on;
-            observeSpotifyTrack(st);
+            observeSpotifyTrack(st, previousPosition, previousDuration);
             if (on) {
+              s.manualPause = false;
+              s.changingTrack = false;
+              clearEndRecovery();
               s.hasStarted = true;
               resumeClock();
-            } else pauseClock();
+            } else {
+              pauseClock();
+              // A true end is normally followed by Spotify's next queued
+              // track. If it is not, recover after a short grace period.
+              if (
+                wasPlaying &&
+                !s.manualPause &&
+                !s.changingTrack &&
+                position >= Math.max(0, duration - 750)
+              )
+                scheduleEndRecovery(st.track_window?.current_track?.id || s.observedTrack);
+            }
             if ("mediaSession" in navigator)
               try {
                 navigator.mediaSession.playbackState = on
@@ -1101,12 +1223,16 @@
           });
           s.player.connect().then((ok) => {
             if (!ok) playerFailure("Player connection failed");
+            else startPlaybackHealthChecks();
           });
         }
         async function playFull(auto = false) {
           if (!s.device) return playerFailure("No player device");
           try {
             if (!auto) s.player.activateElement();
+            s.manualPause = false;
+            clearEndRecovery();
+            await setPlaybackMode();
             let t = s.now.t,
               r = await fetch(
                 "https://api.spotify.com/v1/me/player/play?device_id=" +
@@ -1130,10 +1256,12 @@
             }
             s.startedAt = Date.now();
             s.hasStarted = true;
+            s.changingTrack = false;
             s.listenedMs = 0;
             s.lastPlayAt = Date.now();
             keepScreenAwake();
             playerMessage("Starting full song…");
+            setTimeout(checkPlaybackHealth, 3500);
           } catch (e) {
             playerFailure(e.message);
           }
@@ -1165,8 +1293,10 @@
         $("exportTaste").onclick = exportTaste;
         $("importTaste").onchange = (e) => importTaste(e.target.files?.[0]);
         document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible" && s.lastPlayAt)
-            keepScreenAwake();
+          if (document.visibilityState === "visible") {
+            if (s.lastPlayAt) keepScreenAwake();
+            checkPlaybackHealth();
+          }
         });
         $("vibe").value = s.cfg.vibe;
         $("discovery").value = s.cfg.d;
