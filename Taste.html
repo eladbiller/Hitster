@@ -228,6 +228,7 @@
           now: null,
           player: null,
           device: null,
+          playerReady: false,
           startedAt: 0,
           listenedMs: 0,
           lastPlayAt: 0,
@@ -238,6 +239,7 @@
           observedTrack: null,
           pendingSpotifyState: null,
           processingSpotifyState: false,
+          stateProcessPromise: null,
           advancePromise: null,
           playPromise: null,
           pendingTrack: null,
@@ -1069,6 +1071,10 @@
         }
         async function resumePlayback() {
           if (s.advancePromise) return s.advancePromise;
+          if (!s.playerReady) {
+            playerMessage("Spotify is still connecting…");
+            return;
+          }
           s.manualPause = false;
           s.externalPause = false;
           if (s.player && s.hasStarted) {
@@ -1087,6 +1093,7 @@
         function likeCurrent() {
           if (
             s.now &&
+            s.playerReady &&
             !s.pendingTrack &&
             !s.advancePromise &&
             s.observedTrack === s.now.t.id &&
@@ -1105,6 +1112,7 @@
         async function skipCurrent() {
           if (
             !s.now ||
+            !s.playerReady ||
             s.pendingTrack ||
             s.advancePromise ||
             s.playPromise ||
@@ -1215,6 +1223,22 @@
           let ratio = Math.max(0, Math.min(1, position / Math.max(1, duration)));
           return ratio >= 0.985 ? 9 : Math.max(1, Math.min(9, Math.round(1 + 8 * ratio)));
         }
+        async function reconcileRemotePlayback() {
+          try {
+            let r = await spotifyFetch("https://api.spotify.com/v1/me/player");
+            if (r.status === 204 || !r.ok) return;
+            let state = await r.json().catch(() => null);
+            if (!state?.item?.id) return;
+            await queueSpotifyState({
+              paused: !state.is_playing,
+              position: state.progress_ms || 0,
+              duration: state.item.duration_ms || 0,
+              track_window: { current_track: state.item },
+            });
+          } catch (e) {
+            console.warn("Could not reconcile Spotify's active device", e);
+          }
+        }
         async function processSpotifyState(st) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
@@ -1316,9 +1340,9 @@
         }
         function queueSpotifyState(st) {
           s.pendingSpotifyState = st;
-          if (s.processingSpotifyState) return;
+          if (s.processingSpotifyState) return s.stateProcessPromise;
           s.processingSpotifyState = true;
-          Promise.resolve()
+          s.stateProcessPromise = Promise.resolve()
             .then(async () => {
               while (s.pendingSpotifyState) {
                 let latest = s.pendingSpotifyState;
@@ -1328,6 +1352,7 @@
             })
             .catch((e) => console.warn("Spotify state reconciliation failed", e))
             .finally(() => (s.processingSpotifyState = false));
+          return s.stateProcessPromise;
         }
         function initPlayer() {
           if (s.player) return;
@@ -1345,8 +1370,13 @@
             },
             volume: 0.8,
           });
-          s.player.addListener("ready", ({ device_id }) => {
+          s.player.addListener("ready", async ({ device_id }) => {
             s.device = device_id;
+            // Resolve Spotify's already-active device before enabling
+            // controls. Otherwise a late initial state can replace the card
+            // just as the user presses Play or Skip.
+            await reconcileRemotePlayback();
+            s.playerReady = true;
             configureMediaSession(s.now?.t);
             // Do not transfer playback with play:false here: reconnecting or
             // reloading must never pause the user's music. The browser device
@@ -1360,6 +1390,7 @@
           });
           s.player.addListener("not_ready", () => {
             s.device = null;
+            s.playerReady = false;
             playerMessage("Player disconnected. Reconnect Spotify.");
           });
           [
