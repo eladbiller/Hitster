@@ -236,15 +236,17 @@
           legacy: null,
           samples: [],
           observedTrack: null,
-          handlingSpotifyTransition: false,
+          pendingSpotifyState: null,
+          processingSpotifyState: false,
+          advancePromise: null,
+          playPromise: null,
+          playbackGeneration: 0,
           spotifyPosition: 0,
           spotifyDuration: 0,
           spotifyWasPlaying: false,
           manualPause: false,
+          externalPause: false,
           changingTrack: false,
-          recoveryInFlight: false,
-          lastRecoveryAt: 0,
-          endRecoveryTimer: null,
           healthTimer: null,
           transientRetries: 0,
           wakeLock: null,
@@ -539,15 +541,70 @@
             .replaceAll("+", "-")
             .replaceAll("/", "_");
         }
-        async function api(path) {
-          let r = await fetch("https://api.spotify.com/v1" + path, {
-              headers: { Authorization: "Bearer " + s.token },
+        function rememberToken(data) {
+          s.token = data.access_token;
+          localStorage.setItem("hitster_taste_token", s.token);
+          if (data.refresh_token)
+            localStorage.setItem("hitster_taste_refresh_token", data.refresh_token);
+          if (data.expires_in)
+            localStorage.setItem(
+              "hitster_taste_token_expires_at",
+              String(Date.now() + Math.max(0, data.expires_in - 60) * 1000),
+            );
+        }
+        function forgetToken() {
+          s.token = null;
+          [
+            "hitster_taste_token",
+            "hitster_taste_refresh_token",
+            "hitster_taste_token_expires_at",
+          ].forEach((key) => localStorage.removeItem(key));
+        }
+        async function refreshToken() {
+          let refresh = localStorage.getItem("hitster_taste_refresh_token");
+          if (!refresh) return false;
+          let r = await fetch("https://accounts.spotify.com/api/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: refresh,
+                client_id: cid(),
+              }),
             }),
+            data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.access_token) {
+            if (data.error === "invalid_grant") forgetToken();
+            return false;
+          }
+          rememberToken(data);
+          return true;
+        }
+        async function ensureToken() {
+          let expiry = +localStorage.getItem("hitster_taste_token_expires_at") || 0;
+          if (s.token && (!expiry || Date.now() < expiry)) return true;
+          return refreshToken();
+        }
+        async function spotifyFetch(url, options = {}, retry = true) {
+          if (!(await ensureToken())) throw Error("Spotify session expired. Connect again.");
+          let headers = new Headers(options.headers || {});
+          headers.set("Authorization", "Bearer " + s.token);
+          let r = await fetch(url, { ...options, headers });
+          if (r.status === 401 && retry && (await refreshToken()))
+            return spotifyFetch(url, options, false);
+          if (r.status === 429 && retry) {
+            let wait = Math.min(10, +(r.headers.get("Retry-After") || 1));
+            await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+            return spotifyFetch(url, options, false);
+          }
+          return r;
+        }
+        async function api(path) {
+          let r = await spotifyFetch("https://api.spotify.com/v1" + path),
             d = await r.json().catch(() => ({}));
           if (!r.ok) {
             if (r.status === 401) {
-              localStorage.removeItem("hitster_taste_token");
-              s.token = null;
+              forgetToken();
               throw Error("Spotify session expired. Connect again.");
             }
             throw Error(
@@ -593,8 +650,7 @@
               d.error_description ||
                 "Spotify login failed; check the Redirect URI.",
             );
-          s.token = d.access_token;
-          localStorage.setItem("hitster_taste_token", s.token);
+          rememberToken(d);
           history.replaceState({}, "", location.pathname);
         }
         async function enrichArtists(tracks) {
@@ -690,9 +746,9 @@
               .map((t) => ({ t, p: nnPredict(t) }))
               .sort((a, b) => b.p - a.p)
               .map((x) => x.t);
-          // Spotify owns this queue and can continue it while a mobile browser
-          // is backgrounded. Keep it broad enough for discovery and long
-          // enough that a sleeping page never creates a gap between tracks.
+          // Keep a short native queue. Spotify can move through it while a
+          // mobile browser sleeps, but a short look-ahead lets new feedback
+          // affect the mix within a few tracks instead of 35 songs later.
           if (upcoming.length > 6) {
             let discovery = upcoming.splice(
               Math.floor(Math.random() * Math.min(upcoming.length, 24)),
@@ -700,7 +756,7 @@
             )[0];
             upcoming.splice(4, 0, discovery);
           }
-          return [current, ...upcoming.slice(0, 35)].filter(Boolean);
+          return [current, ...upcoming.slice(0, 5)].filter(Boolean);
         }
         function draw() {
           let x = s.now,
@@ -817,7 +873,10 @@
             '<span class="text-xs text-slate-500">No strong pattern yet — the mix stays wide.</span>';
         }
         function listenedMs() {
-          return s.listenedMs + (s.lastPlayAt ? Date.now() - s.lastPlayAt : 0);
+          // Wall-clock time is unreliable when Android throttles the page or
+          // playback is paused elsewhere. Spotify's last reported position is
+          // the only value used to turn a skip into a 1–9 training score.
+          return Math.max(0, s.spotifyPosition || 0);
         }
         function releaseWakeLock() {
           if (s.wakeLock) {
@@ -837,73 +896,19 @@
         }
         function pauseClock() {
           releaseWakeLock();
-          if (s.lastPlayAt) {
-            s.listenedMs += Date.now() - s.lastPlayAt;
-            s.lastPlayAt = 0;
-          }
+          s.lastPlayAt = 0;
         }
         function resumeClock() {
-          if (!s.lastPlayAt) s.lastPlayAt = Date.now();
+          s.lastPlayAt = Date.now();
           keepScreenAwake();
         }
-        function clearEndRecovery() {
-          if (s.endRecoveryTimer) clearTimeout(s.endRecoveryTimer);
-          s.endRecoveryTimer = null;
-        }
-        async function restorePlayback(reason, advance = false) {
-          if (
-            s.manualPause ||
-            s.recoveryInFlight ||
-            !s.player ||
-            Date.now() - s.lastRecoveryAt < 5000
-          )
-            return;
-          s.recoveryInFlight = true;
-          s.lastRecoveryAt = Date.now();
-          try {
-            playerMessage(
-              advance
-                ? "Spotify stopped at the end — loading the next song…"
-                : "Restoring Spotify playback…",
-            );
-            if (advance) await next(true);
-            else await playFull(true);
-          } catch (e) {
-            console.warn("Playback recovery failed", reason, e);
-          } finally {
-            setTimeout(() => (s.recoveryInFlight = false), 1200);
-          }
-        }
-        function scheduleEndRecovery(id) {
-          clearEndRecovery();
-          s.endRecoveryTimer = setTimeout(async () => {
-            if (s.manualPause || s.observedTrack !== id || !s.player) return;
-            let st = await s.player.getCurrentState().catch(() => null),
-              atEnd =
-                st &&
-                st.paused &&
-                st.track_window?.current_track?.id === id &&
-                st.position >= Math.max(0, (st.duration || 0) - 750);
-            if (!st || atEnd) restorePlayback("ended without a queue transition", true);
-          }, 2200);
-        }
         async function checkPlaybackHealth() {
-          if (!s.player || !s.hasStarted || s.manualPause || s.recoveryInFlight)
-            return;
+          if (!s.player || !s.hasStarted) return;
           let st = await s.player.getCurrentState().catch(() => null);
-          if (!st) {
-            // Do not disturb a backgrounded native queue. When the page is
-            // visible again, a missing player state means it is genuinely
-            // stale and should be rebuilt from the adaptive queue.
-            if (document.visibilityState === "visible")
-              restorePlayback("missing player state", true);
-            return;
-          }
-          let id = st.track_window?.current_track?.id,
-            atEnd =
-              st.paused &&
-              st.position >= Math.max(0, (st.duration || 0) - 750);
-          if (id && atEnd) scheduleEndRecovery(id);
+          // Polling only reconciles an SDK state the browser already knows;
+          // it never fabricates a Next action. That prevents a pause near the
+          // end from being mistaken for a completed song.
+          if (st) queueSpotifyState(st);
         }
         function startPlaybackHealthChecks() {
           if (s.healthTimer) clearInterval(s.healthTimer);
@@ -914,39 +919,58 @@
           let base = "https://api.spotify.com/v1/me/player/",
             opts = {
               method: "PUT",
-              headers: { Authorization: "Bearer " + s.token },
             },
             device = "device_id=" + encodeURIComponent(s.device);
           await Promise.allSettled([
-            fetch(base + "repeat?state=off&" + device, opts),
-            fetch(base + "shuffle?state=false&" + device, opts),
+            spotifyFetch(base + "repeat?state=off&" + device, opts),
+            spotifyFetch(base + "shuffle?state=false&" + device, opts),
           ]);
         }
         async function next(auto = false) {
-          clearEndRecovery();
-          s.manualPause = false;
-          s.changingTrack = true;
-          pauseClock();
-          if (s.now) s.player?.pause().catch(() => {});
-          if (s.tracks.filter((t) => !s.used[t.id]).length < 4) await fill();
-          let x = pick();
-          if (!x) {
-            await fill();
-            x = pick();
+          // Hardware controls, the on-screen button, and SDK events can all
+          // ask to advance. One transaction at a time keeps their requests
+          // from choosing two tracks and racing competing /play calls.
+          if (s.advancePromise) return s.advancePromise;
+          let run = (async () => {
+            let generation = ++s.playbackGeneration;
+            s.manualPause = false;
+            s.externalPause = false;
+            s.changingTrack = true;
+            pauseClock();
+            if (s.now) await s.player?.pause().catch(() => {});
+            if (s.tracks.filter((t) => !s.used[t.id]).length < 4) await fill();
+            if (generation !== s.playbackGeneration) return;
+            let x = pick();
+            if (!x) {
+              await fill();
+              x = pick();
+            }
+            if (!x?.t)
+              throw Error("No fresh songs are available yet. Try Play again in a moment.");
+            if (generation !== s.playbackGeneration) return;
+            s.now = x;
+            s.lastArtist = x.t.artists?.[0]?.id || null;
+            s.startedAt = 0;
+            s.listenedMs = 0;
+            s.lastPlayAt = 0;
+            s.hasStarted = false;
+            s.spotifyPosition = 0;
+            s.spotifyDuration = 0;
+            s.spotifyWasPlaying = false;
+            s.used[x.t.id] = 1;
+            draw();
+            save();
+            if (auto) await playFull(true, generation);
+          })();
+          s.advancePromise = run;
+          try {
+            return await run;
+          } finally {
+            if (s.advancePromise === run) {
+              s.advancePromise = null;
+              s.changingTrack = false;
+            }
           }
-          s.now = x;
-          s.lastArtist = x.t.artists?.[0]?.id || null;
-          s.startedAt = 0;
-          s.listenedMs = 0;
-          s.lastPlayAt = 0;
-          s.hasStarted = false;
-          s.spotifyPosition = 0;
-          s.spotifyDuration = 0;
-          s.spotifyWasPlaying = false;
-          s.used[x.t.id] = 1;
-          draw();
-          save();
-          if (auto) await playFull(true);
         }
         function rate(score, implicit = false) {
           let t = s.now.t;
@@ -1000,7 +1024,7 @@
         }
         async function resumePlayback() {
           s.manualPause = false;
-          clearEndRecovery();
+          s.externalPause = false;
           if (s.player && s.hasStarted) {
             try {
               await s.player.resume();
@@ -1032,7 +1056,6 @@
         }
         function mediaPause() {
           s.manualPause = true;
-          clearEndRecovery();
           pauseClock();
           s.player?.pause();
         }
@@ -1113,64 +1136,90 @@
           s.lastPlayAt = st.paused ? 0 : Date.now();
           s.hasStarted = !st.paused;
           s.manualPause = false;
+          s.externalPause = false;
           s.changingTrack = false;
-          clearEndRecovery();
           s.used[track.id] = 1;
           draw();
           save();
           return true;
         }
-        function observeSpotifyTrack(st, previousPosition = 0, previousDuration = 0) {
+        function scoreFromSpotifyPosition(position, duration) {
+          let ratio = Math.max(0, Math.min(1, position / Math.max(1, duration)));
+          return ratio >= 0.985 ? 9 : Math.max(1, Math.min(9, Math.round(1 + 8 * ratio)));
+        }
+        async function processSpotifyState(st) {
           let id = st.track_window?.current_track?.id;
           if (!id) return;
-          if (!s.observedTrack) {
+          let position = Number.isFinite(st.position) ? st.position : 0,
+            duration = st.duration || st.track_window?.current_track?.duration_ms || 0,
+            wasPlaying = s.spotifyWasPlaying,
+            previous = s.observedTrack,
+            previousPosition = s.spotifyPosition,
+            previousDuration = s.spotifyDuration;
+
+          // Do not mark a state as observed until it is actually processed.
+          // If two rapid SDK events arrive, queueSpotifyState keeps the latest
+          // one rather than silently losing a card update.
+          if (previous && id !== previous) {
+            let oldTrack = s.now?.t?.id === previous ? s.now.t : null;
+            if (oldTrack && !s.rated[previous])
+              rate(scoreFromSpotifyPosition(previousPosition, previousDuration || oldTrack.duration_ms), true);
+            let track =
+              s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st);
+            s.observedTrack = id;
+            if (!adoptSpotifyTrack(st, track)) return;
+          } else if (!previous) {
             s.observedTrack = id;
             if (s.now?.t?.id !== id)
               adoptSpotifyTrack(
                 st,
                 s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st),
               );
-            return;
           }
-          if (id === s.observedTrack) {
-            // Repeat-one can make Spotify restart the same id at position 0.
-            // The app owns its mix, so replace that loop with a fresh queue.
-            if (
-              !st.paused &&
-              previousDuration &&
-              previousPosition >= previousDuration - 1200 &&
-              st.position < 1200 &&
-              !s.manualPause
-            )
-              restorePlayback("same track restarted", true);
-            return;
+
+          s.spotifyPosition = position;
+          s.spotifyDuration = duration;
+          s.spotifyWasPlaying = !st.paused;
+          if (!st.paused) {
+            s.manualPause = false;
+            s.externalPause = false;
+            s.changingTrack = false;
+            s.hasStarted = true;
+            resumeClock();
+          } else {
+            // An external Spotify/OS pause is a pause, even at 99%. The SDK
+            // does not expose a reliable ended event, so never manufacture a
+            // Next action from a paused state.
+            if (wasPlaying && !s.manualPause && !s.changingTrack)
+              s.externalPause = true;
+            pauseClock();
           }
-          let previous = s.observedTrack;
-          s.observedTrack = id;
-          if (s.handlingSpotifyTransition) return;
-          s.handlingSpotifyTransition = true;
-          let elapsed = listenedMs(),
-            wasSkipped =
-              s.now?.t?.id === previous &&
-              elapsed < s.now.t.duration_ms - 2500;
-          if (s.now?.t?.id === previous && !s.rated[previous] && wasSkipped)
-            rate(skipScore(), true);
-          else if (s.now?.t?.id === previous && !s.rated[previous])
-            // A completed song that was not explicitly liked is still a
-            // strong positive signal, just below the earbud-like action.
-            rate(9, true);
-          let track = s.tracks.find((t) => t.id === id) || trackFromSpotifyState(st);
-          if (adoptSpotifyTrack(st, track)) {
-            s.handlingSpotifyTransition = false;
-            return;
-          }
-          // A track not supplied by this app is treated as an external
-          // Spotify transition; restore the app's adaptive queue.
-          setTimeout(() =>
-            next(true)
-              .catch((e) => console.warn(e))
-              .finally(() => (s.handlingSpotifyTransition = false)),
-          0);
+          if ("mediaSession" in navigator)
+            try {
+              navigator.mediaSession.playbackState = st.paused ? "paused" : "playing";
+            } catch (e) {}
+          $("pause").disabled = !!st.paused;
+          $("play").textContent = st.paused
+            ? s.hasStarted
+              ? "▶ Resume"
+              : "▶ Play full song"
+            : "● Playing";
+          playerMessage(st.paused ? "Paused." : "Playing full song in this tab.");
+        }
+        function queueSpotifyState(st) {
+          s.pendingSpotifyState = st;
+          if (s.processingSpotifyState) return;
+          s.processingSpotifyState = true;
+          Promise.resolve()
+            .then(async () => {
+              while (s.pendingSpotifyState) {
+                let latest = s.pendingSpotifyState;
+                s.pendingSpotifyState = null;
+                await processSpotifyState(latest);
+              }
+            })
+            .catch((e) => console.warn("Spotify state reconciliation failed", e))
+            .finally(() => (s.processingSpotifyState = false));
         }
         function initPlayer() {
           if (s.player) return;
@@ -1182,30 +1231,22 @@
           playerMessage("Connecting full Spotify player…");
           s.player = new Spotify.Player({
             name: "Hitster Taste",
-            getOAuthToken: (cb) => cb(s.token),
+            getOAuthToken: async (cb) => {
+              if (await ensureToken()) cb(s.token);
+              else playerFailure("Spotify session expired. Connect again.");
+            },
             volume: 0.8,
           });
           s.player.addListener("ready", ({ device_id }) => {
             s.device = device_id;
             configureMediaSession(s.now?.t);
-            fetch("https://api.spotify.com/v1/me/player", {
-              method: "PUT",
-              headers: {
-                Authorization: "Bearer " + s.token,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ device_ids: [device_id], play: false }),
-            })
-              .catch(() => {})
-              .finally(() =>
-                // A reconnected player may already have a Spotify track
-                // before player_state_changed fires. Adopt it immediately so
-                // the card and the completion score stay in sync.
-                s.player
-                  .getCurrentState()
-                  .then((state) => state && observeSpotifyTrack(state))
-                  .catch(() => {}),
-              );
+            // Do not transfer playback with play:false here: reconnecting or
+            // reloading must never pause the user's music. The browser device
+            // becomes active only after an explicit Play/Skip action.
+            s.player
+              .getCurrentState()
+              .then((state) => state && queueSpotifyState(state))
+              .catch(() => {});
             playerMessage("Full player ready — press Play.");
             $("reconnect").classList.add("hidden");
           });
@@ -1229,69 +1270,29 @@
             playerMessage("Browser blocked autoplay. Press Play once more."),
           );
           s.player.addListener("player_state_changed", (st) => {
-            if (!st) return;
-            let on = !st.paused,
-              duration = st.duration || s.now?.t?.duration_ms || 0,
-              position = Number.isFinite(st.position) ? st.position : 0,
-              wasPlaying = s.spotifyWasPlaying,
-              previousPosition = s.spotifyPosition,
-              previousDuration = s.spotifyDuration;
-            s.spotifyPosition = position;
-            s.spotifyDuration = duration;
-            s.spotifyWasPlaying = on;
-            observeSpotifyTrack(st, previousPosition, previousDuration);
-            if (on) {
-              s.manualPause = false;
-              s.changingTrack = false;
-              clearEndRecovery();
-              s.hasStarted = true;
-              resumeClock();
-            } else {
-              pauseClock();
-              // A true end is normally followed by Spotify's next queued
-              // track. If it is not, recover after a short grace period.
-              if (
-                wasPlaying &&
-                !s.manualPause &&
-                !s.changingTrack &&
-                position >= Math.max(0, duration - 750)
-              )
-                scheduleEndRecovery(st.track_window?.current_track?.id || s.observedTrack);
-            }
-            if ("mediaSession" in navigator)
-              try {
-                navigator.mediaSession.playbackState = on
-                  ? "playing"
-                  : "paused";
-              } catch (e) {}
-            $("pause").disabled = !on;
-            $("play").textContent = on
-              ? "● Playing"
-              : s.hasStarted
-                ? "▶ Resume"
-                : "▶ Play full song";
-            playerMessage(on ? "Playing full song in this tab." : "Paused.");
+            if (st) queueSpotifyState(st);
           });
           s.player.connect().then((ok) => {
             if (!ok) playerFailure("Player connection failed");
             else startPlaybackHealthChecks();
           });
         }
-        async function playFull(auto = false) {
+        async function playFull(auto = false, generation = s.playbackGeneration) {
           if (!s.device) return playerFailure("No player device");
-          try {
+          if (s.playPromise) return s.playPromise;
+          let run = (async () => {
+            try {
             if (!auto) s.player.activateElement();
             s.manualPause = false;
-            clearEndRecovery();
+            s.externalPause = false;
             await setPlaybackMode();
-            let t = s.now.t,
-              r = await fetch(
+            if (generation !== s.playbackGeneration) return;
+            let r = await spotifyFetch(
                 "https://api.spotify.com/v1/me/player/play?device_id=" +
                   encodeURIComponent(s.device),
                 {
                   method: "PUT",
                   headers: {
-                    Authorization: "Bearer " + s.token,
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
@@ -1299,6 +1300,7 @@
                   }),
                 },
               );
+            if (generation !== s.playbackGeneration) return;
             if (!r.ok) {
               let d = await r.json().catch(() => ({}));
               return playerFailure(
@@ -1314,22 +1316,26 @@
             keepScreenAwake();
             playerMessage("Starting full song…");
             setTimeout(checkPlaybackHealth, 3500);
-          } catch (e) {
-            s.changingTrack = false;
-            if (/fetch|network|timeout/i.test(e.message || "")) {
-              s.transientRetries = (s.transientRetries || 0) + 1;
-              if (s.transientRetries <= 2) {
-                playerMessage("Connection hiccup — retrying Spotify playback…");
-                setTimeout(
-                  () => playFull(true),
-                  1700,
-                );
-              } else {
-                playerMessage("Connection interrupted. Tap Play to retry.");
+            } catch (e) {
+              s.changingTrack = false;
+              if (/fetch|network|timeout/i.test(e.message || "")) {
+                s.transientRetries = (s.transientRetries || 0) + 1;
+                if (s.transientRetries <= 2) {
+                  playerMessage("Connection hiccup — retrying Spotify playback…");
+                  setTimeout(() => playFull(true), 1700);
+                } else {
+                  playerMessage("Connection interrupted. Tap Play to retry.");
+                }
+                return;
               }
-              return;
+              playerFailure(e.message);
             }
-            playerFailure(e.message);
+          })();
+          s.playPromise = run;
+          try {
+            return await run;
+          } finally {
+            if (s.playPromise === run) s.playPromise = null;
           }
         }
         async function start() {
